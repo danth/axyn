@@ -1,0 +1,4 @@
+chatterbot >=1,<2
+chatterbot_corpus
+
+discord.py >=1.2.5,<2
