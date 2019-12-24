@@ -75,6 +75,7 @@ class Chat(commands.Cog):
         prev = await msg.channel.history(
             # Find the message directly before this
             limit=1,
+            oldest_first=False,
             before=msg,
             # Limit to messages within timeframe
             after=msg.created_at - timedelta(minutes=minutes)
