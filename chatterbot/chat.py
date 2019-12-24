@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+import discord
 from discord.ext import commands
 from chatterbot.conversation import Statement
 
@@ -22,7 +23,7 @@ class Chat(commands.Cog):
         """
 
         logger.info('Received message "%s"', msg.clean_content)
-        if msg.author.bot:
+        if msg.author.bot or msg.type != discord.MessageType.default:
             logger.info('Author is a bot, ignoring')
             return
 
