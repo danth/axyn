@@ -2,8 +2,7 @@ import logging
 import os.path
 
 from discord.ext import commands
-from chatterbot import ChatBot
-from chatterbot.trainers import ChatterBotCorpusTrainer
+from chatterbot import ChatBot, trainers
 
 
 # Setup logging
@@ -37,8 +36,20 @@ bot.chatter = ChatBot(
 if do_train:
     # Do initial training
     logger.info('Training chatterbot')
-    cc_trainer = ChatterBotCorpusTrainer(bot.chatter)
-    cc_trainer.train('chatterbot.corpus.english')
+
+    # Simple list
+    trainer = trainers.ListTrainer(bot.chatter)
+    trainer.train([
+        'Hello',
+        'Hi!',
+        'How are you?',
+        'Fine, what about you?',
+        'I\'m fine, thanks!',
+    ])
+
+    # Chatterbot Corpus
+    cc_trainer = trainers.ChatterBotCorpusTrainer(bot.chatter)
+    cc_trainer.train('chatterbot.corpus')
 
 
 def launch():
