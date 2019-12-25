@@ -35,6 +35,14 @@ class Chat(commands.Cog):
     async def summon(self, ctx):
         """Summon the bot to listen to this channel."""
 
+        if self.summons.get(ctx.channel.id) is not None:
+            # Bot was already summoned
+            await ctx.send(embed=discord.Embed(
+                description="I have already been summoned!",
+                colour=discord.Colour.orange()
+            ))
+            return
+
         # Respond to the command
         resp = await ctx.send(embed=discord.Embed(
             title='Summon frame opened',
@@ -52,6 +60,14 @@ class Chat(commands.Cog):
     @commands.command()
     async def unsummon(self, ctx):
         """Stop listening to this channel."""
+
+        if self.summons.get(ctx.channel.id) is None:
+            # Bot was never summoned
+            await ctx.send(embed=discord.Embed(
+                description="I was never summoned!",
+                colour=discord.Colour.orange()
+            ))
+            return
 
         # Get conversation ID
         id = self.conv_id(ctx.message)
