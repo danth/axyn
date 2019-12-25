@@ -46,7 +46,10 @@ class Chat(commands.Cog):
         # Respond to the command
         resp = await ctx.send(embed=discord.Embed(
             title='Summon frame opened',
-            description='I am now responding to messages in this channel.',
+            description=(
+                'I am now responding to messages in this channel.\n'
+                'Use `c!unsummon` when you are finished talking.'
+            ),
             colour=discord.Colour.green()
         ))
 

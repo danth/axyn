@@ -1,6 +1,7 @@
 import logging
 import os.path
 
+import discord
 from discord.ext import commands
 from chatterbot import ChatBot, trainers
 
@@ -11,7 +12,10 @@ logger = logging.getLogger(__name__)
 
 # Set up Discord bot
 logger.info('Setting up bot')
-bot = commands.Bot(command_prefix='c!')
+bot = commands.Bot(
+    command_prefix='c!',
+    activity=discord.Game('c!summon')
+)
 
 
 # Set up Chatterbot
