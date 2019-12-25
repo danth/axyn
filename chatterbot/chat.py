@@ -10,9 +10,58 @@ from chatterbot.conversation import Statement
 logger = logging.getLogger(__name__)
 
 
+class Summon:
+    def __init__(self, channel, cmd, resp):
+        """
+        A summoning to a channel.
+
+        :param channel: The channel the bot has been summoned to.
+        :param cmd: The user's command message.
+        :param resp: The "summoned" response to the command.
+        """
+
+        self.channel = channel
+        self.cmd = cmd
+        self.resp = resp
+
+
 class Chat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+        self.summons = dict()
+
+    @commands.command()
+    async def summon(self, ctx):
+        """Summon the bot to listen to this channel."""
+
+        # Respond to the command
+        resp = await ctx.send(embed=discord.Embed(
+            title='Summon frame opened',
+            description='I am now responding to messages in this channel.',
+            colour=discord.Colour.green()
+        ))
+
+        # Store the summoning
+        self.summons[ctx.channel.id] = Summon(
+            ctx.channel,
+            ctx.message,
+            resp
+        )
+
+    @commands.command()
+    async def unsummon(self, ctx):
+        """Stop listening to this channel."""
+
+        # Unsummon
+        self.summons[ctx.channel.id] = None
+
+        # Respond to the command
+        resp = await ctx.send(embed=discord.Embed(
+            title='Summon frame closed',
+            description='I am no longer responding to messages in this channel.',
+            colour=discord.Colour.red()
+        ))
 
     @commands.Cog.listener()
     async def on_message(self, msg):
@@ -23,8 +72,16 @@ class Chat(commands.Cog):
         """
 
         logger.info('Received message "%s"', msg.clean_content)
+
+        # Check if the author is a bot / system message
         if msg.author.bot or msg.type != discord.MessageType.default:
             logger.info('Author is a bot, ignoring')
+            return
+
+        # Check if this channel is active
+        # TODO: Close summon frame after 5 minutes of inactivity
+        if not self.active_for(msg):
+            logger.info('Channel is inactive, ignoring')
             return
 
         # Trigger a typing indicator while chatterbot processes
@@ -43,6 +100,19 @@ class Chat(commands.Cog):
         else:
             logger.info('Sending response to channel')
             await msg.channel.send(response.text)
+
+    def active_for(self, msg):
+        """Check if the bot should respond to the given message."""
+
+        # Find the channel's Summon object
+        summon = self.summons.get(msg.channel.id)
+
+        if summon is None:
+            # Not summoned
+            return False
+
+        # Check if the message is after the summon frame opened
+        return msg.created_at > summon.resp.created_at
 
     async def query_statement(self, msg):
         """Build a Statement from the user's message."""
@@ -83,8 +153,13 @@ class Chat(commands.Cog):
 
         if len(prev) > 0:
             # We found a previous message
-            logger.info('Found "%s"', prev[0].clean_content)
-            return  prev[0].clean_content
+            if self.active_for(prev[0]):
+                # Valid!
+                logger.info('Found "%s"', prev[0].clean_content)
+                return  prev[0].clean_content
+            else:
+                # The message is from before the summon frame opened
+                logger.info('No message found within this frame')
         else:
             # We didn't find any messages
             logger.info('No message found')
