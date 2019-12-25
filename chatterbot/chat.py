@@ -53,15 +53,20 @@ class Chat(commands.Cog):
     async def unsummon(self, ctx):
         """Stop listening to this channel."""
 
+        # Get conversation ID
+        id = self.conv_id(ctx.message)
+
         # Unsummon
         self.summons[ctx.channel.id] = None
 
         # Respond to the command
-        resp = await ctx.send(embed=discord.Embed(
+        e = discord.Embed(
             title='Summon frame closed',
             description='I am no longer responding to messages in this channel.',
             colour=discord.Colour.red()
-        ))
+        )
+        e.add_field(name='Conversation ID', value=id)
+        resp = await ctx.send(embed=e)
 
     @commands.Cog.listener()
     async def on_message(self, msg):
@@ -101,6 +106,17 @@ class Chat(commands.Cog):
             logger.info('Sending response to channel')
             await msg.channel.send(response.text)
 
+    def conv_id(self, msg):
+        """Get a conversation ID for the given message."""
+
+        # Find the relevant Summon object
+        summon = self.summons[msg.channel.id]
+        # Get timestamp
+        timestamp = summon.resp.created_at.timestamp()
+
+        # Combine into full ID
+        return f'{msg.channel.id}-{timestamp}'
+
     def active_for(self, msg):
         """Check if the bot should respond to the given message."""
 
@@ -127,7 +143,7 @@ class Chat(commands.Cog):
             msg.clean_content,
             in_response_to=prev,
             # Use Discord IDs for conversation and person
-            conversation=msg.channel.id,
+            conversation=self.conv_id(msg),
             persona=msg.author.id,
         )
 
