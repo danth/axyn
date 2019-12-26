@@ -82,7 +82,7 @@ class Chat(commands.Cog):
         id = self.conv_id(ctx.message)
 
         # Unsummon
-        self.summons[ctx.channel.id] = None
+        del self.summons[ctx.channel.id]
 
         # Respond to the command
         e = discord.Embed(
@@ -121,7 +121,7 @@ class Chat(commands.Cog):
                 id = self.conv_id(summon.resp)
 
                 # Unsummon
-                self.summons[summon.channel.id] = None
+                del self.summons[summon.channel.id]
 
                 # Send a notice to the channel
                 e = discord.Embed(
