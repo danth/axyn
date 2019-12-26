@@ -99,7 +99,7 @@ class Chat(commands.Cog):
 
         logger.debug('Checking auto unsummon...')
 
-        for summon in self.summons.values():
+        for summon in list(self.summons.values()):
             # Get time of last activity in the frame
             last = summon.last_activity.created_at
 
