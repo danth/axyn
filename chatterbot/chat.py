@@ -1,8 +1,8 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from chatterbot.conversation import Statement
 
 
@@ -24,12 +24,18 @@ class Summon:
         self.cmd = cmd
         self.resp = resp
 
+        self.last_activity = resp
+
 
 class Chat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
         self.summons = dict()
+
+        self.auto_unsummon.start()
+
+    def cog_unload(self):
+        self.auto_unsummon.cancel()
 
     @commands.command()
     async def summon(self, ctx):
@@ -87,6 +93,53 @@ class Chat(commands.Cog):
         e.add_field(name='Conversation ID', value=id)
         resp = await ctx.send(embed=e)
 
+    @tasks.loop(minutes=1)
+    async def auto_unsummon(self):
+        """Automatically close inactive frames."""
+
+        logger.debug('Checking auto unsummon...')
+
+        for summon in self.summons.values():
+            # Get time of last activity in the frame
+            last = summon.last_activity.created_at
+
+            logger.debug(
+                'Last activity in %i was "%s"',
+                summon.channel.id,
+                summon.last_activity.clean_content
+            )
+
+            # Check if it was over 2 minutes ago
+            if last <= datetime.now() - timedelta(minutes=2):
+                # Close the frame
+                logger.info(
+                    'Automatically closing summon frame %i after inactivity',
+                    summon.channel.id
+                )
+
+                # Get conversation ID
+                id = self.conv_id(summon.resp)
+
+                # Unsummon
+                self.summons[summon.channel.id] = None
+
+                # Send a notice to the channel
+                e = discord.Embed(
+                    title='Summon frame expired',
+                    description=(
+                        'I am no longer responding to messages in this channel.'
+                        ' This frame was automatically closed after 2 minutes'
+                        ' of inactivity.'
+                    ),
+                    colour=discord.Colour.red()
+                )
+                e.add_field(name='Conversation ID', value=id)
+                resp = await summon.channel.send(embed=e)
+
+    @auto_unsummon.before_loop
+    async def before_auto_unsummon(self):
+        await self.bot.wait_until_ready()
+
     @commands.Cog.listener()
     async def on_message(self, msg):
         """
@@ -103,13 +156,16 @@ class Chat(commands.Cog):
             return
 
         # Check if this channel is active
-        # TODO: Close summon frame after 5 minutes of inactivity
         if not self.active_for(msg):
             logger.info('Channel is inactive, ignoring')
             return
 
         # Trigger a typing indicator while chatterbot processes
         await msg.channel.trigger_typing()
+
+        # Update summon
+        summon = self.summons[msg.channel.id]
+        summon.last_activity = msg
 
         # Build query statement
         statement = await self.query_statement(msg)
@@ -123,7 +179,8 @@ class Chat(commands.Cog):
             logger.info('Bot did not understand, not sending anything.')
         else:
             logger.info('Sending response to channel')
-            await msg.channel.send(response.text)
+            resp = await msg.channel.send(response.text)
+            summon.last_activity = resp
 
     def conv_id(self, msg):
         """Get a conversation ID for the given message."""
