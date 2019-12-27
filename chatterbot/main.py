@@ -55,6 +55,11 @@ if do_train:
     cc_trainer = trainers.ChatterBotCorpusTrainer(bot.chatter)
     cc_trainer.train('chatterbot.corpus')
 
+    # Ubuntu Corpus, only if configured in environment variable
+    if os.environ.get('TRAIN_UBUNTU', False):
+        uc_trainer =  trainers.UbuntuCorpusTrainer(bot.chatter)
+        uc_trainer.train()
+
 
 def launch():
     """Launch the Discord bot."""
