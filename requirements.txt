@@ -1,4 +1,6 @@
 chatterbot >=1,<2
 chatterbot_corpus
 
+nltk >=3.4,<4
+
 discord.py >=1.2.5,<2

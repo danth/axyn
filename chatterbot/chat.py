@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands, tasks
 from chatterbot.conversation import Statement
 
+from caps import capitalize
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -179,7 +181,12 @@ class Chat(commands.Cog):
             logger.info('Bot did not understand, not sending anything.')
         else:
             logger.info('Sending response to channel')
-            resp = await msg.channel.send(response.text)
+
+            # Ensure response has correct capitalization
+            form_text = capitalize(response.text)
+
+            # Send to Discord
+            resp = await msg.channel.send(form_text)
             summon.last_activity = resp
 
     def conv_id(self, msg):
