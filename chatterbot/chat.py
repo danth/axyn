@@ -238,7 +238,7 @@ class Chat(commands.Cog):
         # Get previous message
         prev = await self.get_previous(msg)
 
-        return Statement(
+        statement = Statement(
             # Use message contents for statement text
             msg.clean_content,
             in_response_to=prev,
@@ -246,6 +246,16 @@ class Chat(commands.Cog):
             conversation=self.conv_id(msg),
             persona=msg.author.id,
         )
+
+         # Make sure the statement has its search text saved
+        statement.search_text = self.bot.chatter.storage.tagger \
+            .get_bigram_pair_string(statement.text)
+        # And for in_response_to
+        if statement.in_response_to is not None:
+            statement.search_in_response_to = self.bot.chatter.storage.tagger \
+                .get_bigram_pair_string(statement.in_response_to)
+
+        return statement
 
     async def get_previous(self, msg, minutes=5):
         """
