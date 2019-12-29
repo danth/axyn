@@ -154,34 +154,40 @@ class Chat(commands.Cog):
 
         # Check if the author is a bot / system message
         if msg.author.bot or msg.type != discord.MessageType.default:
+            # Do not learn from or respond to bots
             logger.info('Author is a bot, ignoring')
             return
-
-        # Check if this channel is active
-        if not self.active_for(msg):
-            logger.info('Channel is inactive, ignoring')
+        # Check if the message appears to be a command
+        if msg.content.startswith(self.bot.command_prefix):
+            logger.info(
+                'Message begins with "%s", ignoring',
+                self.bot.command_prefix
+            )
             return
-
-        # Trigger a typing indicator while chatterbot processes
-        await msg.channel.trigger_typing()
-
-        # Update summon
-        summon = self.summons[msg.channel.id]
-        summon.last_activity = msg
 
         # Build query statement
         statement = await self.query_statement(msg)
-
+        # Learn from the statement if possible
         if statement.in_response_to is not None:
-            # Learn the statement as a response to the previous message
             self.bot.chatter.learn_response(
                 statement,
                 statement.in_response_to
             )
 
-        # Get a response
-        logger.info('Getting response')
-        response = self.bot.chatter.get_response(statement)
+        # Check if this channel is active
+        if not self.active_for(msg):
+            # Do not respond to inactive channels, however learn from them
+            logger.info('Channel is inactive, ignoring')
+            return
+
+        # Update summon
+        summon = self.summons[msg.channel.id]
+        summon.last_activity = msg
+
+        # Get a chatbot response
+        async with msg.channel.typing():
+            logger.info('Getting response')
+            response = self.bot.chatter.get_response(statement)
 
         # Send response to channel
         if response.text == '':
@@ -200,12 +206,16 @@ class Chat(commands.Cog):
         """Get a conversation ID for the given message."""
 
         # Find the relevant Summon object
-        summon = self.summons[msg.channel.id]
-        # Get timestamp
-        timestamp = summon.resp.created_at.timestamp()
+        summon = self.summons.get(msg.channel.id)
 
-        # Combine into full ID
-        return f'{msg.channel.id}-{timestamp}'
+        if summon is not None:
+            # Get timestamp
+            timestamp = summon.resp.created_at.timestamp()
+            # Combine into full ID
+            return f'{msg.channel.id}-{timestamp}'
+        else:
+            # The bot was not summoned, do not include timestamp
+            return f'{msg.channel.id}-unsummoned'
 
     def active_for(self, msg):
         """Check if the bot should respond to the given message."""
@@ -261,17 +271,17 @@ class Chat(commands.Cog):
             # We found a previous message
             prev_msg = prev[0]
 
-            if self.active_for(prev_msg):
-                if prev_msg.author != msg.author:
+            if prev_msg.author != msg.author:
+                if len(prev_msg.content) > 0:
                     # Valid!
                     logger.info('Found "%s"', prev_msg.clean_content)
                     return  prev_msg.clean_content
                 else:
-                    # Messages have same author
-                    logger.info('Found message has same author, ignoring')
+                    # No text (possibly an embed however)
+                    logger.info('Found message has no text, ignoring')
             else:
-                # The message is from before the summon frame opened
-                logger.info('No message found within this frame')
+                # Messages have same author
+                logger.info('Found message has same author, ignoring')
         else:
             # We didn't find any messages
             logger.info('No message found')
