@@ -177,7 +177,7 @@ class Chat(commands.Cog):
         # Check if this channel is active
         if not self.active_for(msg):
             # Do not respond to inactive channels, however learn from them
-            logger.info('Channel is inactive, ignoring')
+            logger.info('Channel is inactive, not sending a response')
             return
 
         # Update summon
@@ -271,17 +271,24 @@ class Chat(commands.Cog):
             # We found a previous message
             prev_msg = prev[0]
 
-            if prev_msg.author != msg.author:
-                if len(prev_msg.content) > 0:
-                    # Valid!
-                    logger.info('Found "%s"', prev_msg.clean_content)
-                    return  prev_msg.clean_content
-                else:
-                    # No text (possibly an embed however)
-                    logger.info('Found message has no text, ignoring')
-            else:
-                # Messages have same author
-                logger.info('Found message has same author, ignoring')
+            if prev_msg.author == msg.author:
+                logger.info('Found message has same author, not returning')
+                return
+
+            if prev_msg.author.bot and prev_msg.author != self.bot.user:
+                logger.info(
+                    'Found message is from a bot other than '
+                    'ourself, not returning'
+                )
+                return
+
+            if len(prev_msg.content) == 0:
+                logger.info('Found message has no text, not returning')
+                return
+
+            # This message is valid!
+            logger.info('Found "%s"', prev_msg.clean_content)
+            return  prev_msg.clean_content
         else:
             # We didn't find any messages
             logger.info('No message found')
