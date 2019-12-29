@@ -172,6 +172,13 @@ class Chat(commands.Cog):
         # Build query statement
         statement = await self.query_statement(msg)
 
+        if statement.in_response_to is not None:
+            # Learn the statement as a response to the previous message
+            self.bot.chatter.learn_response(
+                statement,
+                statement.in_response_to
+            )
+
         # Get a response
         logger.info('Getting response')
         response = self.bot.chatter.get_response(statement)
@@ -252,10 +259,16 @@ class Chat(commands.Cog):
 
         if len(prev) > 0:
             # We found a previous message
-            if self.active_for(prev[0]):
-                # Valid!
-                logger.info('Found "%s"', prev[0].clean_content)
-                return  prev[0].clean_content
+            prev_msg = prev[0]
+
+            if self.active_for(prev_msg):
+                if prev_msg.author != msg.author:
+                    # Valid!
+                    logger.info('Found "%s"', prev_msg.clean_content)
+                    return  prev_msg.clean_content
+                else:
+                    # Messages have same author
+                    logger.info('Found message has same author, ignoring')
             else:
                 # The message is from before the summon frame opened
                 logger.info('No message found within this frame')

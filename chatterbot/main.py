@@ -34,7 +34,9 @@ bot.chatter = ChatBot(
             'default_response': str(),
             'maximum_similarity_threshold': 0.90
         }
-    ]
+    ],
+    # Disable default learning as we will only store select statements
+    read_only=True,
 )
 
 if do_train:
