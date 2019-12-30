@@ -249,16 +249,17 @@ class Chat(commands.Cog):
     def should_learn(self, msg):
         """Check if the given message should be learned from."""
 
-        # Check channel names for bad strings
-        if 'spam' in msg.channel.name:
-            logger.info('Channel name contains "spam", not learning')
-            return False
-        if 'command' in msg.channel.name: # Will also catch "commands"
-            logger.info('Channel name contains "command", not learning')
-            return False
-        if 'meme' in msg.channel.name:
-            logger.info('Channel name contains "meme", not learning')
-            return False
+        if not self.active_for(msg):
+            # Check channel names for bad strings
+            if 'spam' in msg.channel.name:
+                logger.info('Channel name contains "spam", not learning')
+                return False
+            if 'command' in msg.channel.name: # Will also catch "commands"
+                logger.info('Channel name contains "command", not learning')
+                return False
+            if 'meme' in msg.channel.name:
+                logger.info('Channel name contains "meme", not learning')
+                return False
 
         return True
 
