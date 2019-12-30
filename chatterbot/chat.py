@@ -31,6 +31,22 @@ class Summon:
         self.last_activity = resp
 
 
+COMMAND_PREFIXES = [
+    '!', '?', '&', '-', '$', '£',
+    'c!', 'pm!', 'p.', 'v.', 'vc/'
+]
+
+def is_command(text):
+    """Check if the given text appears to be a command."""
+
+    for prefix in COMMAND_PREFIXES:
+        # Compare against each stored prefix
+        if text.startswith(prefix):
+            return True
+
+    return False
+
+
 class Chat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -162,11 +178,8 @@ class Chat(commands.Cog):
             logger.info('Author is a bot, ignoring')
             return
         # Check if the message appears to be a command
-        if msg.content.startswith(self.bot.command_prefix):
-            logger.info(
-                'Message begins with "%s", ignoring',
-                self.bot.command_prefix
-            )
+        if is_command(msg.content):
+            logger.info('Message appears to be a bot command, ignoring')
             return
 
         # Build query statement
