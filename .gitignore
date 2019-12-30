@@ -132,3 +132,5 @@ dmypy.json
 # Chatterbot
 database.sqlite3*
 sentence_tokenizer.pickle
+
+trainers.txt

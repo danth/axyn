@@ -1,4 +1,5 @@
 import logging
+import os.path
 
 import discord
 from discord.ext import commands
@@ -9,12 +10,34 @@ from chatterbot.trainers import ListTrainer
 logger = logging.getLogger(__name__)
 
 
+async def can_train(ctx):
+    """Check if the user is allowed to train the bot."""
+
+    # The bot owner can always train
+    app_info = await ctx.bot.application_info()
+    if ctx.author == app_info.owner:
+        return True
+
+    # Additional users can be specified in trainers.txt
+    if not os.path.exists('trainers.txt'):
+        return False
+
+    # trainers.txt has one ID on each line
+    with open('trainers.txt') as f:
+        for line in f:
+            # Check if this line has the user's ID
+            if str(ctx.author.id) == line.strip():
+                return True
+
+    return False
+
+
 class Training(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
-    @commands.is_owner()
+    @commands.check(can_train)
     async def train(self, ctx, *, training):
         """
         Train the bot with an example conversation.
