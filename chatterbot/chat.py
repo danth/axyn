@@ -170,47 +170,75 @@ class Chat(commands.Cog):
         If the bot doesn't understand, no message will be sent.
         """
 
-        logger.info('Received message "%s"', msg.clean_content)
-
-        # Check if the author is a bot / system message
-        if msg.author.bot or msg.type != discord.MessageType.default:
-            # Do not learn from or respond to bots
-            logger.info('Author is a bot, ignoring')
-            return
-        # Check if the message appears to be a command
-        if is_command(msg.content):
-            logger.info('Message appears to be a bot command, ignoring')
-            return
+        logger.info('Receved message "%s"', msg.clean_content)
+        if self.should_ignore(msg): return
 
         # Build query statement
         statement = await self.query_statement(msg)
-        # Learn from the statement if possible
-        if statement.in_response_to is not None:
+
+        if self.should_respond(msg):
+            # Update summon
+            summon = self.summons[msg.channel.id]
+            summon.last_activity = msg
+
+            # Get a chatbot response
+            async with msg.channel.typing():
+                logger.info('Getting response')
+                response = self.bot.chatter.get_response(statement)
+
+            # Send to Discord
+            await self.send_response(
+                response,
+                msg.channel,
+                summon.debug
+            )
+
+        if (statement.in_response_to is not None) and self.should_learn(msg):
+            # Learn from the statement
             self.bot.chatter.learn_response(
                 statement,
                 statement.in_response_to
             )
 
-        # Check if this channel is active
+    def should_ignore(self, msg):
+        """Check if the given message should be completely ignored."""
+
+        # Check if the author is a bot / system message
+        if msg.author.bot or msg.type != discord.MessageType.default:
+            logger.info('Author is a bot, ignoring')
+            return True
+
+        if is_command(msg.content):
+            logger.info('Message appears to be a bot command, ignoring')
+            return True
+
+        return False
+
+    def should_respond(self, msg):
+        """Check if the given message should be responded to."""
+
         if not self.active_for(msg):
-            # Do not respond to inactive channels, however learn from them
             logger.info('Channel is inactive, not sending a response')
-            return
+            return False
 
-        # Update summon
-        summon = self.summons[msg.channel.id]
-        summon.last_activity = msg
+        return True
 
-        # Get a chatbot response
-        async with msg.channel.typing():
-            logger.info('Getting response')
-            response = self.bot.chatter.get_response(statement)
-        # Send to Discord
-        await self.send_response(
-            response,
-            msg.channel,
-            summon.debug
-        )
+    def should_learn(self, msg):
+        """Check if the given message should be learned from."""
+
+        # TODO: Check if this is a spam or commands channel
+        return True
+
+    def active_for(self, msg):
+        """Check if the given message is within an active summon frame."""
+
+        # Find the channel's Summon object
+        summon = self.summons.get(msg.channel.id)
+        if summon is None:
+            return False
+
+        # Check if the message is after the summon frame opened
+        return msg.created_at > summon.resp.created_at
 
     async def send_response(self, response, channel, debug=False):
         """
@@ -267,19 +295,6 @@ class Chat(commands.Cog):
         else:
             # The bot was not summoned, do not include timestamp
             return f'{msg.channel.id}-unsummoned'
-
-    def active_for(self, msg):
-        """Check if the bot should respond to the given message."""
-
-        # Find the channel's Summon object
-        summon = self.summons.get(msg.channel.id)
-
-        if summon is None:
-            # Not summoned
-            return False
-
-        # Check if the message is after the summon frame opened
-        return msg.created_at > summon.resp.created_at
 
     async def query_statement(self, msg):
         """Build a Statement from the user's message."""
