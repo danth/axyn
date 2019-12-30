@@ -231,6 +231,10 @@ class Chat(commands.Cog):
             logger.info('Author is a bot, ignoring')
             return True
 
+        if len(msg.content) == 0:
+            logger.info('Message has no text, ignoring')
+            return True
+
         if is_command(msg.content):
             logger.info('Message appears to be a bot command, ignoring')
             return True
