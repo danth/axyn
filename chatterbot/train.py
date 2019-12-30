@@ -78,8 +78,8 @@ class Training(commands.Cog):
             title='Training Completed',
             description=f'```\n{conversation}```',
         )
-        e.set_author(
-            name=ctx.author.name,
+        e.set_footer(
+            text=ctx.author.name,
             icon_url=ctx.author.avatar_url
         )
         await ctx.send(embed=e)

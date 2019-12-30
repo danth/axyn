@@ -79,8 +79,8 @@ class Chat(commands.Cog):
             ),
             colour=discord.Colour.green()
         )
-        e.set_author(
-            name=ctx.author.name,
+        e.set_footer(
+            text=ctx.author.name,
             icon_url=ctx.author.avatar_url
         )
         resp = await ctx.send(embed=e)
@@ -125,8 +125,8 @@ class Chat(commands.Cog):
             colour=discord.Colour.red()
         )
         e.add_field(name='Conversation ID', value=id)
-        e.set_author(
-            name=ctx.author.name,
+        e.set_footer(
+            text=ctx.author.name,
             icon_url=ctx.author.avatar_url
         )
         resp = await ctx.send(embed=e)
