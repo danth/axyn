@@ -71,14 +71,19 @@ class Chat(commands.Cog):
             return
 
         # Respond to the command
-        resp = await ctx.send(embed=discord.Embed(
+        e = discord.Embed(
             title='Summon frame opened',
             description=(
                 'I am now responding to messages in this channel.\n'
                 'Use `c!unsummon` when you are finished talking.'
             ),
             colour=discord.Colour.green()
-        ))
+        )
+        e.set_author(
+            name=ctx.author.name,
+            icon_url=ctx.author.avatar_url
+        )
+        resp = await ctx.send(embed=e)
 
         # Store the summoning
         self.summons[ctx.channel.id] = Summon(
@@ -87,6 +92,13 @@ class Chat(commands.Cog):
             resp,
             flags['debug']
         )
+
+        try:
+            # Delete the command message
+            await ctx.message.delete()
+        except discord.Forbidden:
+            # It doesn't matter if we can't
+            pass
 
     @commands.command()
     async def unsummon(self, ctx):
@@ -113,7 +125,18 @@ class Chat(commands.Cog):
             colour=discord.Colour.red()
         )
         e.add_field(name='Conversation ID', value=id)
+        e.set_author(
+            name=ctx.author.name,
+            icon_url=ctx.author.avatar_url
+        )
         resp = await ctx.send(embed=e)
+
+        try:
+            # Delete the command message
+            await ctx.message.delete()
+        except discord.Forbidden:
+            # It doesn't matter if we can't
+            pass
 
     @tasks.loop(minutes=1)
     async def auto_unsummon(self):
