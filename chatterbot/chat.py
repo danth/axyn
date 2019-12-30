@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands, tasks, flags
 from chatterbot.conversation import Statement
 
 from caps import capitalize
@@ -13,18 +13,20 @@ logger = logging.getLogger(__name__)
 
 
 class Summon:
-    def __init__(self, channel, cmd, resp):
+    def __init__(self, channel, cmd, resp, debug=False):
         """
         A summoning to a channel.
 
         :param channel: The channel the bot has been summoned to.
         :param cmd: The user's command message.
         :param resp: The "summoned" response to the command.
+        :param debug: Whether this frame is in debug mode.
         """
 
         self.channel = channel
         self.cmd = cmd
         self.resp = resp
+        self.debug = debug
 
         self.last_activity = resp
 
@@ -39,8 +41,9 @@ class Chat(commands.Cog):
     def cog_unload(self):
         self.auto_unsummon.cancel()
 
-    @commands.command()
-    async def summon(self, ctx):
+    @flags.add_flag('--debug', action='store_const', const=True)
+    @flags.command()
+    async def summon(self, ctx, **flags):
         """Summon the bot to listen to this channel."""
 
         if self.summons.get(ctx.channel.id) is not None:
@@ -65,7 +68,8 @@ class Chat(commands.Cog):
         self.summons[ctx.channel.id] = Summon(
             ctx.channel,
             ctx.message,
-            resp
+            resp,
+            flags['debug']
         )
 
     @commands.command()
@@ -188,10 +192,34 @@ class Chat(commands.Cog):
         async with msg.channel.typing():
             logger.info('Getting response')
             response = self.bot.chatter.get_response(statement)
+        # Send to Discord
+        await self.send_response(
+            response,
+            msg.channel,
+            summon.debug
+        )
 
-        # Send response to channel
+    async def send_response(self, response, channel, debug=False):
+        """
+        Send the response to the given channel.
+
+        :param response: Statement object to send
+        :param channel: Channel to send to
+        :param debug: If True, attach a debugging embed
+        """
+
         if response.text == '':
-            logger.info('Bot did not understand, not sending anything.')
+            logger.info('Bot did not understand')
+
+            if debug:
+                # Debug mode, so send a message saying nothing was found
+                logger.info('Sent "no response found" message')
+                await channel.send(embed=discord.Embed(
+                    description='No responses found'
+                ))
+            else:
+                # Do not send anything
+                logger.info('No response was sent')
         else:
             logger.info('Sending response to channel')
 
@@ -199,8 +227,18 @@ class Chat(commands.Cog):
             form_text = capitalize(response.text)
 
             # Send to Discord
-            resp = await msg.channel.send(form_text)
-            summon.last_activity = resp
+            if debug:
+                # Attach debug information
+                e = discord.Embed()
+                e.add_field(name='Confidence', value=response.confidence)
+                # Send
+                resp = await channel.send(form_text, embed=e)
+            else:
+                # Just send raw message
+                resp = await channel.send(form_text)
+
+            # Update summon with new message
+            self.summons[channel.id].last_activity = resp
 
     def conv_id(self, msg):
         """Get a conversation ID for the given message."""
