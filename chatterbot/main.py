@@ -3,6 +3,7 @@ import os.path
 
 from discord.ext import commands
 from chatterbot import ChatBot, trainers
+from chatterbot.response_selection import get_most_frequent_response
 
 
 # Setup logging
@@ -31,6 +32,7 @@ bot.chatter = ChatBot(
             'maximum_similarity_threshold': 0.90
         }
     ],
+    response_selection_method=get_most_frequent_response,
     # Disable default learning as we will only store select statements
     read_only=True,
 )
