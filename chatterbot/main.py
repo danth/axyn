@@ -1,7 +1,6 @@
 import logging
 import os.path
 
-import discord
 from discord.ext import commands
 from chatterbot import ChatBot, trainers
 
@@ -12,10 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Set up Discord bot
 logger.info('Setting up bot')
-bot = commands.Bot(
-    command_prefix='c!',
-    activity=discord.Game('c!summon')
-)
+bot = commands.Bot(command_prefix='c!')
 
 
 # Set up Chatterbot
@@ -71,6 +67,7 @@ def launch():
     bot.load_extension('help')
     bot.load_extension('chat')
     bot.load_extension('train')
+    bot.load_extension('status')
 
     # Connect to Discord and start bot
     logger.info('Starting bot')
