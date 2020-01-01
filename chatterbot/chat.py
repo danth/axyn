@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+import emoji
 import discord
 from discord.ext import commands, tasks, flags
 from chatterbot.conversation import Statement
@@ -210,11 +211,7 @@ class Chat(commands.Cog):
                 response = self.bot.chatter.get_response(statement)
 
             # Send to Discord
-            await self.send_response(
-                response,
-                msg.channel,
-                summon.debug
-            )
+            await self.send_response(response, msg, summon.debug)
 
         if (statement.in_response_to is not None) and self.should_learn(msg):
             # Learn from the statement
@@ -278,12 +275,12 @@ class Chat(commands.Cog):
         # Check if the message is after the summon frame opened
         return msg.created_at > summon.resp.created_at
 
-    async def send_response(self, response, channel, debug=False):
+    async def send_response(self, response, msg, debug=False):
         """
         Send the response to the given channel.
 
         :param response: Statement object to send
-        :param channel: Channel to send to
+        :param msg: Message we are responding to
         :param debug: If True, attach a debugging embed
         """
 
@@ -293,7 +290,7 @@ class Chat(commands.Cog):
             if debug:
                 # Debug mode, so send a message saying nothing was found
                 logger.info('Sent "no response found" message')
-                await channel.send(embed=discord.Embed(
+                await msg.channel.send(embed=discord.Embed(
                     description='No responses found'
                 ))
             else:
@@ -311,13 +308,24 @@ class Chat(commands.Cog):
                 e = discord.Embed()
                 e.add_field(name='Confidence', value=response.confidence)
                 # Send
-                resp = await channel.send(form_text, embed=e)
+                resp = await msg.channel.send(form_text, embed=e)
             else:
-                # Just send raw message
-                resp = await channel.send(form_text)
+                if form_text in emoji.UNICODE_EMOJI:
+                    try:
+                        # Response is a single emoji, use as reaction
+                        await msg.add_reaction(form_text)
+                    except discord.Forbidden:
+                        # Send as normal message instead
+                        resp = await msg.channel.send(form_text)
+                    else:
+                        # We do not need to update the summon activity
+                        return
+                else:
+                    # Just send raw message
+                    resp = await msg.channel.send(form_text)
 
             # Update summon with new message
-            self.summons[channel.id].last_activity = resp
+            self.summons[msg.channel.id].last_activity = resp
 
     def conv_id(self, msg):
         """Get a conversation ID for the given message."""

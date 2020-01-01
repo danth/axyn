@@ -5,3 +5,4 @@ nltk >=3.4,<4
 
 discord.py >=1.2.5,<2
 discord-flags >=2,<3
+emoji >=0.5,<1
