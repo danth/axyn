@@ -220,6 +220,33 @@ class Chat(commands.Cog):
                 statement.in_response_to
             )
 
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        """Learn unicode emoji reactions as responses."""
+
+        logger.info(
+            'Received reaction on "%s"',
+            reaction.message.clean_content
+        )
+
+        # Use original message for ignore checking
+        if self.should_learn_reaction(reaction.message, user):
+            # Check if this is a unicode emoji or a custom one
+            if type(reaction.emoji) == str:
+                # Build a Statement
+                statement = Statement(
+                    text=reaction.emoji,
+                    in_response_to=reaction.message.clean_content,
+                    conversation=self.conv_id(reaction.message),
+                    persona=user.id,
+                )
+
+                # Learn the emoji as a response
+                self.bot.chatter.learn_response(
+                    statement,
+                    statement.in_response_to
+                )
+
     def should_ignore(self, msg):
         """Check if the given message should be completely ignored."""
 
@@ -261,6 +288,28 @@ class Chat(commands.Cog):
             if 'meme' in msg.channel.name:
                 logger.info('Channel name contains "meme", not learning')
                 return False
+
+        return True
+
+    def should_learn_reaction(self, msg, reaction_user):
+        """Check if a reaction on the given message should be learned."""
+
+        if reaction_user == msg.author:
+            logger.info('Reaction is from message author, not learning it')
+            return False
+
+        if msg.author.bot and msg.author != self.bot.user:
+            logger.info('Message is from foreign bot, not learning reaction')
+            return False
+
+        if len(msg.content) == 0:
+            logger.info('Message has no text, not learning reaction')
+            return False
+
+        if is_command(msg.content):
+            logger.info(
+                'Message appears to be a bot command, not learning reaction')
+            return False
 
         return True
 
