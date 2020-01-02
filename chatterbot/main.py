@@ -66,6 +66,7 @@ def launch():
 
     # Load extensions
     logger.info('Loading extensions')
+    bot.load_extension('chickennuggets.errors')
     bot.load_extension('chickennuggets.help')
     bot.load_extension('chat')
     bot.load_extension('train')
