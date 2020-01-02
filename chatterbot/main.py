@@ -28,7 +28,6 @@ bot.chatter = ChatBot(
         # General responses learned in database
         {
             'import_path': 'chatterbot.logic.BestMatch',
-            'default_response': str(),
             'maximum_similarity_threshold': 0.90
         }
     ],

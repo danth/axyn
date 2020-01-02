@@ -210,8 +210,19 @@ class Chat(commands.Cog):
                 logger.info('Getting response')
                 response = self.bot.chatter.get_response(statement)
 
-            # Send to Discord
-            await self.send_response(response, msg, summon.debug)
+            if response.confidence >= 0.5:
+                # Send to Discord
+                await self.send_response(response, msg, summon.debug)
+            else:
+                # Bot is uncertain
+                logger.info('Bot did not understand')
+
+                if summon.debug:
+                    # Send a debug message
+                    await self.debug_no_response(response, msg)
+                else:
+                    # Do not send anything
+                    logger.info('No message sent')
 
         if (statement.in_response_to is not None) and self.should_learn(msg):
             # Learn from the statement
@@ -324,6 +335,26 @@ class Chat(commands.Cog):
         # Check if the message is after the summon frame opened
         return msg.created_at > summon.resp.created_at
 
+    async def debug_no_response(self, response, msg):
+        """
+        Send debug information when no good response was found.
+
+        :param response: The uncertain response returned by Chatterbot
+        :param msg: Message we are responding to
+        """
+
+        embed = discord.Embed(
+            title='No responses found',
+            description='The returned response had a low confidence.'
+        )
+        embed.add_field(
+            name='Confidence',
+            value=response.confidence
+        )
+        await msg.channel.send(embed=embed)
+
+        logger.info('Sent "no response found" message')
+
     async def send_response(self, response, msg, debug=False):
         """
         Send the response to the given channel.
@@ -333,48 +364,31 @@ class Chat(commands.Cog):
         :param debug: If True, attach a debugging embed
         """
 
-        if response.text == '':
-            logger.info('Bot did not understand')
+        logger.info('Sending response to channel')
 
-            if debug:
-                # Debug mode, so send a message saying nothing was found
-                logger.info('Sent "no response found" message')
-                await msg.channel.send(embed=discord.Embed(
-                    description='No responses found'
-                ))
-            else:
-                # Do not send anything
-                logger.info('No response was sent')
+        # Ensure response has correct capitalization
+        form_text = capitalize(response.text)
+
+        if debug:
+            # Attach debug information
+            e = discord.Embed()
+            e.add_field(name='Confidence', value=response.confidence)
+            # Send
+            self.summons[msg.channel.id].last_activity = \
+                await msg.channel.send(form_text, embed=e)
         else:
-            logger.info('Sending response to channel')
-
-            # Ensure response has correct capitalization
-            form_text = capitalize(response.text)
-
-            # Send to Discord
-            if debug:
-                # Attach debug information
-                e = discord.Embed()
-                e.add_field(name='Confidence', value=response.confidence)
-                # Send
-                resp = await msg.channel.send(form_text, embed=e)
-            else:
-                if form_text in emoji.UNICODE_EMOJI:
-                    try:
-                        # Response is a single emoji, use as reaction
-                        await msg.add_reaction(form_text)
-                    except discord.Forbidden:
-                        # Send as normal message instead
-                        resp = await msg.channel.send(form_text)
-                    else:
-                        # We do not need to update the summon activity
-                        return
+            # Attempt to send emojis as a reaction
+            if form_text in emoji.UNICODE_EMOJI:
+                try:
+                    await msg.add_reaction(form_text)
+                except discord.Forbidden:
+                    pass # Continue to send as message
                 else:
-                    # Just send raw message
-                    resp = await msg.channel.send(form_text)
+                    return # Reaction added successfully
 
-            # Update summon with new message
-            self.summons[msg.channel.id].last_activity = resp
+            # Just send raw message
+            self.summons[msg.channel.id].last_activity = \
+                await msg.channel.send(form_text)
 
     def conv_id(self, msg):
         """Get a conversation ID for the given message."""
