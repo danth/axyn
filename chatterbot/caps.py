@@ -1,4 +1,4 @@
-# Taken from my Bolt bot
+# Originally from my Bolt bot, with modifications
 # https://github.com/AlphaMycelium/discord-bolt/blob/1d64f7e19385bc0a13ac88c027db16a5a1f26c9b/bolt/autocaps.py#L7
 
 import nltk
@@ -18,8 +18,15 @@ def capitalize(text):
     # Split sentences into a list
     sentences = sent_tokenizer.tokenize(text)
 
-    # Capitalize each sentence
-    sentences = [s[0].upper() + s[1:] for s in sentences]
+    for i, sentence in enumerate(sentences):
+
+        # Ignore URLs
+        if sentence.startswith('http'):
+            continue
+
+        # Capitalize the sentence
+        sentence = sentence[0].upper() + sentence[1:]
+        sentences[i] = sentence
 
     # Stitch back together and return
     return ' '.join(sentences)
