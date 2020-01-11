@@ -5,6 +5,8 @@ from discord.ext import commands
 from chatterbot import ChatBot, trainers
 from chatterbot.response_selection import get_most_frequent_response
 
+from datastore import get_path
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -15,13 +17,20 @@ logger.info('Setting up bot')
 bot = commands.Bot(command_prefix='c!')
 
 
+# Find database
+db_file =  get_path('database.sqlite3')
+logger.info('Database at %s', db_file)
+
+do_train = not os.path.exists(db_file)
+if do_train:
+    logger.info('Database does not yet exist, running initial trainers')
+
 # Set up Chatterbot
-do_train = not os.path.exists('database.sqlite3')
 bot.chatter = ChatBot(
     'Chatterbot',
     # Store data in SQLite
     storage_adapter='chatterbot.storage.SQLStorageAdapter',
-    database_uri='sqlite:///database.sqlite3',
+    database_uri=f'sqlite:///{db_file}',
     logic_adapters=[
         # Allow math questions such as "What is 5 squared?"
         'chatterbot.logic.MathematicalEvaluation',

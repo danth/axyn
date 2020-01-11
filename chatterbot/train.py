@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands
 from chatterbot.trainers import ListTrainer
 
+from datastore import get_path
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -19,11 +21,12 @@ async def can_train(ctx):
         return True
 
     # Additional users can be specified in trainers.txt
-    if not os.path.exists('trainers.txt'):
+    trainers_file = get_path('trainers.txt')
+    if not os.path.exists(trainers_file):
         return False
 
     # trainers.txt has one ID on each line
-    with open('trainers.txt') as f:
+    with open(trainers_file) as f:
         for line in f:
             # Check if this line has the user's ID
             if str(ctx.author.id) == line.strip():
