@@ -34,7 +34,7 @@ class Summon:
 
 COMMAND_PREFIXES = [
     '!', '?', '&', '-', '$', '£',
-    'c!', 'pm!', 'p.', 'v.', 'vc/'
+    'a!', 'c!', 'pm!', 'p.', 'v.', 'vc/'
 ]
 
 def is_command(text):
@@ -339,7 +339,7 @@ class Chat(commands.Cog):
         """
         Send debug information when no good response was found.
 
-        :param response: The uncertain response returned by Chatterbot
+        :param response: The uncertain response returned by Axyn
         :param msg: Message we are responding to
         """
 

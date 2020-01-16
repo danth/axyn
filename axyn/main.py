@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Set up Discord bot
 logger.info('Setting up bot')
-bot = commands.Bot(command_prefix='c!')
+bot = commands.Bot(command_prefix='a!')
 
 
 # Find database
@@ -27,7 +27,7 @@ if do_train:
 
 # Set up Chatterbot
 bot.chatter = ChatBot(
-    'Chatterbot',
+    'Axyn',
     # Store data in SQLite
     storage_adapter='chatterbot.storage.SQLStorageAdapter',
     database_uri=f'sqlite:///{db_file}',
