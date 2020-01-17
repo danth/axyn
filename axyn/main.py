@@ -4,6 +4,7 @@ import os.path
 from discord.ext import commands
 from chatterbot import ChatBot, trainers
 from chatterbot.response_selection import get_most_frequent_response
+import chickennuggets
 
 from datastore import get_path
 
@@ -74,8 +75,7 @@ def launch():
 
     # Load extensions
     logger.info('Loading extensions')
-    bot.load_extension('chickennuggets.errors')
-    bot.load_extension('chickennuggets.help')
+    chickennuggets.load(bot, ['help', 'errors'])
     bot.load_extension('chat')
     bot.load_extension('train')
     bot.load_extension('status')
