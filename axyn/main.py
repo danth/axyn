@@ -79,6 +79,7 @@ def launch():
     bot.load_extension('chat')
     bot.load_extension('train')
     bot.load_extension('status')
+    bot.load_extension('analyse')
 
     # Connect to Discord and start bot
     logger.info('Starting bot')
