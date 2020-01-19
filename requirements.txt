@@ -1,14 +1,2 @@
-chatterbot >=1,<2
-chatterbot_corpus
-
-nltk >=3.4,<4
-spacy >=2,<3
-
+.
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.1.0/en_core_web_sm-2.1.0.tar.gz
-
-cairosvg >=2,<3
-
-discord.py >=1.2.5,<2
-discord-flags >=2,<3
-emoji >=0.5,<1
-chickennuggets >=1,<2
