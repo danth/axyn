@@ -2,7 +2,9 @@
 
 # Axyn
 
-Discord interface to [Chatterbot](https://github.com/gunthercox/ChatterBot) with additional features
+Discord interface to [Chatterbot](https://github.com/gunthercox/ChatterBot) with additional features.
+
+**Support / testing server: https://discord.gg/4twAd8C**
 
 ## Summoning
 
