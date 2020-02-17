@@ -31,18 +31,13 @@ class Summon:
 
         self.last_activity = resp
 
-
-COMMAND_PREFIXES = [
-    '!', '?', '&', '-', '$', '£',
-    'a!', 'c!', 'pm!', 'p.', 'v.', 'vc/'
-]
-
 def is_command(text):
     """Check if the given text appears to be a command."""
 
-    for prefix in COMMAND_PREFIXES:
-        # Compare against each stored prefix
-        if text.startswith(prefix):
+    for prefix in '!?&-$£/\\':
+        # If any of the first 3 letters is a prefix symbol, return True
+        # This catches prefixes such as 'a!' and 'vc/'
+        if prefix in text[:3]:
             return True
 
     return False
