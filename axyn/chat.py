@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -203,7 +204,13 @@ class Chat(commands.Cog):
             # Get a chatbot response
             async with msg.channel.typing():
                 logger.info('Getting response')
-                response = self.bot.chatter.get_response(statement)
+                # Call chatbot in a thread pool
+                # (allowing other tasks to continue running)
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(
+                    None,
+                    lambda: self.bot.chatter.get_response(statement)
+                )
 
             if response.confidence >= 0.5:
                 # Send to Discord
