@@ -307,6 +307,10 @@ class Chat(commands.Cog):
     def should_learn_reaction(self, msg, reaction_user):
         """Check if a reaction on the given message should be learned."""
 
+        if reaction_user.bot:
+            logger.info('Reaction is from a bot, not learning it')
+            return False
+
         if reaction_user == msg.author:
             logger.info('Reaction is from message author, not learning it')
             return False
