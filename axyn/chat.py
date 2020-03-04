@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import logging
 import re
 from datetime import datetime, timedelta
@@ -13,6 +14,9 @@ from caps import capitalize
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# Run Chatterbot in threads
+chatterbot_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
 class Summon:
@@ -199,11 +203,10 @@ class Chat(commands.Cog):
             # Get a chatbot response
             async with msg.channel.typing():
                 logger.info('Getting response')
-                # Call chatbot in a thread pool
-                # (allowing other tasks to continue running)
+
                 loop = asyncio.get_event_loop()
                 response = await loop.run_in_executor(
-                    None,
+                    chatterbot_executor,
                     lambda: self.bot.chatter.get_response(statement)
                 )
 
