@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 
 import emoji
@@ -35,13 +36,7 @@ class Summon:
 def is_command(text):
     """Check if the given text appears to be a command."""
 
-    for prefix in '!?&-$£/\\':
-        # If any of the first 3 letters is a prefix symbol, return True
-        # This catches prefixes such as 'a!' and 'vc/'
-        if prefix in text[:3]:
-            return True
-
-    return False
+    return re.match(r'^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)', text) is not None
 
 
 class Chat(commands.Cog):
