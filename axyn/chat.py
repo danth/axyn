@@ -71,7 +71,7 @@ class Chat(commands.Cog):
             title='Summon frame opened',
             description=(
                 'I am now responding to messages in this channel.\n'
-                'Use `c!unsummon` when you are finished talking.'
+                'Use `a!unsummon` when you are finished talking.'
             ),
             colour=discord.Colour.green()
         )
