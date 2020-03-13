@@ -2,6 +2,8 @@
 
 # Axyn
 
+[![Maintainability](https://api.codeclimate.com/v1/badges/a86290ca2ee89d387756/maintainability)](https://codeclimate.com/github/AlphaMycelium/axyn/maintainability)
+
 Discord interface to [Chatterbot](https://github.com/gunthercox/ChatterBot) with additional features.
 
 **Support / testing server: https://discord.gg/4twAd8C**
