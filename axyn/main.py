@@ -35,22 +35,6 @@ bot.chatter = ChatBot(
     logic_adapters=[
         # Allow math questions such as "What is 5 squared?"
         'chatterbot.logic.MathematicalEvaluation',
-        # Allow asking for the current time
-        {
-            'import_path': 'chatterbot.logic.TimeLogicAdapter',
-            'negative': [
-                'it is time to go to sleep',
-                'what is your favorite color',
-                'i had a great time',
-                'thyme is my favorite herb',
-                'do you have time to look at my essay',
-                'how do you have the time to do all this',
-                'what is it',
-                'hello',
-                'thank you',
-                'how are you?'
-            ]
-        },
         # General responses learned in database
         {
             'import_path': 'chatterbot.logic.BestMatch',
