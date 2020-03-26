@@ -66,6 +66,20 @@ class Chat(commands.Cog):
             ))
             return
 
+        if ctx.channel.type != discord.ChannelType.private:
+            # Only allow in DMs to prevent conversations going off-topic
+            # or becoming unordered, or trying to respond to lots of messages
+            # at the same time
+            await ctx.send(embed=discord.Embed(
+                title='Summon frame blocked',
+                description=(
+                    'For performance reasons, Axyn may only be summoned in '
+                    'direct messages.'
+                ),
+                colour=discord.Colour.orange()
+            ))
+            return
+
         # Respond to the command
         e = discord.Embed(
             title='Summon frame opened',
