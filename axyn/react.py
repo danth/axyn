@@ -1,7 +1,9 @@
 import asyncio
 import concurrent.futures
 import logging
+import re
 
+import discord
 from discord.ext import commands
 from chatterbot.conversation import Statement
 
@@ -13,6 +15,15 @@ logger = logging.getLogger(__name__)
 chatterbot_executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 
+def is_command(text):
+    """Check if the given text appears to be a command."""
+
+    if text.startswith('pls '):
+        return True
+
+    return re.match(r'^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)', text) is not None
+
+
 class React(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -21,24 +32,25 @@ class React(commands.Cog):
     async def on_message(self, msg):
         """Process a message and react if possible."""
 
-        # Build query statement
-        statement = self.query_statement(msg)
-
         # Get a chatbot response
-        logger.info('Getting reaction')
+        if not self.should_ignore(msg):
+            logger.info('Getting reaction')
 
-        loop = asyncio.get_event_loop()
-        reaction = await loop.run_in_executor(
-            chatterbot_executor,
-            lambda: self.bot.reactor.get_response(statement)
-        )
+            # Build query statement
+            statement = self.query_statement(msg)
 
-        # Add reaction
-        if reaction.confidence >= 0.5:
-            logger.info('Reacting with %s', reaction.text)
-            await msg.add_reaction(reaction.text)
-        else:
-            logger.info('Reaction unconfident, not reacting with anything')
+            loop = asyncio.get_event_loop()
+            reaction = await loop.run_in_executor(
+                chatterbot_executor,
+                lambda: self.bot.reactor.get_response(statement)
+            )
+
+            # Add reaction
+            if reaction.confidence >= 0.5:
+                logger.info('Reacting with %s', reaction.text)
+                await msg.add_reaction(reaction.text)
+            else:
+                logger.info('Reaction unconfident, not reacting with anything')
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
