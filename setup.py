@@ -43,7 +43,6 @@ setup(
         'spacy >=2,<3',
         'cairosvg >=2,<3',
         'discord.py >=1.2.5,<2',
-        'discord-flags >=2,<3',
         'emoji >=0.5,<1',
         'chickennuggets >=1,<2'
     ]

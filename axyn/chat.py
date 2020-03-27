@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import emoji
 import discord
-from discord.ext import commands, tasks, flags
+from discord.ext import commands
 from chatterbot.conversation import Statement
 
 from caps import capitalize
