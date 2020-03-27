@@ -3,7 +3,10 @@ import os.path
 
 from discord.ext import commands
 from chatterbot import ChatBot, trainers
-from chatterbot.response_selection import get_most_frequent_response
+from chatterbot.response_selection import (
+    get_most_frequent_response,
+    get_random_response
+)
 import chickennuggets
 
 from datastore import get_path
@@ -70,6 +73,38 @@ if do_train:
         uc_trainer.train()
 
 
+# Find reactions database
+react_db_file =  get_path('reactions.sqlite3')
+logger.info('Reactions database at %s', react_db_file)
+
+do_react_train = not os.path.exists(react_db_file)
+if do_react_train:
+    logger.info('Reactions database does not exist, running trainer')
+
+# Set up a separate chatbot for reactions only
+bot.reactor = ChatBot(
+    'Axyn Reactions',
+    # Store data in SQLite
+    storage_adapter='chatterbot.storage.SQLStorageAdapter',
+    database_uri=f'sqlite:///{react_db_file}',
+    logic_adapters=['chatterbot.logic.BestMatch'],
+    response_selection_method=get_random_response,
+    # Disable default learning as we will only store selected reactions
+    read_only=True,
+)
+
+if do_react_train:
+    trainer = trainers.ListTrainer(bot.reactor)
+    trainer.train([
+        'Hi',
+        '👋'
+    ])
+    trainer.train([
+        'Hello',
+        '👋'
+    ])
+
+
 def launch():
     """Launch the Discord bot."""
 
@@ -77,6 +112,7 @@ def launch():
     logger.info('Loading extensions')
     chickennuggets.load(bot, ['help', 'errors'])
     bot.load_extension('chat')
+    bot.load_extension('react')
     bot.load_extension('train')
     bot.load_extension('status')
     bot.load_extension('analyse')
