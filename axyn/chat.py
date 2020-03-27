@@ -40,6 +40,9 @@ class Summon:
 def is_command(text):
     """Check if the given text appears to be a command."""
 
+    if text.startswith('pls '):
+        return True
+
     return re.match(r'^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)', text) is not None
 
 
