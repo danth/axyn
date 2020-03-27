@@ -8,13 +8,9 @@ Discord interface to [Chatterbot](https://github.com/gunthercox/ChatterBot) with
 
 **Support / testing server: https://discord.gg/4twAd8C**
 
-## Summoning
+## Chat
 
-You talk to Axyn by "summmoning" it to a channel of your choice using the command `a!summon`. This could be a text channel in a server, or a DM. Once summoned,  Axyn will try to respond to all messages sent within the channel until it is told to stop listening with `a!unsummon`, or automatically times out after a period of inactivity.
-
-### Debug Mode
-
-You may summon Axyn in debug mode by passing a debug flag to the command as `a!summon --debug`. This will attach some extra information as an embed to each message as well as converting all reactions from the bot into full messages.
+You can chat to Axyn at any time by sending it a DM.
 
 ## Analysis
 
