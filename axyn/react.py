@@ -66,8 +66,8 @@ class React(commands.Cog):
                 session = self.bot.Session()
                 session.add(Reaction(
                     emoji=reaction.emoji,
-                    reacting_to=reaction.message.content,
-                    reacting_to_bigram=' '.join(
+                    responding_to=reaction.message.content,
+                    responding_to_bigram=' '.join(
                         get_pairs(reaction.message.content)
                     )
                 ))

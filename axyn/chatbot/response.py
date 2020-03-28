@@ -148,7 +148,7 @@ def get_reaction(text, session):
     :param session: Database session to use for queries.
     :returns: Tuple of (emoji, confidence).
     """
-    match, confidence = get_closest_matching_response(text, Statement, session)
+    match, confidence = get_closest_matching_response(text, Reaction, session)
     if match is None:
         return None, 0
 
