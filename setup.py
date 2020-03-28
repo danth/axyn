@@ -12,20 +12,20 @@ setup(
     name='axyn',
     use_scm_version=True,
 
-    description='Discord interface to https://github.com/gunthercox/ChatterBot with additional features',
+    description='A simple Discord chatbot',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Daniel Thwaites',
     author_email='danthwaites30@btinternet.com',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    keywords='Discord bot chatbot chatterbot',
+    keywords='Discord bot chatbot',
 
     url='https://github.com/AlphaMycelium/axyn',
     project_urls={
