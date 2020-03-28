@@ -1,4 +1,4 @@
-![Axyn logo](axyn.png)
+![Axyn logo](images/axyn.png)
 
 # Axyn
 
