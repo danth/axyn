@@ -12,7 +12,7 @@ from chatbot.models import Base
 
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Set up Discord bot
