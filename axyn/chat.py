@@ -1,5 +1,3 @@
-import asyncio
-import concurrent.futures
 import logging
 import re
 from datetime import datetime, timedelta
@@ -7,16 +5,14 @@ from datetime import datetime, timedelta
 import emoji
 import discord
 from discord.ext import commands
-from chatterbot.conversation import Statement
 
-from caps import capitalize
+from chatbot.models import Statement
+from chatbot.response import get_response
+from chatbot.pairs import get_pairs
 
 
 # Set up logging
 logger = logging.getLogger(__name__)
-
-# Run Chatterbot in threads
-chatterbot_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
 def is_command(text):
@@ -39,31 +35,48 @@ class Chat(commands.Cog):
         logger.info('Receved message "%s"', msg.clean_content)
         if self.should_ignore(msg): return
 
-        # Build query statement
-        statement = await self.query_statement(msg)
-
         if self.should_respond(msg):
-            # Get a chatbot response
             async with msg.channel.typing():
+                # Get a response from the chatbot
                 logger.info('Getting response')
 
-                loop = asyncio.get_event_loop()
-                response = await loop.run_in_executor(
-                    chatterbot_executor,
-                    lambda: self.bot.chatter.get_response(statement)
-                )
+                session = self.bot.Session()
+                response, confidence = get_response(msg.content, session)
+                session.close()
 
-            # Send to Discord
-            await self.send_response(response, msg)
+            if confidence > 0.5:
+                # Send to Discord
+                logger.info(
+                    'Sending response "%s" with confidence %d',
+                    response, confidence
+                )
+                await msg.channel.send(response)
+            else:
+                # Uncertain, don't respond
+                logger.info('Confidence %d, not sending anything', confidence)
         else:
             logger.info('Not a DM, not responding')
 
-        if (statement.in_response_to is not None) and self.should_learn(msg):
-            # Learn from the statement
-            self.bot.chatter.learn_response(
-                statement,
-                statement.in_response_to
-            )
+        if self.should_learn(msg):
+            # Look for a previous message
+            previous_msg = await self.get_previous(msg)
+            if previous_msg is not None:
+                # Learn this statement
+                logger.info(
+                    'Learning "%s" as a response to "%s"',
+                    msg.clean_content, previous_msg.clean_content
+                )
+
+                session = self.bot.Session()
+                session.add(Statement(
+                    text=msg.content,
+                    responding_to=previous_msg.content,
+                    responding_to_bigram=' '.join(
+                        get_pairs(previous_msg.content)
+                    )
+                ))
+                session.commit()
+                session.close()
 
     def should_ignore(self, msg):
         """Check if the given message should be completely ignored."""
@@ -104,58 +117,6 @@ class Chat(commands.Cog):
                 return False
 
         return True
-
-    async def send_response(self, response, msg):
-        """
-        Send the response to the given channel.
-
-        :param response: Statement object to send
-        :param msg: Message we are responding to
-        """
-
-        if response.confidence < 0.5:
-            # Do not send unconfident response
-            logger.info('Unconfident, not sending anything')
-            return
-
-        logger.info('Sending response to channel')
-
-        # Ensure response has correct capitalization
-        form_text = capitalize(response.text)
-        # Send to Discord
-        await msg.channel.send(form_text)
-
-    def conv_id(self, msg):
-        """Get a conversation ID for the given message."""
-
-        return f'channel-{msg.channel.id}'
-
-    async def query_statement(self, msg):
-        """Build a Statement from the user's message."""
-
-        logger.info('Building query statement')
-
-        # Get previous message
-        prev = await self.get_previous(msg)
-
-        statement = Statement(
-            # Use message contents for statement text
-            msg.clean_content,
-            in_response_to=prev,
-            # Use Discord IDs for conversation and person
-            conversation=self.conv_id(msg),
-            persona=msg.author.id,
-        )
-
-         # Make sure the statement has its search text saved
-        statement.search_text = self.bot.chatter.storage.tagger \
-            .get_bigram_pair_string(statement.text)
-        # And for in_response_to
-        if statement.in_response_to is not None:
-            statement.search_in_response_to = self.bot.chatter.storage.tagger \
-                .get_bigram_pair_string(statement.in_response_to)
-
-        return statement
 
     async def get_previous(self, msg, minutes=5):
         """
@@ -198,7 +159,7 @@ class Chat(commands.Cog):
 
             # This message is valid!
             logger.info('Found "%s"', prev_msg.clean_content)
-            return  prev_msg.clean_content
+            return  prev_msg
         else:
             # We didn't find any messages
             logger.info('No message found')

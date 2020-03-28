@@ -37,8 +37,7 @@ setup(
     python_requires='>=3.6,<4',
     setup_requires=['setuptools_scm'],
     install_requires=[
-        'chatterbot >=1,<2',
-        'chatterbot_corpus',
+        'sqlalchemy >=1.3,<4',
         'nltk >=3.4,<4',
         'spacy >=2,<3',
         'cairosvg >=2,<3',

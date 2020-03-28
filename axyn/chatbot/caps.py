@@ -1,6 +1,3 @@
-# Originally from my Bolt bot, with modifications
-# https://github.com/AlphaMycelium/discord-bolt/blob/1d64f7e19385bc0a13ac88c027db16a5a1f26c9b/bolt/autocaps.py#L7
-
 import nltk
 
 # Load sentence tokenizer

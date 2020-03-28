@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands, tasks
 
+from chatbot.models import Statement, Reaction
+
 
 class Status(commands.Cog):
     def __init__(self, bot):
@@ -13,20 +15,19 @@ class Status(commands.Cog):
 
     @tasks.loop(minutes=2)
     async def status(self):
-        """
-        Set the bot's status message to show a count of stored responses.
+        """Set the bot's status message to show a count of stored responses."""
 
-        The message will be in the format of "Listening to _ statements".
-        """
-
-        # Count stored statements
-        count = self.bot.chatter.storage.count()
+        # Count stored statements and reactions
+        session = self.bot.Session()
+        statements = session.query(Statement).count()
+        reactions = session.query(Reaction).count()
+        session.close()
 
         # Set as status
         await self.bot.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.listening,
-                name=f'{count} statements'
+                name=f'{statements} 💬 {reactions} 👍'
             )
         )
 

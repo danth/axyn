@@ -1,18 +1,16 @@
-import asyncio
-import concurrent.futures
 import logging
 import re
 
 import discord
 from discord.ext import commands
-from chatterbot.conversation import Statement
+
+from chatbot.response import get_reaction
+from chatbot.pairs import get_pairs
+from chatbot.models import Reaction
 
 
 # Set up logging
 logger = logging.getLogger(__name__)
-
-# Run Chatterbot in threads
-chatterbot_executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
 
 def is_command(text):
@@ -36,21 +34,17 @@ class React(commands.Cog):
         if not self.should_ignore(msg):
             logger.info('Getting reaction')
 
-            # Build query statement
-            statement = self.query_statement(msg)
-
-            loop = asyncio.get_event_loop()
-            reaction = await loop.run_in_executor(
-                chatterbot_executor,
-                lambda: self.bot.reactor.get_response(statement)
-            )
+            # Get a reaction
+            session = self.bot.Session()
+            emoji, confidence = get_reaction(msg.content, session)
+            session.close()
 
             # Add reaction
-            if reaction.confidence >= 0.5:
-                logger.info('Reacting with %s', reaction.text)
-                await msg.add_reaction(reaction.text)
+            if confidence >= 0.5:
+                logger.info('Reacting with %s', emoji)
+                await msg.add_reaction(emoji)
             else:
-                logger.info('Reaction unconfident, not reacting with anything')
+                logger.info('Confidence %d, not reacting', confidence)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -66,24 +60,19 @@ class React(commands.Cog):
         if self.should_learn_reaction(reaction.message, user):
             # Check if this is a unicode emoji or a custom one
             if type(reaction.emoji) == str:
-                # Build a Statement
-                statement = Statement(
-                    text=reaction.emoji,
-                    in_response_to=reaction.message.clean_content,
-                    conversation=self.conv_id(reaction.message),
-                    persona=user.id,
-                )
-                # Save search text for in_response_to
-                statement.search_in_response_to = self.bot.reactor.storage.tagger \
-                    .get_bigram_pair_string(statement.in_response_to)
-                # We don't need to do it for the text because it is an emoji
-                # and wouldn't be tagged
+                # Learn the emoji as a reaction
+                logger.info('Learning reaction')
 
-                # Learn the emoji as a response
-                self.bot.reactor.learn_response(
-                    statement,
-                    statement.in_response_to
-                )
+                session = self.bot.Session()
+                session.add(Reaction(
+                    emoji=reaction.emoji,
+                    reacting_to=reaction.message.content,
+                    reacting_to_bigram=' '.join(
+                        get_pairs(reaction.message.content)
+                    )
+                ))
+                session.commit()
+                session.close()
 
     def should_ignore(self, msg):
         """Check if the given message should not be reacted to."""
@@ -128,35 +117,6 @@ class React(commands.Cog):
             return False
 
         return True
-
-    def conv_id(self, msg):
-        """Get a conversation ID for the given message."""
-
-        return f'channel-{msg.channel.id}'
-
-    def query_statement(self, msg):
-        """
-        Build a Statement from the user's message.
-
-        Compared to the statements used for chats, these contain less
-        information to improve performance.
-        """
-
-        logger.info('Building reaction query statement')
-
-        statement = Statement(
-            # Use message contents for statement text
-            msg.clean_content,
-            # Use Discord IDs for conversation and person
-            conversation=self.conv_id(msg),
-            persona=msg.author.id,
-        )
-
-         # Make sure the statement has its search text saved
-        statement.search_text = self.bot.reactor.storage.tagger \
-            .get_bigram_pair_string(statement.text)
-
-        return statement
 
 
 def setup(bot):

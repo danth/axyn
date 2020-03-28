@@ -3,9 +3,10 @@ import os.path
 
 import discord
 from discord.ext import commands
-from chatterbot.trainers import ListTrainer
 
 from datastore import get_path
+from chatbot.pairs import get_pairs
+from chatbot.models import Statement
 
 
 # Set up logging
@@ -48,15 +49,32 @@ class Training(commands.Cog):
         Place one statement on each line, including the first.
         """
 
-        logger.info('Processing list training from command')
+        logger.info('Processing training from command')
 
         async with ctx.channel.typing():
             # Split statements on newline
             statements = training.split('\n')
 
             # Do training
-            trainer = ListTrainer(self.bot.chatter)
-            trainer.train(statements)
+            session = self.bot.Session()
+
+            previous_statement = None
+            for statement in statements:
+                # The first statement is not saved as it has nothing it is
+                # responding to
+                if previous_statement is not None:
+                    # Create a statement in response to the previous one
+                    session.add(Statement(
+                        text=statement,
+                        responding_to=previous_statement,
+                        responding_to_bigram=' '.join(
+                            get_pairs(previous_statement)
+                        )
+                    ))
+                previous_statement = statement
+
+            session.commit()
+            session.close()
 
         # Completed, respond to command
         logger.info('Done!')
