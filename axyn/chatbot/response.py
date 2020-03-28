@@ -4,6 +4,7 @@ from statistics import mode, StatisticsError
 
 import spacy
 from sqlalchemy import or_
+from mathparse import mathparse
 
 from chatbot.caps import capitalize
 from chatbot.models import Statement, Reaction
@@ -14,6 +15,20 @@ from chatbot.pairs import get_pairs
 logger = logging.getLogger(__name__)
 
 nlp = spacy.load('en_core_web_sm')
+
+
+def process_as_math(text):
+    """
+    Attempt to process the text as a mathematical evaluation using mathparse.
+
+    :returns: Response text, or None if the input cannot be parsed as math.
+    """
+    try:
+        expression = mathparse.extract_expression(text, language='ENG')
+        result = mathparse.parse(expression, language='ENG')
+        return f'{expression} = {result}'
+    except  mathparse.PostfixTokenEvaluationException:
+        return None
 
 
 def get_closest_match(text, options):
@@ -91,9 +106,14 @@ def get_response(text, session):
     :param session: Database session to use for queries.
     :returns: Tuple of (response, confidence).
     """
+    math_response = process_as_math(text)
+    if math_response:
+        # The text can be handled as a mathematical evaluation
+        return math_response, 1
+
     match, confidence = get_closest_matching_response(text, Statement, session)
     if match is None:
-        return
+        return None, 0
 
     # Find all statements which are responding_to the same text
     responses = session.query(Statement.text) \
@@ -130,7 +150,7 @@ def get_reaction(text, session):
     """
     match, confidence = get_closest_matching_response(text, Statement, session)
     if match is None:
-        return
+        return None, 0
 
     # Find other reactions which react to the same text
     response_emojis = session.query(Reaction.emoji) \
