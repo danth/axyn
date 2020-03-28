@@ -2,19 +2,17 @@ import logging
 import random
 from statistics import mode, StatisticsError
 
-import spacy
 from sqlalchemy import or_
 from mathparse import mathparse
 
 from chatbot.caps import capitalize
 from chatbot.models import Statement, Reaction
 from chatbot.pairs import get_pairs
+from chatbot.nlploader import nlp
 
 
 # Set up logging
 logger = logging.getLogger(__name__)
-
-nlp = spacy.load('en_core_web_sm')
 
 
 def process_as_math(text):

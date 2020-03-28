@@ -1,4 +1,3 @@
-import spacy
 from spacy import displacy
 import io
 import hashlib
@@ -7,9 +6,8 @@ import cairosvg
 
 import discord
 from discord.ext import commands
+from chatbot.nlploader import nlp
 
-
-nlp = spacy.load('en_core_web_sm')
 
 nltk.download('punkt')
 sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')

@@ -1,7 +1,4 @@
-import spacy
-
-
-nlp = spacy.load('en_core_web_sm')
+from chatbot.nlploader import nlp
 
 
 def get_pairs(text):
