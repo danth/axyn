@@ -2,13 +2,13 @@ import logging
 import random
 from statistics import mode, StatisticsError
 
+import editdistance
 from sqlalchemy import or_
 from mathparse import mathparse
 
 from chatbot.caps import capitalize
 from chatbot.models import Statement, Reaction
 from chatbot.pairs import get_pairs
-from chatbot.nlploader import nlp
 
 
 # Set up logging
@@ -42,16 +42,29 @@ def get_closest_match(text, options):
         'Looking for closest match to "%s" in %i options',
         text, len(options)
     )
-    text_doc = nlp(text)
 
     # Make a list of similarities corresponding to the options
     similarities = list()
     for option in options:
-        similarity = text_doc.similarity(nlp(option))
-        similarities.append(similarity)
-        logger.debug('%d similar to "%s"', similarity, option)
+        # Get Levenshtein distance of two strings
+        distance = editdistance.eval(text, option)
+        if distance == 0:
+            # Strings are exactly the same, do not process others
+            logger.debug('"%s" has a distance of 0, returning now', option)
+            return option, 1
+        else:
+            # Inverse of Levenshtein:
+            # The bigger the distance, the smaller the similarity
+            similarity = 1 / distance
+            similarities.append(similarity)
+
+            logger.debug(
+                'distance of %i to "%s" (similarity %.3f)',
+                distance, option, similarity
+            )
 
     # Return the option with the highest similarity
+    print(len(options))
     return max(
         zip(options, similarities),
         key=lambda o: o[1]
@@ -87,7 +100,7 @@ def get_closest_matching_response(text, query_type, session):
     # Find the closest matching responding_to value
     match, confidence = get_closest_match(text, responding_to_texts)
     logger.info(
-        'Selected "%s" as closest match to "%s" with confidence %d',
+        'Selected "%s" as closest match to "%s" with confidence %.2f',
         match, text, confidence
     )
     return match, confidence
