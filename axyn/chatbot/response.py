@@ -74,7 +74,7 @@ def get_closest_matching_response(text, query_type, session):
     # Query for statements which contain at least one similar bigram pair
     # Only get distinct values of responding_to to cut down on processing time
     search = [query_type.responding_to_bigram.contains(pair) for pair in pairs]
-    responding_to_texts = session.query(Statement.responding_to) \
+    responding_to_texts = session.query(query_type.responding_to) \
         .filter(or_(*search)).distinct().all()
     # Unpack result tuples
     responding_to_texts = [r for r, in responding_to_texts]
