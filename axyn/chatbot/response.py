@@ -47,7 +47,7 @@ def get_closest_match(text, options):
     similarities = list()
     for option in options:
         # Get Levenshtein distance of two strings
-        distance = editdistance.eval(text, option)
+        distance = editdistance.eval(text.lower(), option.lower())
         if distance == 0:
             # Strings are exactly the same, do not process others
             logger.debug('"%s" has a distance of 0, returning now', option)
