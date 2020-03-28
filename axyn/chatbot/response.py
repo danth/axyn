@@ -53,9 +53,7 @@ def get_closest_match(text, options):
             logger.debug('"%s" has a distance of 0, returning now', option)
             return option, 1
         else:
-            # Inverse of Levenshtein:
-            # The bigger the distance, the smaller the similarity
-            similarity = 1 / distance
+            similarity = 1 - (distance / max(len(text), len(option)))
             similarities.append(similarity)
 
             logger.debug(
