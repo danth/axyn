@@ -43,23 +43,24 @@ def get_closest_match(text, options):
         text, len(options)
     )
 
+    if text in options:
+        logger.debug('Options contains an exact match, returning now')
+        return text, 1
+
     # Make a list of similarities corresponding to the options
     similarities = list()
     for option in options:
         # Get Levenshtein distance of two strings
         distance = editdistance.eval(text.lower(), option.lower())
-        if distance == 0:
-            # Strings are exactly the same, do not process others
-            logger.debug('"%s" has a distance of 0, returning now', option)
-            return option, 1
-        else:
-            similarity = 1 - (distance / max(len(text), len(option)))
-            similarities.append(similarity)
+        # Calculate % similarity based on maximum possible distance
+        max_distance = max(len(text), len(option))
+        similarity = 1 - (distance / max_distance)
+        similarities.append(similarity)
 
-            logger.debug(
-                'distance of %i to "%s" (similarity %.3f)',
-                distance, option, similarity
-            )
+        logger.debug(
+            'distance of %i to "%s" (similarity %.3f)',
+            distance, option, similarity
+        )
 
     # Return the option with the highest similarity
     print(len(options))
