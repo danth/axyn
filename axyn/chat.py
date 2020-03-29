@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from datetime import datetime, timedelta
@@ -28,6 +29,8 @@ class Chat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+        self.response_timers = dict()
+
     @commands.Cog.listener()
     async def on_message(self, msg):
         """Process a message and send a chatbot response to the channel."""
@@ -35,27 +38,27 @@ class Chat(commands.Cog):
         logger.info('Receved message "%s"', msg.clean_content)
         if self.should_ignore(msg): return
 
-        if self.should_respond(msg):
-            async with msg.channel.typing():
-                # Get a response from the chatbot
-                logger.info('Getting response')
+        if msg.channel.type == discord.ChannelType.private:
+            # Respond immediately to DMs
+            await self.process_dm_response(msg)
 
-                session = self.bot.Session()
-                response, confidence = get_response(msg.content, session)
-                session.close()
+        elif msg.channel.type == discord.ChannelType.text:
+            # Delayed response to server channels
+            if msg.channel.id in self.response_timers:
+                # Remove timer for previous message
+                self.response_timers[msg.channel.id].cancel()
 
-            if confidence > 0.5:
-                # Send to Discord
-                logger.info(
-                    'Sending response "%s" with confidence %d',
-                    response, confidence
-                )
-                await msg.channel.send(response)
+            if len(msg.content) < 10:
+                # Don't respond to short texts like "ok" or "yes"
+                # Or greetings targetted at server members
+                logger.info('Not responding to short server message')
             else:
-                # Uncertain, don't respond
-                logger.info('Confidence %d, not sending anything', confidence)
-        else:
-            logger.info('Not a DM, not responding')
+                # Respond after a delay if no humans have responded
+                logger.info('Delaying response to server message')
+                self.response_timers[msg.channel.id] = asyncio.create_task(
+                    self.process_server_response_later(msg)
+                )
+
 
         if self.should_learn(msg):
             # Look for a previous message
@@ -78,6 +81,64 @@ class Chat(commands.Cog):
                 session.commit()
                 session.close()
 
+    async def process_dm_response(self, msg):
+        """Send a response to a DM."""
+
+        async with msg.channel.typing():
+            # Get a response from the chatbot
+            logger.info('Getting response')
+
+            session = self.bot.Session()
+            response, confidence = get_response(msg.content, session)
+            session.close()
+
+        if confidence > 0.5:
+            # Send to Discord
+            logger.info(
+                'Sending response "%s" with confidence %.2f',
+                response, confidence
+            )
+            await msg.channel.send(response)
+        else:
+            # Uncertain, don't respond
+            logger.info(
+                'Confidence %.2f <= 0.5, not sending anything',
+                confidence
+            )
+
+    async def process_server_response_later(self, *args, **kwargs):
+        """Call process_server_response after a delay."""
+
+        await asyncio.sleep(180)
+        await self.process_server_response(*args, **kwargs)
+
+    async def process_server_response(self, msg):
+        """Respond to a message from a server."""
+
+        # Get a response from the chatbot
+        logger.info(
+            'Getting response to delayed server message "%s"',
+            msg.clean_content
+        )
+
+        session = self.bot.Session()
+        response, confidence = get_response(msg.content, session)
+        session.close()
+
+        if confidence > 0.8:  # Higher threshold than DMs
+            # Send to Discord
+            logger.info(
+                'Sending response "%s" with confidence %.2f',
+                response, confidence
+            )
+            await msg.channel.send(response)
+        else:
+            # Uncertain, don't respond
+            logger.info(
+                'Confidence %.2f <= 0.8, not sending anything',
+                confidence
+            )
+
     def should_ignore(self, msg):
         """Check if the given message should be completely ignored."""
 
@@ -95,11 +156,6 @@ class Chat(commands.Cog):
             return True
 
         return False
-
-    def should_respond(self, msg):
-        """Check if the given message should be responded to."""
-
-        return msg.channel.type == discord.ChannelType.private
 
     def should_learn(self, msg):
         """Check if the given message should be learned from."""
