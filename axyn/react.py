@@ -82,8 +82,8 @@ class React(commands.Cog):
             logger.info('Author is a bot, ignoring')
             return True
 
-        if len(msg.content) == 0:
-            logger.info('Message has no text, ignoring')
+        if len(msg.content) < 5:
+            logger.info('Message is less than 5 characters, ignoring')
             return True
 
         if is_command(msg.content):
