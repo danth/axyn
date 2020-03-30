@@ -2,13 +2,13 @@ import logging
 import random
 from statistics import mode, StatisticsError
 
-import editdistance
 from sqlalchemy import or_
 from mathparse import mathparse
 
 from chatbot.caps import capitalize
 from chatbot.models import Statement, Reaction
 from chatbot.pairs import get_pairs
+from chatbot.nlploader import nlp
 
 
 # Set up logging
@@ -31,6 +31,7 @@ def process_as_math(text):
         return None
 
 
+
 def get_closest_match(text, options):
     """
     Get the closest match to some text given a list of options.
@@ -45,23 +46,25 @@ def get_closest_match(text, options):
         text, len(options)
     )
 
-    if text in options:
-        logger.debug('Options contains an exact match, returning now')
-        return text, 1
+    #if text in options:
+    #    logger.debug('Options contains an exact match, returning now')
+    #    return text, 1
 
     # Make a list of similarities corresponding to the options
     similarities = list()
-    for option in options:
-        # Get Levenshtein distance of two strings
-        distance = editdistance.eval(text.lower(), option.lower())
-        # Calculate % similarity based on maximum possible distance
-        max_distance = max(len(text), len(option))
-        similarity = 1 - (distance / max_distance)
+    text_doc = nlp(text)
+    # nlp.pipe is faster than processing each string individually
+    for option_doc in nlp.pipe(
+        options,
+        batch_size=50,
+        disable=['parser']
+    ):
+        similarity = text_doc.similarity(option_doc)
         similarities.append(similarity)
 
         logger.debug(
-            'distance of %i to "%s" (similarity %.3f)',
-            distance, option, similarity
+            'similarity of %.3f to "%s"',
+             similarity, option_doc.text
         )
 
     # Return the option with the highest similarity

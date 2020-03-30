@@ -40,7 +40,6 @@ setup(
         'sqlalchemy >=1.3,<4',
         'nltk >=3.4,<4',
         'spacy >=2,<3',
-        'editdistance <1',
         'mathparse <1',
         'cairosvg >=2,<3',
         'discord.py >=1.2.5,<2',
