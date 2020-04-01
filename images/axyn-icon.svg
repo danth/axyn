@@ -12,9 +12,9 @@
    height="800"
    version="1.1"
    viewBox="0 0 211.667 211.667"
-   sodipodi:docname="axyn.svg"
+   sodipodi:docname="axyn-icon.svg"
    inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
-   inkscape:export-filename="/home/danth/Code/axyn/images/axyn.png"
+   inkscape:export-filename="/home/danth/Code/axyn/images/axyn-icon.png"
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96">
   <defs
@@ -35,7 +35,7 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:zoom="0.59"
-     inkscape:cx="459.71513"
+     inkscape:cx="178.3592"
      inkscape:cy="393.9345"
      inkscape:window-x="0"
      inkscape:window-y="0"
@@ -55,6 +55,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -73,39 +74,6 @@
        id="path819"
        d="m 193.53893,136.05484 c 0,0 -10.11224,-3.25441 -18.6964,9.73187 -12.3669,18.7089 -24.06786,3.15881 -24.06786,3.15881 0,0 -7.80504,-10.38832 -39.66922,-28.5268 C 77.218215,101.12863 80.471095,68.850653 80.471095,68.850653 c 0,0 45.072225,1.929378 69.320545,26.517166 27.10097,27.480371 43.74729,40.687021 43.74729,40.687021 z"
        style="fill:#26ca00;fill-opacity:0.82352942;fill-rule:nonzero;stroke:#000000;stroke-width:1.5875025;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:4.7625075, 4.76250749999999989;stroke-dashoffset:8.5725135;stroke-opacity:1;paint-order:normal" />
-    <text
-       id="text12"
-       x="115.623"
-       y="167.428"
-       fill="#000"
-       fill-opacity="1"
-       stroke="none"
-       stroke-width=".59"
-       font-family="Chilanka"
-       font-size="23.596"
-       font-stretch="normal"
-       font-style="normal"
-       font-variant="normal"
-       font-weight="normal"
-       letter-spacing="0"
-       text-anchor="middle"
-       word-spacing="0"
-       writing-mode="lr-tb"
-       xml:space="preserve"
-       style="line-height:1.25;-inkscape-font-specification:Chilanka;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:center"><tspan
-         font-stretch="normal"
-         style="-inkscape-font-specification:Chilanka;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:center"
-         id="tspan12"
-         x="115.623"
-         y="167.428"
-         stroke-width=".59"
-         font-family="Chilanka"
-         font-size="23.596"
-         font-style="normal"
-         font-variant="normal"
-         font-weight="normal"
-         text-anchor="middle"
-         writing-mode="lr-tb">AXYN</tspan></text>
     <path
        style="fill:#f20000;fill-opacity:0.82352942;fill-rule:nonzero;stroke:#000000;stroke-width:1.58750248;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:4.7625075, 4.76250749999999989;stroke-dashoffset:8.7788887;stroke-opacity:1;paint-order:normal"
        d="M 80.471092,148.94552 115.62288,7.2438706 150.77467,148.94552 115.62288,95.367815 80.471092,148.94552"
