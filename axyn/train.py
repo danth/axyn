@@ -77,10 +77,26 @@ class Training(commands.Cog):
             session.close()
 
         # Completed, respond to command
-        logger.info('Done!')
-        await self.show_training(statements, ctx)
+        logger.info('Sending response')
+        await self.show_training(statements, ctx, ctx.channel)
 
-    async def show_training(self, statements, ctx):
+        appinfo = await ctx.bot.application_info()
+        if ctx.author != appinfo.owner:
+            # Also send a copy to bot owner
+            logger.info('Sending to bot owner')
+            await self.show_training(statements, ctx, appinfo.owner)
+
+        try:
+            # Delete the command message
+            logger.info('Attempting to delete command')
+            await ctx.message.delete()
+        except discord.Forbidden:
+            # It doesn't matter if we can't
+            pass
+
+        logger.info('Done!')
+
+    async def show_training(self, statements, ctx, send_to):
         """Send a message showing the completed training."""
 
         # Build a string showing the conversation
@@ -103,14 +119,7 @@ class Training(commands.Cog):
             text=ctx.author.name,
             icon_url=ctx.author.avatar_url
         )
-        await ctx.send(embed=e)
-
-        try:
-            # Delete the command message
-            await ctx.message.delete()
-        except discord.Forbidden:
-            # It doesn't matter if we can't
-            pass
+        await send_to.send(embed=e)
 
 
 def setup(bot):
