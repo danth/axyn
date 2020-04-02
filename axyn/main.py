@@ -8,7 +8,7 @@ import sqlalchemy
 import spacy
 
 from datastore import get_path
-from chatbot.models import Base
+from models import Base
 
 
 # Setup logging

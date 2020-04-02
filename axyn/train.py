@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from datastore import get_path
 from chatbot.pairs import get_pairs
-from chatbot.models import Statement
+from models import Statement, Trainer
 
 
 # Set up logging
@@ -16,24 +16,12 @@ logger = logging.getLogger(__name__)
 async def can_train(ctx):
     """Check if the user is allowed to train the bot."""
 
-    # The bot owner can always train
-    app_info = await ctx.bot.application_info()
-    if ctx.author == app_info.owner:
-        return True
+    session = ctx.bot.Session()
+    trainer = session.query(Trainer) \
+        .filter(Trainer.id == ctx.author.id).one_or_none()
+    session.close()
 
-    # Additional users can be specified in trainers.txt
-    trainers_file = get_path('trainers.txt')
-    if not os.path.exists(trainers_file):
-        return False
-
-    # trainers.txt has one ID on each line
-    with open(trainers_file) as f:
-        for line in f:
-            # Check if this line has the user's ID
-            if str(ctx.author.id) == line.strip():
-                return True
-
-    return False
+    return trainer is not None
 
 
 class Training(commands.Cog):
@@ -121,6 +109,94 @@ class Training(commands.Cog):
         )
         await send_to.send(embed=e)
 
+    @commands.group()
+    @commands.is_owner()
+    async def trainers(self, ctx):
+        """
+        Manage users who are allowed to use `a!train`.
+
+        Call with no sub-command to list all users who currently have the
+        permission.
+        """
+
+        if ctx.subcommand_passed is not None:
+            # A subcommand was called / attempted to be called
+            return
+
+        session = self.bot.Session()
+        trainers = session.query(Trainer).all()
+
+        if len(trainers) == 0:
+            # There are no trainers
+            await ctx.send(embed=discord.Embed(
+                title="Trainers",
+                description='Nobody has permission to train Axyn manually.'
+            ))
+        else:
+            # Build a list of either a mention or ID for each trainer
+            trainer_list = list()
+            for trainer in trainers:
+                user = self.bot.get_user(trainer.id)
+                if user is not None:
+                    # Mention the user
+                    trainer_list.append(user.mention)
+                else:
+                    # We couldn't find the user, show ID instead
+                    trainer_list.append(trainer.id)
+
+            # Send to channel
+            await ctx.send(embed=discord.Embed(
+                title="Trainers",
+                description='\n'.join(trainer_list)
+            ))
+
+        session.close()
+
+    @trainers.command(aliases=['a'])
+    async def add(self, ctx, user: discord.User):
+        """Give a user permission to use `a!train`."""
+
+        session = self.bot.Session()
+        trainer = session.query(Trainer) \
+            .filter(Trainer.id == user.id).one_or_none()
+
+        if trainer is not None:
+            # The user already has permission
+            await ctx.send(embed=discord.Embed(
+                description=f'{user.mention} is already a trainer.',
+                color=discord.Color.orange()
+            ))
+        else:
+            # Add the user to the trainers list
+            session.add(Trainer(id=user.id))
+            session.commit()
+
+            await ctx.send(embed=discord.Embed(
+                description=f'{user.mention} has been added as a trainer!',
+                color=discord.Color.green()
+            ))
+
+        session.close()
+
+    @trainers.command(aliases=['r'])
+    async def remove(self, ctx, user: discord.User):
+        """
+        Remove a user's permission to use `a!train`.
+
+        If the user did not have permissions anyway, this command will have no
+        effect.
+        """
+
+        session = self.bot.Session()
+        session.query(Trainer) \
+            .filter(Trainer.id == user.id).delete()
+        session.commit()
+        session.close()
+
+        await ctx.send(embed=discord.Embed(
+            description=f'{user.mention} has been removed as a trainer.',
+            color=discord.Color.green()
+        ))
 
 def setup(bot):
     bot.add_cog(Training(bot))

@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from chatbot.response import get_reaction
 from chatbot.pairs import get_pairs
-from chatbot.models import Reaction
+from models import Reaction
 
 
 # Set up logging

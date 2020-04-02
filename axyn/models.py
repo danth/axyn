@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, BigInteger, String
 from sqlalchemy.ext.declarative import declarative_base
 
 
@@ -21,3 +21,9 @@ class Reaction(Base):
     emoji = Column(String(1))
     responding_to = Column(String)
     responding_to_bigram = Column(String)
+
+
+class Trainer(Base):
+    __tablename__ = 'trainers'
+
+    id = Column(BigInteger, primary_key=True)

@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from mathparse import mathparse
 
 from chatbot.caps import capitalize
-from chatbot.models import Statement, Reaction
+from models import Statement, Reaction
 from chatbot.pairs import get_pairs
 
 

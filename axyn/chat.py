@@ -7,7 +7,7 @@ import emoji
 import discord
 from discord.ext import commands
 
-from chatbot.models import Statement
+from models import Statement
 from chatbot.response import get_response
 from chatbot.pairs import get_pairs
 

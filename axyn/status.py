@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 
-from chatbot.models import Statement, Reaction
+from models import Statement, Reaction
 
 
 class Status(commands.Cog):
