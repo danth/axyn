@@ -49,7 +49,11 @@ class Analyse(commands.Cog):
 
     @commands.command()
     async def analyse(self, ctx, *, text):
-        """Render some text with displaCy."""
+        """
+        Render a dependency graph for the given text using displaCy.
+
+        Each sentence of the text will be uploaded as a separate image.
+        """
 
         # Split sentences
         sentences = sent_tokenizer.tokenize(text)

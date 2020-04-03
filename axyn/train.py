@@ -34,7 +34,17 @@ class Training(commands.Cog):
         """
         Train the bot with an example conversation.
 
-        Place one statement on each line, including the first.
+        This is a way to manually input small sections of training data,
+        normally just made up by yourself on the spot. Large trainings, such as
+        from a corpus, should be made by other means.
+
+        There is no guarantee that responses trained using this command will be
+        selected, since other responses to the same input text may also have
+        been learned.
+
+        Place one statement on each line, including the first, such that the
+        first sentence is directly after `a!train`, and other sentences are on
+        the following lines. Multi-line statements are *not* supported.
         """
 
         logger.info('Processing training from command')
@@ -115,6 +125,10 @@ class Training(commands.Cog):
         """
         Manage users who are allowed to use `a!train`.
 
+        As the bot owner, it is necessary to add yourself as a trainer before
+        you can use the training command. Only the owner of the bot can manage
+        training permissions.
+
         Call with no sub-command to list all users who currently have the
         permission.
         """
@@ -154,7 +168,12 @@ class Training(commands.Cog):
 
     @trainers.command(aliases=['a'])
     async def add(self, ctx, user: discord.User):
-        """Give a user permission to use `a!train`."""
+        """
+        Give a user permission to use `a!train`.
+
+        If you are unable to easily mention the user (if you are using this
+        command in a DM, for example), you may pass a user ID instead.
+        """
 
         session = self.bot.Session()
         trainer = session.query(Trainer) \
@@ -183,8 +202,11 @@ class Training(commands.Cog):
         """
         Remove a user's permission to use `a!train`.
 
-        If the user did not have permissions anyway, this command will have no
+        If the user did not have permission anyway, this command will have no
         effect.
+
+        If you are unable to easily mention the user (if you are using this
+        command in a DM, for example), you may pass a user ID instead.
         """
 
         session = self.bot.Session()
