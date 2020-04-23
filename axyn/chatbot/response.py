@@ -4,6 +4,7 @@ from statistics import mode, StatisticsError
 
 from sqlalchemy import or_
 from mathparse import mathparse
+from scipy import spatial
 
 from chatbot.caps import capitalize
 from chatbot.models import Statement, Reaction
@@ -50,28 +51,25 @@ def get_closest_match(text, options):
     #    logger.debug('Options contains an exact match, returning now')
     #    return text, 1
 
-    # Make a list of similarities corresponding to the options
-    similarities = list()
+    logger.debug('Getting document vectors')
     text_doc = nlp(text)
-    # nlp.pipe is faster than processing each string individually
-    for option_doc in nlp.pipe(
-        options,
-        batch_size=50,
-        disable=['parser']
-    ):
-        similarity = text_doc.similarity(option_doc)
-        similarities.append(similarity)
 
-        logger.debug(
-            'similarity of %.3f to "%s"',
-             similarity, option_doc.text
+    option_vectors = [
+        doc.vector for doc in nlp.pipe(
+            options,
+            disable=['tagger', 'parser', 'ner']
         )
+    ]
 
-    # Return the option with the highest similarity
-    print(len(options))
-    return max(
-        zip(options, similarities),
-        key=lambda o: o[1]
+    logger.debug('Looking for closest vector using KDTree')
+    tree = spatial.KDTree(option_vectors)
+    distance, selected_index = tree.query(text_doc.vector)
+
+    logger.debug('Shortest distance: %f', distance)
+    logger.debug
+    return (
+        options[selected_index],
+        1 / (1 + distance)  # Convert distance to similarity
     )
 
 

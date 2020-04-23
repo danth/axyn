@@ -41,6 +41,7 @@ setup(
         'nltk >=3.4,<4',
         'spacy >=2,<3',
         'mathparse <1',
+        'scipy >=1,<2',
         'cairosvg >=2,<3',
         'discord.py >=1.2.5,<2',
         'emoji >=0.5,<1',
