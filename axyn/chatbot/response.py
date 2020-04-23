@@ -32,7 +32,6 @@ def process_as_math(text):
         return None
 
 
-
 def get_closest_match(text, options):
     """
     Get the closest match to some text given a list of options.
