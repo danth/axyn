@@ -127,10 +127,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-
-# Chatterbot
-database.sqlite3*
-sentence_tokenizer.pickle
-
-trainers.txt
