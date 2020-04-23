@@ -2,13 +2,14 @@ import logging
 import random
 from statistics import mode, StatisticsError
 
-import editdistance
 from sqlalchemy import or_
 from mathparse import mathparse
+from scipy import spatial
 
 from chatbot.caps import capitalize
 from models import Statement, Reaction
 from chatbot.pairs import get_pairs
+from chatbot.nlploader import nlp
 
 
 # Set up logging
@@ -31,6 +32,27 @@ def process_as_math(text):
         return None
 
 
+def average_doc_vector(doc):
+    """
+    Get the average of token vectors in the document.
+
+    Ignore tokens which do not have a known vector, and punctuation. If this
+    filtering removes all tokens, then fall back to SpaCy's implementation
+    which includes everything.
+
+    :param doc: Doc object to process.
+    :returns: Average vector for the document.
+    """
+    token_vectors = [
+        t.vector for t in doc
+        if t.has_vector and not t.is_punct
+    ]
+
+    if len(token_vectors) == 0:
+        return doc.vector
+    return sum(token_vectors) / len(token_vectors)
+
+
 def get_closest_match(text, options):
     """
     Get the closest match to some text given a list of options.
@@ -38,7 +60,7 @@ def get_closest_match(text, options):
     :param text: Text we are looking for a match to.
     :param options: List of options to try. It is highly recommended to
         deduplicate this list to save processing time.
-    :returns: Tuple of (match, similarity).
+    :returns: Tuple of (match, distance).
     """
     logger.debug(
         'Looking for closest match to "%s" in %i options',
@@ -46,30 +68,25 @@ def get_closest_match(text, options):
     )
 
     if text in options:
-        logger.debug('Options contains an exact match, returning now')
-        return text, 1
+        logger.debug('Options contain an exact match, returning now')
+        return text, 0
 
-    # Make a list of similarities corresponding to the options
-    similarities = list()
-    for option in options:
-        # Get Levenshtein distance of two strings
-        distance = editdistance.eval(text.lower(), option.lower())
-        # Calculate % similarity based on maximum possible distance
-        max_distance = max(len(text), len(option))
-        similarity = 1 - (distance / max_distance)
-        similarities.append(similarity)
-
-        logger.debug(
-            'distance of %i to "%s" (similarity %.3f)',
-            distance, option, similarity
+    logger.debug('Getting document vectors')
+    text_vector = average_doc_vector(nlp(text))
+    option_vectors = [
+        average_doc_vector(doc)
+        for doc in nlp.pipe(
+            options,
+            disable=['tagger', 'parser', 'ner']
         )
+    ]
 
-    # Return the option with the highest similarity
-    print(len(options))
-    return max(
-        zip(options, similarities),
-        key=lambda o: o[1]
-    )
+    logger.debug('Looking for closest vector using KDTree')
+    tree = spatial.KDTree(option_vectors)
+    distance, selected_index = tree.query(text_vector)
+
+    logger.debug('Shortest distance: %f', distance)
+    return options[selected_index], distance
 
 
 def get_closest_matching_response(text, query_type, session):
@@ -99,10 +116,17 @@ def get_closest_matching_response(text, query_type, session):
         return None, 0
 
     # Find the closest matching responding_to value
-    match, confidence = get_closest_match(text, responding_to_texts)
+    match, distance = get_closest_match(text, responding_to_texts)
+    # Convert distance value to confidence:
+    # 0.6 has no specific meaning, it was chosen because it makes the
+    # confidence values go roughly where I want them to be
+    # https://www.wolframalpha.com/input/?i=plot+1%2F%281%2B0.6d%29+from+0+to+5
+    confidence = 1 / (1 + (0.6 * distance))
+
     logger.info(
-        'Selected "%s" as closest match to "%s" with confidence %.2f',
-        match, text, confidence
+        'Selected "%s" as closest match to "%s" '
+        'with confidence %.2f (distance %.3f)',
+        match, text, confidence, distance
     )
     return match, confidence
 
