@@ -47,9 +47,9 @@ def get_closest_match(text, options):
         text, len(options)
     )
 
-    #if text in options:
-    #    logger.debug('Options contains an exact match, returning now')
-    #    return text, 1
+    if text in options:
+        logger.debug('Options contain an exact match, returning now')
+        return text, 0
 
     logger.debug('Getting document vectors')
     text_doc = nlp(text)
