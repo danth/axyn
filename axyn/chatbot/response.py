@@ -40,7 +40,7 @@ def get_closest_match(text, options):
     :param text: Text we are looking for a match to.
     :param options: List of options to try. It is highly recommended to
         deduplicate this list to save processing time.
-    :returns: Tuple of (match, similarity).
+    :returns: Tuple of (match, distance).
     """
     logger.debug(
         'Looking for closest match to "%s" in %i options',
@@ -66,11 +66,7 @@ def get_closest_match(text, options):
     distance, selected_index = tree.query(text_doc.vector)
 
     logger.debug('Shortest distance: %f', distance)
-    logger.debug
-    return (
-        options[selected_index],
-        1 / (1 + distance)  # Convert distance to similarity
-    )
+    return options[selected_index], distance
 
 
 def get_closest_matching_response(text, query_type, session):
@@ -100,10 +96,17 @@ def get_closest_matching_response(text, query_type, session):
         return None, 0
 
     # Find the closest matching responding_to value
-    match, confidence = get_closest_match(text, responding_to_texts)
+    match, distance = get_closest_match(text, responding_to_texts)
+    # Convert distance value to confidence:
+    # 0.6 has no specific meaning, it was chosen because it makes the
+    # confidence values go roughly where I want them to be
+    # https://www.wolframalpha.com/input/?i=plot+1%2F%281%2B0.6d%29+from+0+to+5
+    confidence = 1 / (1 + (0.6 * distance))
+
     logger.info(
-        'Selected "%s" as closest match to "%s" with confidence %.2f',
-        match, text, confidence
+        'Selected "%s" as closest match to "%s" '
+        'with confidence %.2f (distance %.3f)',
+        match, text, confidence, distance
     )
     return match, confidence
 
