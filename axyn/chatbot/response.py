@@ -32,6 +32,27 @@ def process_as_math(text):
         return None
 
 
+def average_doc_vector(doc):
+    """
+    Get the average of token vectors in the document.
+
+    Ignore tokens which do not have a known vector, and punctuation. If this
+    filtering removes all tokens, then fall back to SpaCy's implementation
+    which includes everything.
+
+    :param doc: Doc object to process.
+    :returns: Average vector for the document.
+    """
+    token_vectors = [
+        t.vector for t in doc
+        if t.has_vector and not t.is_punct
+    ]
+
+    if len(token_vectors) == 0:
+        return doc.vector
+    return sum(token_vectors) / len(token_vectors)
+
+
 def get_closest_match(text, options):
     """
     Get the closest match to some text given a list of options.
@@ -51,10 +72,10 @@ def get_closest_match(text, options):
         return text, 0
 
     logger.debug('Getting document vectors')
-    text_doc = nlp(text)
-
+    text_vector = average_doc_vector(nlp(text))
     option_vectors = [
-        doc.vector for doc in nlp.pipe(
+        average_doc_vector(doc)
+        for doc in nlp.pipe(
             options,
             disable=['tagger', 'parser', 'ner']
         )
@@ -62,7 +83,7 @@ def get_closest_match(text, options):
 
     logger.debug('Looking for closest vector using KDTree')
     tree = spatial.KDTree(option_vectors)
-    distance, selected_index = tree.query(text_doc.vector)
+    distance, selected_index = tree.query(text_vector)
 
     logger.debug('Shortest distance: %f', distance)
     return options[selected_index], distance
