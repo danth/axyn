@@ -19,7 +19,7 @@ def render(sentences):
     for sent in sentences:
 
         # Render sentence as SVG
-        doc = nlp(sent)
+        doc = nlp(sent, disable=['ner'])
         svg = displacy.render(
             doc,
             style='dep',

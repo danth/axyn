@@ -72,7 +72,9 @@ def get_closest_match(text, options):
         return text, 0
 
     logger.debug('Getting document vectors')
-    text_vector = average_doc_vector(nlp(text))
+    text_vector = average_doc_vector(
+        nlp(text, disable=['tagger', 'parser', 'ner'])
+    )
     option_vectors = [
         average_doc_vector(doc)
         for doc in nlp.pipe(
