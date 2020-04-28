@@ -48,16 +48,13 @@ Axyn learns how to respond based on messages it receives. It tries to guess
 which other message the message is in response to, and saves it. If someone
 sends the first message again, it will find the stored response and re-use it.
 
-Bigram pairs are used to select previously seen messages from the database
-which it thinks might be a match fo the message it receives. This means that we
-don't need to do heavy computations on every single sentence that is stored to
-find a match.
+First, input messages are converted to a 300-dimensional vector
+[using SpaCy](https://spacy.io/api/token#vector). Then this vector is used to
+find the closest match in an [NGT](https://github.com/yahoojapan/NGT) index
+containing the vectors of learned messages. Each object ID from the index
+corresponds to one or more possible responses, which are stored in a simple
+database table. Finally, the most common response from the possibilities is
+chosen, or if there is no mode then one is selected at random.
 
-Word embeddings are used to calculate an average vector for each the selected
-candidates, then `scipy.spatial.KDTree` is used to perform a nearest-neighbour
-search on these vectors to find the closest match. The distance between the
-two vectors is used to compute a confidence value.
-
-Finally, the response that was sent after the matching message is recalled. If
-there have been multiple responses, Axyn tries to select the most common, but
-if there is no mode then it will just pick one at random.
+A similar approach is applied for reactions, swapping the stored textual
+responses for a single emoji per entry.
