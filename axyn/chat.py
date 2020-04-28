@@ -7,9 +7,8 @@ import emoji
 import discord
 from discord.ext import commands
 
-from models import Statement
 from chatbot.response import get_response
-from chatbot.pairs import get_pairs
+from chatbot.train import train_statement
 
 
 # Set up logging
@@ -71,14 +70,7 @@ class Chat(commands.Cog):
                 )
 
                 session = self.bot.Session()
-                session.add(Statement(
-                    text=msg.content,
-                    responding_to=previous_msg.content,
-                    responding_to_bigram=' '.join(
-                        get_pairs(previous_msg.content)
-                    )
-                ))
-                session.commit()
+                train_statement(msg.content, previous_msg.content, session)
                 session.close()
 
     async def process_dm_response(self, msg):

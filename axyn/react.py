@@ -5,8 +5,7 @@ import discord
 from discord.ext import commands
 
 from chatbot.response import get_reaction
-from chatbot.pairs import get_pairs
-from models import Reaction
+from chatbot.train import train_reaction
 
 
 # Set up logging
@@ -64,14 +63,8 @@ class React(commands.Cog):
                 logger.info('Learning reaction')
 
                 session = self.bot.Session()
-                session.add(Reaction(
-                    emoji=reaction.emoji,
-                    responding_to=reaction.message.content,
-                    responding_to_bigram=' '.join(
-                        get_pairs(reaction.message.content)
-                    )
-                ))
-                session.commit()
+                train_reaction(
+                    reaction.emoji, reaction.message.content, session)
                 session.close()
 
     def should_ignore(self, msg):

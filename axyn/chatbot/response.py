@@ -1,15 +1,11 @@
 import logging
-import random
-from statistics import mode, StatisticsError
 
-from sqlalchemy import or_
 from mathparse import mathparse
-from scipy import spatial
 
 from chatbot.caps import capitalize
+from chatbot.vector import average_vector
+from chatbot.ngtinit import statements_index, reactions_index
 from models import Statement, Reaction
-from chatbot.pairs import get_pairs
-from chatbot.nlploader import nlp
 
 
 # Set up logging
@@ -32,105 +28,43 @@ def process_as_math(text):
         return None
 
 
-def average_doc_vector(doc):
+def get_closest_vector(text, index):
     """
-    Get the average of token vectors in the document.
-
-    Ignore tokens which do not have a known vector, and punctuation. If this
-    filtering removes all tokens, then fall back to SpaCy's implementation
-    which includes everything.
-
-    :param doc: Doc object to process.
-    :returns: Average vector for the document.
-    """
-    token_vectors = [
-        t.vector for t in doc
-        if t.has_vector and not t.is_punct
-    ]
-
-    if len(token_vectors) == 0:
-        return doc.vector
-    return sum(token_vectors) / len(token_vectors)
-
-
-def get_closest_match(text, options):
-    """
-    Get the closest match to some text given a list of options.
-
-    :param text: Text we are looking for a match to.
-    :param options: List of options to try. It is highly recommended to
-        deduplicate this list to save processing time.
-    :returns: Tuple of (match, distance).
-    """
-    logger.debug(
-        'Looking for closest match to "%s" in %i options',
-        text, len(options)
-    )
-
-    if text in options:
-        logger.debug('Options contain an exact match, returning now')
-        return text, 0
-
-    logger.debug('Getting document vectors')
-    text_vector = average_doc_vector(
-        nlp(text, disable=['tagger', 'parser', 'ner'])
-    )
-    option_vectors = [
-        average_doc_vector(doc)
-        for doc in nlp.pipe(
-            options,
-            disable=['tagger', 'parser', 'ner']
-        )
-    ]
-
-    logger.debug('Looking for closest vector using KDTree')
-    tree = spatial.KDTree(option_vectors)
-    distance, selected_index = tree.query(text_vector)
-
-    logger.debug('Shortest distance: %f', distance)
-    return options[selected_index], distance
-
-
-def get_closest_matching_response(text, query_type, session):
-    """
-    Get the closest matching responding_to from the database.
+    Get the closest matching response from the index.
 
     :param text: Text we are comparing against.
-    :param query_type: Either Statement or Reaction.
-    :param session: Database session to use for queries.
-    :returns: Tuple of (match, confidence).
+    :param index: NGT index to query from.
+    :returns: Tuple of (id, distance).
     """
-    # Get bigram pairs for the text
-    pairs = get_pairs(text)
-    logger.debug('Bigram pairs: %s', ' '.join(pairs))
+    text_vector = average_vector(text)
 
-    # Query for statements which contain at least one similar bigram pair
-    # Only get distinct values of responding_to to cut down on processing time
-    search = [query_type.responding_to_bigram.contains(pair) for pair in pairs]
-    responding_to_texts = session.query(query_type.responding_to) \
-        .filter(or_(*search)).distinct().all()
-    # Unpack result tuples
-    responding_to_texts = [r for r, in responding_to_texts]
+    # Nearest neighbour search to find the closest stored vector
+    results = index.search(text_vector, 1)
+    if len(results) == 0:
+        # The index is empty!
+        return None, None
 
-    if len(responding_to_texts) == 0:
-        # No possible matches found
-        logger.info('No possible matches found')
-        return None, 0
-
-    # Find the closest matching responding_to value
-    match, distance = get_closest_match(text, responding_to_texts)
-    # Convert distance value to confidence:
-    # 0.6 has no specific meaning, it was chosen because it makes the
-    # confidence values go roughly where I want them to be
-    # https://www.wolframalpha.com/input/?i=plot+1%2F%281%2B0.6d%29+from+0+to+5
-    confidence = 1 / (1 + (0.6 * distance))
-
+    # Unpack the first and only result
+    match_id, distance = results[0]
     logger.info(
-        'Selected "%s" as closest match to "%s" '
-        'with confidence %.2f (distance %.3f)',
-        match, text, confidence, distance
+        'Selected s%i as closest match, at distance %.3f',
+        match_id, distance
     )
-    return match, confidence
+    return match_id, distance
+
+
+def confidence(distance):
+    """
+    Convert the distance between two document vectors to a confidence.
+
+    :param distance: Euclidean distance.
+    :returns: Confidence value ranging from 0 (low similarity) to
+        1 (high similarity).
+    """
+    # 0.6 has no specific meaning, it was chosen to scale the results to a
+    # sensible value based on observations
+    # https://www.wolframalpha.com/input/?i=plot+1%2F%281%2B0.6d%29+from+0+to+5
+    return 1 / (1 + (0.6 * distance))
 
 
 def get_response(text, session):
@@ -149,30 +83,14 @@ def get_response(text, session):
         # The text can be handled as a mathematical evaluation
         return math_response, 1
 
-    match, confidence = get_closest_matching_response(text, Statement, session)
-    if match is None:
+    # Find closest matching vector
+    match_id, distance = get_closest_vector(text, statements_index)
+    if match_id is None:
         return None, 0
 
-    # Find all statements which are responding_to the same text
-    responses = session.query(Statement.text) \
-        .filter(Statement.responding_to == match).all()
-    # Unpack result tuples
-    responses = [r for r, in responses]
-    logger.debug(
-        'There are %i possible responses to "%s"',
-        len(responses), match
-    )
-
-    try:
-        # Find the most frequent response
-        selected_response = mode(responses)
-        logger.info('Selected "%s" as mode response', selected_response)
-    except StatisticsError:
-        # No mode, select a random response
-        selected_response = random.choice(responses)
-        logger.info('Selected "%s" at random', selected_response)
-
-    return capitalize(selected_response), confidence
+    # Get the associated response text
+    match = session.query(Statement).filter(Statement.ngt_id == match_id).one()
+    return capitalize(match.text), confidence(distance)
 
 
 def get_reaction(text, session):
@@ -186,27 +104,11 @@ def get_reaction(text, session):
     :param session: Database session to use for queries.
     :returns: Tuple of (emoji, confidence).
     """
-    match, confidence = get_closest_matching_response(text, Reaction, session)
-    if match is None:
+    # Find closest matching vector
+    match_id, distance = get_closest_vector(text, reactions_index)
+    if match_id is None:
         return None, 0
 
-    # Find other reactions which react to the same text
-    response_emojis = session.query(Reaction.emoji) \
-        .filter(Reaction.responding_to == match)
-    # Unpack result tuples
-    response_emojis = [r for r, in response_emojis]
-    logger.debug(
-        'There are %i possible reactions to "%s"',
-        len(response_emojis), match
-    )
-
-    try:
-        # Find the most frequent reaction
-        response_emoji = mode(response_emojis)
-        logger.info('Selected %s as mode reaction', response_emoji)
-    except StatisticsError:
-        # No mode, select a random reaction
-        response_emoji = random.choice(response_emojis)
-        logger.info('Selected %s at random', response_emoji)
-
-    return response_emoji, confidence
+    # Get the associated reaction
+    match = session.query(Reaction).filter(Reaction.ngt_id == match_id).one()
+    return match.emoji, confidence(distance)
