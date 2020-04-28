@@ -1,12 +1,10 @@
 import logging
-import os.path
 
 import discord
 from discord.ext import commands
 
-from datastore import get_path
-from chatbot.pairs import get_pairs
-from models import Statement, Trainer
+from chatbot.train import train_statement
+from models import Trainer
 
 
 # Set up logging
@@ -62,16 +60,9 @@ class Training(commands.Cog):
                 # responding to
                 if previous_statement is not None:
                     # Create a statement in response to the previous one
-                    session.add(Statement(
-                        text=statement,
-                        responding_to=previous_statement,
-                        responding_to_bigram=' '.join(
-                            get_pairs(previous_statement)
-                        )
-                    ))
+                    train_statement(statement, previous_statement, session)
                 previous_statement = statement
 
-            session.commit()
             session.close()
 
         # Completed, respond to command
