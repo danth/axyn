@@ -92,7 +92,10 @@ def get_response(text, session):
 
     # Get all response texts associated with this input
     matches = session.query(Statement).filter(Statement.ngt_id == match_id).all()
-    responses = [match.text for match in matches]
+    responses = [
+        match.text.strip() for match in matches
+        if len(match.text.strip()) > 0
+    ]
 
     try:
         # Select most common response
@@ -100,7 +103,7 @@ def get_response(text, session):
     except StatisticsError:
         # Select a random response
         response = random.choice(responses)
-    
+
     return capitalize(response), confidence(distance)
 
 
