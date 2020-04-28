@@ -24,9 +24,7 @@ def process_as_math(text):
         expression = mathparse.extract_expression(text, language='ENG')
         result = mathparse.parse(expression, language='ENG')
         return f'{expression} = {result}'
-    except mathparse.PostfixTokenEvaluationException:
-        return None
-    except KeyError:
+    except:
         return None
 
 
