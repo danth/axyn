@@ -91,7 +91,8 @@ def get_response(text, session):
         return None, 0
 
     # Get all response texts associated with this input
-    matches = session.query(Statement).filter(Statement.ngt_id == match_id).all()
+    matches = session.query(Statement) \
+        .filter(Statement.ngt_id == match_id).all()
     responses = [
         match.text.strip() for match in matches
         if len(match.text.strip()) > 0
