@@ -1,4 +1,6 @@
 import logging
+import random
+from statistics import mode, StatisticsError
 
 from mathparse import mathparse
 
@@ -88,9 +90,18 @@ def get_response(text, session):
     if match_id is None:
         return None, 0
 
-    # Get the associated response text
-    match = session.query(Statement).filter(Statement.ngt_id == match_id).one()
-    return capitalize(match.text), confidence(distance)
+    # Get all response texts associated with this input
+    matches = session.query(Statement).filter(Statement.ngt_id == match_id).all()
+    responses = [match.text for match in matches]
+
+    try:
+        # Select most common response
+        response = mode(responses)
+    except StatisticsError:
+        # Select a random response
+        response = random.choice(responses)
+    
+    return capitalize(response), confidence(distance)
 
 
 def get_reaction(text, session):
@@ -109,6 +120,15 @@ def get_reaction(text, session):
     if match_id is None:
         return None, 0
 
-    # Get the associated reaction
-    match = session.query(Reaction).filter(Reaction.ngt_id == match_id).one()
-    return match.emoji, confidence(distance)
+    # Get all reactions associated with this input
+    matches = session.query(Reaction).filter(Reaction.ngt_id == match_id).all()
+    reactions = [match.emoji for match in matches]
+
+    try:
+        # Select most common response
+        reaction = mode(reactions)
+    except StatisticsError:
+        # Select a random response
+        reaction = random.choice(reactions)
+
+    return reaction, confidence(distance)
