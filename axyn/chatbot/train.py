@@ -9,6 +9,30 @@ from models import Statement, Reaction
 logger = logging.getLogger(__name__)
 
 
+def get_index_id(vector, index):
+    """
+    Get the NGT ID of the given vector.
+
+    If the vector is not in the index, it will be added and the index built
+    and saved.
+
+    :param vector: Vector to get ID of.
+    :param index: NGT index to query.
+    :returns: NGT object id.
+    """
+    # Check if the index already contains this vector
+    result = index.search(vector, 1)
+    if len(result) > 0 and result[0][1] == 0:
+        # This vector already exists, return its id
+        return result[0][0]
+    else:
+        # Add vector to the index
+        ngt_id = index.insert(vector)
+        index.build_index()
+        index.save()
+        return ngt_id
+
+
 def train_statement(text, responding_to, session):
     """
     Train the given statement into the index.
@@ -17,19 +41,9 @@ def train_statement(text, responding_to, session):
     :param responding_to: The text this statement was in response to.
     :param session: Database session to use for insertions.
     """
-    responding_to_vector = average_vector(responding_to)
+    vector = average_vector(responding_to)
+    ngt_id = get_index_id(vector, statements_index)
 
-    result = statements_index.search(responding_to_vector, 1)
-    if len(result) > 0 and result[0][1] == 0:
-        # This vector is already in the index
-        ngt_id = result[0][0]
-    else:
-        # Add vector to the index
-        ngt_id = statements_index.insert(responding_to_vector)
-        statements_index.build_index()
-        statements_index.save()
-
-    # Add response text to database
     session.add(Statement(ngt_id=ngt_id, text=text))
     session.commit()
 
@@ -42,18 +56,8 @@ def train_reaction(emoji, responding_to, session):
     :param responding_to: The text this reaction was added to.
     :param session: Database session to use for insertions.
     """
-    responding_to_vector = average_vector(responding_to)
+    vector = average_vector(responding_to)
+    ngt_id = get_index_id(vector, reactions_index)
 
-    result = reactions_index.search(responding_to_vector, 1)
-    if len(result) > 0 and result[0][1] == 0:
-        # This vector is already in the index
-        ngt_id = result[0][0]
-    else:
-        # Add vector to the index
-        ngt_id = reactions_index.insert(responding_to_vector)
-        reactions_index.build_index()
-        reactions_index.save()
-
-    # Add reaction to database
     session.add(Reaction(ngt_id=ngt_id, emoji=emoji))
     session.commit()
