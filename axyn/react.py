@@ -75,11 +75,21 @@ class React(commands.Cog):
             logger.info('Author is a bot, ignoring')
             return True
 
-        if len(msg.content) < 5:
+        if (
+            msg.channel.type != discord.ChannelType.private
+            and len(msg.content) < 5
+        ):
             logger.info('Message is less than 5 characters, ignoring')
             return True
 
-        if is_command(msg.content):
+        if msg.content.startswith('a!'):
+            logger.info('Message is an Axyn command, ignoring')
+            return True
+        if (
+            # In DMs, only Axyn commands will be used
+            msg.channel.type != discord.ChannelType.private
+            and is_command(msg.content)
+        ):
             logger.info('Message appears to be a bot command, ignoring')
             return True
 
