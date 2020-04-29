@@ -2,8 +2,8 @@ import logging
 import re
 
 import discord
-from chatbot.response import get_reaction
-from chatbot.train import train_reaction
+from axyn.chatbot.response import get_reaction
+from axyn.chatbot.train import train_reaction
 from discord.ext import commands
 
 # Set up logging

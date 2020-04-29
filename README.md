@@ -8,8 +8,18 @@ A simple Discord chatbot.
 
 ## Run
 
-Set the environment variable `DISCORD_TOKEN` to your Discord bot token. This is
-needed to access the Discord API. Then, simply launch `axyn/main.py`.
+1. Install using `setup.py`.
+1. Download the NLP model:
+  ```
+  python -m spacy download en_core_web_md
+  ```
+1. Set the environment variable `DISCORD_TOKEN` to your Discord bot token. This is
+needed to access the Discord API.
+1. Launch the console script `axyn`:
+
+  ```
+  DISCORD_TOKEN=... axyn
+  ```
 
 ## Usage
 

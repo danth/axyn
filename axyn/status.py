@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from models import Reaction, Statement
+from axyn.models import Reaction, Statement
 
 
 class Status(commands.Cog):

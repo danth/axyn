@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 
 import discord
 import emoji
-from chatbot.response import get_response
-from chatbot.train import train_statement
+from axyn.chatbot.response import get_response
+from axyn.chatbot.train import train_statement
 from discord.ext import commands
 
 # Set up logging

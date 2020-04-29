@@ -4,7 +4,7 @@ import io
 import cairosvg
 import discord
 import nltk
-from chatbot.nlploader import nlp
+from axyn.chatbot.nlploader import nlp
 from discord.ext import commands
 from spacy import displacy
 

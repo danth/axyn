@@ -1,4 +1,4 @@
-from chatbot.nlploader import nlp
+from axyn.chatbot.nlploader import nlp
 
 
 def average_vector(text):

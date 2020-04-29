@@ -2,7 +2,7 @@ import logging
 import os.path
 
 import ngtpy
-from datastore import get_path
+from axyn.datastore import get_path
 
 logger = logging.getLogger(__name__)
 
