@@ -1,8 +1,9 @@
 import logging
 
 import discord
-from axyn.chatbot.train import train_statement
 from discord.ext import commands
+
+from axyn.chatbot.train import train_statement
 from axyn.models import Trainer
 
 # Set up logging

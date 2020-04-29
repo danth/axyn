@@ -2,9 +2,10 @@ import logging
 import re
 
 import discord
+from discord.ext import commands
+
 from axyn.chatbot.response import get_reaction
 from axyn.chatbot.train import train_reaction
-from discord.ext import commands
 
 # Set up logging
 logger = logging.getLogger(__name__)

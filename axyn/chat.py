@@ -5,9 +5,10 @@ from datetime import datetime, timedelta
 
 import discord
 import emoji
+from discord.ext import commands
+
 from axyn.chatbot.response import get_response
 from axyn.chatbot.train import train_statement
-from discord.ext import commands
 
 # Set up logging
 logger = logging.getLogger(__name__)

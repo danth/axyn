@@ -4,9 +4,10 @@ import io
 import cairosvg
 import discord
 import nltk
-from axyn.chatbot.nlploader import nlp
 from discord.ext import commands
 from spacy import displacy
+
+from axyn.chatbot.nlploader import nlp
 
 nltk.download("punkt")
 sent_tokenizer = nltk.data.load("tokenizers/punkt/english.pickle")

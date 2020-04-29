@@ -5,8 +5,9 @@ from functools import wraps
 import chickennuggets
 import spacy
 import sqlalchemy
-from axyn.datastore import get_path
 from discord.ext import commands
+
+from axyn.datastore import get_path
 from axyn.models import Base
 
 # Setup logging

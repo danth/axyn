@@ -44,9 +44,5 @@ setup(
         "emoji >=0.5,<1",
         "chickennuggets >=1,<2",
     ],
-    entry_points={
-        "console_scripts": [
-            "axyn=axyn.__main__:launch",
-        ],
-    },
+    entry_points={"console_scripts": ["axyn=axyn.__main__:launch",],},
 )

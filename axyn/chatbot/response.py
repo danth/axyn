@@ -2,10 +2,11 @@ import logging
 import random
 from statistics import StatisticsError, mode
 
+from mathparse import mathparse
+
 from axyn.chatbot.caps import capitalize
 from axyn.chatbot.ngtinit import reactions_index, statements_index
 from axyn.chatbot.vector import average_vector
-from mathparse import mathparse
 from axyn.models import Reaction, Statement
 
 # Set up logging
