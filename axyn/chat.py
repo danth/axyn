@@ -143,7 +143,14 @@ class Chat(commands.Cog):
             logger.info('Message has no text, ignoring')
             return True
 
-        if is_command(msg.content):
+        if msg.content.startswith('a!'):
+            logger.info('Message is an Axyn command, ignoring')
+            return True
+        if (
+            # In DMs, only Axyn commands will be used
+            msg.channel.type != discord.ChannelType.private
+            and is_command(msg.content)
+        ):
             logger.info('Message appears to be a bot command, ignoring')
             return True
 
