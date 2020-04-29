@@ -1,8 +1,8 @@
 import nltk
 
 # Load sentence tokenizer
-nltk.download('punkt')
-sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+nltk.download("punkt")
+sent_tokenizer = nltk.data.load("tokenizers/punkt/english.pickle")
 
 
 def capitalize(text):
@@ -18,7 +18,7 @@ def capitalize(text):
     for i, sentence in enumerate(sentences):
 
         # Ignore URLs
-        if sentence.startswith('http'):
+        if sentence.startswith("http"):
             continue
 
         # Capitalize the sentence
@@ -26,4 +26,4 @@ def capitalize(text):
         sentences[i] = sentence
 
     # Stitch back together and return
-    return ' '.join(sentences)
+    return " ".join(sentences)

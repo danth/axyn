@@ -1,9 +1,8 @@
 import logging
 
+from chatbot.ngtinit import reactions_index, statements_index
 from chatbot.vector import average_vector
-from chatbot.ngtinit import statements_index, reactions_index
-from models import Statement, Reaction
-
+from models import Reaction, Statement
 
 # Set up logging
 logger = logging.getLogger(__name__)

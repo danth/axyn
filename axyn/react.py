@@ -2,11 +2,9 @@ import logging
 import re
 
 import discord
-from discord.ext import commands
-
 from chatbot.response import get_reaction
 from chatbot.train import train_reaction
-
+from discord.ext import commands
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -15,10 +13,10 @@ logger = logging.getLogger(__name__)
 def is_command(text):
     """Check if the given text appears to be a command."""
 
-    if text.startswith('pls '):
+    if text.startswith("pls "):
         return True
 
-    return re.match(r'^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)', text) is not None
+    return re.match(r"^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)", text) is not None
 
 
 class React(commands.Cog):
@@ -31,7 +29,7 @@ class React(commands.Cog):
 
         # Get a chatbot response
         if not self.should_ignore(msg):
-            logger.info('Getting reaction')
+            logger.info("Getting reaction")
 
             # Get a reaction
             session = self.bot.Session()
@@ -40,10 +38,10 @@ class React(commands.Cog):
 
             # Add reaction
             if confidence >= 0.5:
-                logger.info('Reacting with %s', emoji)
+                logger.info("Reacting with %s", emoji)
                 await msg.add_reaction(emoji)
             else:
-                logger.info('Confidence %d, not reacting', confidence)
+                logger.info("Confidence %d, not reacting", confidence)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -52,7 +50,7 @@ class React(commands.Cog):
         logger.info(
             'Received reaction %s on "%s"',
             reaction.emoji,
-            reaction.message.clean_content
+            reaction.message.clean_content,
         )
 
         # Use original message for ignore checking
@@ -60,11 +58,10 @@ class React(commands.Cog):
             # Check if this is a unicode emoji or a custom one
             if type(reaction.emoji) == str:
                 # Learn the emoji as a reaction
-                logger.info('Learning reaction')
+                logger.info("Learning reaction")
 
                 session = self.bot.Session()
-                train_reaction(
-                    reaction.emoji, reaction.message.content, session)
+                train_reaction(reaction.emoji, reaction.message.content, session)
                 session.close()
 
     def should_ignore(self, msg):
@@ -72,25 +69,22 @@ class React(commands.Cog):
 
         # Check if the author is a bot / system message
         if msg.author.bot or msg.type != discord.MessageType.default:
-            logger.info('Author is a bot, ignoring')
+            logger.info("Author is a bot, ignoring")
             return True
 
-        if (
-            msg.channel.type != discord.ChannelType.private
-            and len(msg.content) < 5
-        ):
-            logger.info('Message is less than 5 characters, ignoring')
+        if msg.channel.type != discord.ChannelType.private and len(msg.content) < 5:
+            logger.info("Message is less than 5 characters, ignoring")
             return True
 
-        if msg.content.startswith('a!'):
-            logger.info('Message is an Axyn command, ignoring')
+        if msg.content.startswith("a!"):
+            logger.info("Message is an Axyn command, ignoring")
             return True
         if (
             # In DMs, only Axyn commands will be used
             msg.channel.type != discord.ChannelType.private
             and is_command(msg.content)
         ):
-            logger.info('Message appears to be a bot command, ignoring')
+            logger.info("Message appears to be a bot command, ignoring")
             return True
 
         return False
@@ -99,24 +93,23 @@ class React(commands.Cog):
         """Check if a reaction on the given message should be learned."""
 
         if reaction_user.bot:
-            logger.info('Reaction is from a bot, not learning it')
+            logger.info("Reaction is from a bot, not learning it")
             return False
 
         if reaction_user == msg.author:
-            logger.info('Reaction is from message author, not learning it')
+            logger.info("Reaction is from message author, not learning it")
             return False
 
         if msg.author.bot and msg.author != self.bot.user:
-            logger.info('Message is from foreign bot, not learning reaction')
+            logger.info("Message is from foreign bot, not learning reaction")
             return False
 
         if len(msg.content) == 0:
-            logger.info('Message has no text, not learning reaction')
+            logger.info("Message has no text, not learning reaction")
             return False
 
         if is_command(msg.content):
-            logger.info(
-                'Message appears to be a bot command, not learning reaction')
+            logger.info("Message appears to be a bot command, not learning reaction")
             return False
 
         return True

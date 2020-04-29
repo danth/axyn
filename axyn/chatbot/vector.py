@@ -14,11 +14,8 @@ def average_vector(text):
     :param text: Text string to process.
     :returns: Average vector for the document.
     """
-    doc = nlp(text, disable=['tagger', 'parser', 'ner'])
-    token_vectors = [
-        t.vector for t in doc
-        if t.has_vector and not t.is_punct
-    ]
+    doc = nlp(text, disable=["tagger", "parser", "ner"])
+    token_vectors = [t.vector for t in doc if t.has_vector and not t.is_punct]
 
     if len(token_vectors) == 0:
         return doc.vector

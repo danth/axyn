@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-
-from models import Statement, Reaction
+from models import Reaction, Statement
 
 
 class Status(commands.Cog):
@@ -27,7 +26,7 @@ class Status(commands.Cog):
         await self.bot.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.listening,
-                name=f'{statements} 💬 {reactions} 👍'
+                name=f"{statements} 💬 {reactions} 👍",
             )
         )
 

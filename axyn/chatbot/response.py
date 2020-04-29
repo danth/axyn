@@ -1,14 +1,12 @@
 import logging
 import random
-from statistics import mode, StatisticsError
-
-from mathparse import mathparse
+from statistics import StatisticsError, mode
 
 from chatbot.caps import capitalize
+from chatbot.ngtinit import reactions_index, statements_index
 from chatbot.vector import average_vector
-from chatbot.ngtinit import statements_index, reactions_index
-from models import Statement, Reaction
-
+from mathparse import mathparse
+from models import Reaction, Statement
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -21,9 +19,9 @@ def process_as_math(text):
     :returns: Response text, or None if the input cannot be parsed as math.
     """
     try:
-        expression = mathparse.extract_expression(text, language='ENG')
-        result = mathparse.parse(expression, language='ENG')
-        return f'{expression} = {result}'
+        expression = mathparse.extract_expression(text, language="ENG")
+        result = mathparse.parse(expression, language="ENG")
+        return f"{expression} = {result}"
     except:
         return None
 
@@ -46,10 +44,7 @@ def get_closest_vector(text, index):
 
     # Unpack the first and only result
     match_id, distance = results[0]
-    logger.info(
-        'Selected s%i as closest match, at distance %.3f',
-        match_id, distance
-    )
+    logger.info("Selected s%i as closest match, at distance %.3f", match_id, distance)
     return match_id, distance
 
 
@@ -89,12 +84,8 @@ def get_response(text, session):
         return None, 0
 
     # Get all response texts associated with this input
-    matches = session.query(Statement) \
-        .filter(Statement.ngt_id == match_id).all()
-    responses = [
-        match.text.strip() for match in matches
-        if len(match.text.strip()) > 0
-    ]
+    matches = session.query(Statement).filter(Statement.ngt_id == match_id).all()
+    responses = [match.text.strip() for match in matches if len(match.text.strip()) > 0]
 
     try:
         # Select most common response

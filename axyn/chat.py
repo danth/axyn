@@ -3,13 +3,11 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-import emoji
 import discord
-from discord.ext import commands
-
+import emoji
 from chatbot.response import get_response
 from chatbot.train import train_statement
-
+from discord.ext import commands
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -18,10 +16,10 @@ logger = logging.getLogger(__name__)
 def is_command(text):
     """Check if the given text appears to be a command."""
 
-    if text.startswith('pls '):
+    if text.startswith("pls "):
         return True
 
-    return re.match(r'^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)', text) is not None
+    return re.match(r"^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)", text) is not None
 
 
 class Chat(commands.Cog):
@@ -35,7 +33,8 @@ class Chat(commands.Cog):
         """Process a message and send a chatbot response to the channel."""
 
         logger.info('Receved message "%s"', msg.clean_content)
-        if self.should_ignore(msg): return
+        if self.should_ignore(msg):
+            return
 
         if msg.channel.type == discord.ChannelType.private:
             # Respond immediately to DMs
@@ -50,14 +49,13 @@ class Chat(commands.Cog):
             if len(msg.content) < 10:
                 # Don't respond to short texts like "ok" or "yes"
                 # Or greetings targetted at server members
-                logger.info('Not responding to short server message')
+                logger.info("Not responding to short server message")
             else:
                 # Respond after a delay if no humans have responded
-                logger.info('Delaying response to server message')
+                logger.info("Delaying response to server message")
                 self.response_timers[msg.channel.id] = asyncio.create_task(
                     self.process_server_response_later(msg)
                 )
-
 
         if self.should_learn(msg):
             # Look for a previous message
@@ -66,7 +64,8 @@ class Chat(commands.Cog):
                 # Learn this statement
                 logger.info(
                     'Learning "%s" as a response to "%s"',
-                    msg.clean_content, previous_msg.clean_content
+                    msg.clean_content,
+                    previous_msg.clean_content,
                 )
 
                 session = self.bot.Session()
@@ -78,7 +77,7 @@ class Chat(commands.Cog):
 
         async with msg.channel.typing():
             # Get a response from the chatbot
-            logger.info('Getting response')
+            logger.info("Getting response")
 
             session = self.bot.Session()
             response, confidence = get_response(msg.content, session)
@@ -87,16 +86,12 @@ class Chat(commands.Cog):
         if confidence > 0.5:
             # Send to Discord
             logger.info(
-                'Sending response "%s" with confidence %.2f',
-                response, confidence
+                'Sending response "%s" with confidence %.2f', response, confidence
             )
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond
-            logger.info(
-                'Confidence %.2f <= 0.5, not sending anything',
-                confidence
-            )
+            logger.info("Confidence %.2f <= 0.5, not sending anything", confidence)
 
     async def process_server_response_later(self, *args, **kwargs):
         """Call process_server_response after a delay."""
@@ -109,8 +104,7 @@ class Chat(commands.Cog):
 
         # Get a response from the chatbot
         logger.info(
-            'Getting response to delayed server message "%s"',
-            msg.clean_content
+            'Getting response to delayed server message "%s"', msg.clean_content
         )
 
         session = self.bot.Session()
@@ -120,38 +114,34 @@ class Chat(commands.Cog):
         if confidence > 0.8:  # Higher threshold than DMs
             # Send to Discord
             logger.info(
-                'Sending response "%s" with confidence %.2f',
-                response, confidence
+                'Sending response "%s" with confidence %.2f', response, confidence
             )
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond
-            logger.info(
-                'Confidence %.2f <= 0.8, not sending anything',
-                confidence
-            )
+            logger.info("Confidence %.2f <= 0.8, not sending anything", confidence)
 
     def should_ignore(self, msg):
         """Check if the given message should be completely ignored."""
 
         # Check if the author is a bot / system message
         if msg.author.bot or msg.type != discord.MessageType.default:
-            logger.info('Author is a bot, ignoring')
+            logger.info("Author is a bot, ignoring")
             return True
 
         if len(msg.content) == 0:
-            logger.info('Message has no text, ignoring')
+            logger.info("Message has no text, ignoring")
             return True
 
-        if msg.content.startswith('a!'):
-            logger.info('Message is an Axyn command, ignoring')
+        if msg.content.startswith("a!"):
+            logger.info("Message is an Axyn command, ignoring")
             return True
         if (
             # In DMs, only Axyn commands will be used
             msg.channel.type != discord.ChannelType.private
             and is_command(msg.content)
         ):
-            logger.info('Message appears to be a bot command, ignoring')
+            logger.info("Message appears to be a bot command, ignoring")
             return True
 
         return False
@@ -161,13 +151,13 @@ class Chat(commands.Cog):
 
         # Check channel names for bad strings
         if msg.channel.type == discord.ChannelType.text:
-            if 'spam' in msg.channel.name:
+            if "spam" in msg.channel.name:
                 logger.info('Channel name contains "spam", not learning')
                 return False
-            if 'command' in msg.channel.name: # Will also catch "commands"
+            if "command" in msg.channel.name:  # Will also catch "commands"
                 logger.info('Channel name contains "command", not learning')
                 return False
-            if 'meme' in msg.channel.name:
+            if "meme" in msg.channel.name:
                 logger.info('Channel name contains "meme", not learning')
                 return False
 
@@ -182,7 +172,7 @@ class Chat(commands.Cog):
         if it is found, otherwise return None.
         """
 
-        logger.info('Looking for a previous message')
+        logger.info("Looking for a previous message")
 
         prev = await msg.channel.history(
             # Find the message directly before this
@@ -190,7 +180,7 @@ class Chat(commands.Cog):
             oldest_first=False,
             before=msg,
             # Limit to messages within timeframe
-            after=msg.created_at - timedelta(minutes=minutes)
+            after=msg.created_at - timedelta(minutes=minutes),
         ).flatten()
 
         if len(prev) > 0:
@@ -198,26 +188,25 @@ class Chat(commands.Cog):
             prev_msg = prev[0]
 
             if prev_msg.author == msg.author:
-                logger.info('Found message has same author, not returning')
+                logger.info("Found message has same author, not returning")
                 return
 
             if prev_msg.author.bot and prev_msg.author != self.bot.user:
                 logger.info(
-                    'Found message is from a bot other than '
-                    'ourself, not returning'
+                    "Found message is from a bot other than " "ourself, not returning"
                 )
                 return
 
             if len(prev_msg.content) == 0:
-                logger.info('Found message has no text, not returning')
+                logger.info("Found message has no text, not returning")
                 return
 
             # This message is valid!
             logger.info('Found "%s"', prev_msg.clean_content)
-            return  prev_msg
+            return prev_msg
         else:
             # We didn't find any messages
-            logger.info('No message found')
+            logger.info("No message found")
 
 
 def setup(bot):

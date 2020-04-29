@@ -1,11 +1,9 @@
 import logging
 
 import discord
-from discord.ext import commands
-
 from chatbot.train import train_statement
+from discord.ext import commands
 from models import Trainer
-
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -15,8 +13,7 @@ async def can_train(ctx):
     """Check if the user is allowed to train the bot."""
 
     session = ctx.bot.Session()
-    trainer = session.query(Trainer) \
-        .filter(Trainer.id == ctx.author.id).one_or_none()
+    trainer = session.query(Trainer).filter(Trainer.id == ctx.author.id).one_or_none()
     session.close()
 
     return trainer is not None
@@ -45,11 +42,11 @@ class Training(commands.Cog):
         the following lines. Multi-line statements are *not* supported.
         """
 
-        logger.info('Processing training from command')
+        logger.info("Processing training from command")
 
         async with ctx.channel.typing():
             # Split statements on newline
-            statements = training.split('\n')
+            statements = training.split("\n")
 
             # Do training
             session = self.bot.Session()
@@ -66,24 +63,24 @@ class Training(commands.Cog):
             session.close()
 
         # Completed, respond to command
-        logger.info('Sending response')
+        logger.info("Sending response")
         await self.show_training(statements, ctx, ctx.channel)
 
         appinfo = await ctx.bot.application_info()
         if ctx.author != appinfo.owner:
             # Also send a copy to bot owner
-            logger.info('Sending to bot owner')
+            logger.info("Sending to bot owner")
             await self.show_training(statements, ctx, appinfo.owner)
 
         try:
             # Delete the command message
-            logger.info('Attempting to delete command')
+            logger.info("Attempting to delete command")
             await ctx.message.delete()
         except discord.Forbidden:
             # It doesn't matter if we can't
             pass
 
-        logger.info('Done!')
+        logger.info("Done!")
 
     async def show_training(self, statements, ctx, send_to):
         """Send a message showing the completed training."""
@@ -94,20 +91,18 @@ class Training(commands.Cog):
         for statement in statements:
             # Toggle between person A and person B
             person_toggle = not person_toggle
-            if person_toggle: person = 'A'
-            else:             person = 'B'
+            if person_toggle:
+                person = "A"
+            else:
+                person = "B"
             # Add a line for this statement
-            conversation += f'{person}: {statement}\n'
+            conversation += f"{person}: {statement}\n"
 
         # Send in embed as response to command
         e = discord.Embed(
-            title='Training Completed',
-            description=f'```\n{conversation}```',
+            title="Training Completed", description=f"```\n{conversation}```",
         )
-        e.set_footer(
-            text=ctx.author.name,
-            icon_url=ctx.author.avatar_url
-        )
+        e.set_footer(text=ctx.author.name, icon_url=ctx.author.avatar_url)
         await send_to.send(embed=e)
 
     @commands.group()
@@ -133,10 +128,12 @@ class Training(commands.Cog):
 
         if len(trainers) == 0:
             # There are no trainers
-            await ctx.send(embed=discord.Embed(
-                title="Trainers",
-                description='Nobody has permission to train Axyn manually.'
-            ))
+            await ctx.send(
+                embed=discord.Embed(
+                    title="Trainers",
+                    description="Nobody has permission to train Axyn manually.",
+                )
+            )
         else:
             # Build a list of either a mention or ID for each trainer
             trainer_list = list()
@@ -150,14 +147,15 @@ class Training(commands.Cog):
                     trainer_list.append(trainer.id)
 
             # Send to channel
-            await ctx.send(embed=discord.Embed(
-                title="Trainers",
-                description='\n'.join(trainer_list)
-            ))
+            await ctx.send(
+                embed=discord.Embed(
+                    title="Trainers", description="\n".join(trainer_list)
+                )
+            )
 
         session.close()
 
-    @trainers.command(aliases=['a'])
+    @trainers.command(aliases=["a"])
     async def add(self, ctx, user: discord.User):
         """
         Give a user permission to use `a!train`.
@@ -167,28 +165,31 @@ class Training(commands.Cog):
         """
 
         session = self.bot.Session()
-        trainer = session.query(Trainer) \
-            .filter(Trainer.id == user.id).one_or_none()
+        trainer = session.query(Trainer).filter(Trainer.id == user.id).one_or_none()
 
         if trainer is not None:
             # The user already has permission
-            await ctx.send(embed=discord.Embed(
-                description=f'{user.mention} is already a trainer.',
-                color=discord.Color.orange()
-            ))
+            await ctx.send(
+                embed=discord.Embed(
+                    description=f"{user.mention} is already a trainer.",
+                    color=discord.Color.orange(),
+                )
+            )
         else:
             # Add the user to the trainers list
             session.add(Trainer(id=user.id))
             session.commit()
 
-            await ctx.send(embed=discord.Embed(
-                description=f'{user.mention} has been added as a trainer!',
-                color=discord.Color.green()
-            ))
+            await ctx.send(
+                embed=discord.Embed(
+                    description=f"{user.mention} has been added as a trainer!",
+                    color=discord.Color.green(),
+                )
+            )
 
         session.close()
 
-    @trainers.command(aliases=['r'])
+    @trainers.command(aliases=["r"])
     async def remove(self, ctx, user: discord.User):
         """
         Remove a user's permission to use `a!train`.
@@ -201,15 +202,17 @@ class Training(commands.Cog):
         """
 
         session = self.bot.Session()
-        session.query(Trainer) \
-            .filter(Trainer.id == user.id).delete()
+        session.query(Trainer).filter(Trainer.id == user.id).delete()
         session.commit()
         session.close()
 
-        await ctx.send(embed=discord.Embed(
-            description=f'{user.mention} has been removed as a trainer.',
-            color=discord.Color.green()
-        ))
+        await ctx.send(
+            embed=discord.Embed(
+                description=f"{user.mention} has been removed as a trainer.",
+                color=discord.Color.green(),
+            )
+        )
+
 
 def setup(bot):
     bot.add_cog(Training(bot))
