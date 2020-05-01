@@ -4,7 +4,7 @@
 
 [![Maintainability](https://api.codeclimate.com/v1/badges/a86290ca2ee89d387756/maintainability)](https://codeclimate.com/github/AlphaMycelium/axyn/maintainability)
 
-A simple Discord chatbot.
+A Discord chatbot built using Flipgenic.
 
 ## Run
 

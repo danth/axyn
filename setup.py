@@ -11,7 +11,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as readme:
 setup(
     name="axyn",
     use_scm_version=True,
-    description="A simple Discord chatbot",
+    description="A Discord chatbot built using Flipgenic",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Daniel Thwaites",
