@@ -7,9 +7,6 @@ import discord
 import emoji
 from discord.ext import commands
 
-from axyn.chatbot.response import get_response
-from axyn.chatbot.train import train_statement
-
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -68,31 +65,25 @@ class Chat(commands.Cog):
                     msg.clean_content,
                     previous_msg.clean_content,
                 )
-
-                session = self.bot.Session()
-                train_statement(msg.content, previous_msg.content, session)
-                session.close()
+                self.bot.message_responder.learn_response(
+                    previous_msg.content, msg.content)
 
     async def process_dm_response(self, msg):
         """Send a response to a DM."""
 
         async with msg.channel.typing():
-            # Get a response from the chatbot
             logger.info("Getting response")
+            response, distance = self.bot.message_responder.get_response(msg.content)
 
-            session = self.bot.Session()
-            response, confidence = get_response(msg.content, session)
-            session.close()
-
-        if confidence > 0.5:
+        if distance <= 4:
             # Send to Discord
             logger.info(
-                'Sending response "%s" with confidence %.2f', response, confidence
+                'Sending response "%s" at distance %.2f', response, distance
             )
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond
-            logger.info("Confidence %.2f <= 0.5, not sending anything", confidence)
+            logger.info("Distance %.2f > 4, not sending anything", distance)
 
     async def process_server_response_later(self, *args, **kwargs):
         """Call process_server_response after a delay."""
@@ -107,20 +98,17 @@ class Chat(commands.Cog):
         logger.info(
             'Getting response to delayed server message "%s"', msg.clean_content
         )
+        response, distance = self.bot.message_responder.get_response(msg.content)
 
-        session = self.bot.Session()
-        response, confidence = get_response(msg.content, session)
-        session.close()
-
-        if confidence > 0.8:  # Higher threshold than DMs
+        if distance <= 1.5:  # Lower threshold than DMs
             # Send to Discord
             logger.info(
-                'Sending response "%s" with confidence %.2f', response, confidence
+                'Sending response "%s" at distance %.2f', response, distance
             )
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond
-            logger.info("Confidence %.2f <= 0.8, not sending anything", confidence)
+            logger.info("Distance %.2f > 1.5, not sending anything", distance)
 
     def should_ignore(self, msg):
         """Check if the given message should be completely ignored."""

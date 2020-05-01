@@ -3,7 +3,6 @@ import logging
 import discord
 from discord.ext import commands
 
-from axyn.chatbot.train import train_statement
 from axyn.models import Trainer
 
 # Set up logging
@@ -50,18 +49,15 @@ class Training(commands.Cog):
             statements = training.split("\n")
 
             # Do training
-            session = self.bot.Session()
-
             previous_statement = None
             for statement in statements:
                 # The first statement is not saved as it has nothing it is
                 # responding to
                 if previous_statement is not None:
                     # Create a statement in response to the previous one
-                    train_statement(statement, previous_statement, session)
+                    self.bot.message_responder.learn_response(
+                        previous_statement, statement)
                 previous_statement = statement
-
-            session.close()
 
         # Completed, respond to command
         logger.info("Sending response")

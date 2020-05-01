@@ -5,12 +5,13 @@ import cairosvg
 import discord
 import nltk
 from discord.ext import commands
+import spacy
 from spacy import displacy
-
-from axyn.chatbot.nlploader import nlp
 
 nltk.download("punkt")
 sent_tokenizer = nltk.data.load("tokenizers/punkt/english.pickle")
+
+nlp = spacy.load("en_core_web_sm")
 
 
 def render(sentences):

@@ -6,6 +6,7 @@ import chickennuggets
 import spacy
 import sqlalchemy
 from discord.ext import commands
+from flipgenic import Responder
 
 from axyn.datastore import get_path
 from axyn.models import Base
@@ -29,13 +30,17 @@ def launch():
     # Create Session class
     bot.Session = sqlalchemy.orm.sessionmaker(bind=engine)
 
+    logger.info('Initializing message responder')
+    bot.message_responder = Responder(get_path("messages"))
+    logger.info('Initializing reaction responder')
+    bot.reaction_responder = Responder(get_path("reactions"))
+
     # Load extensions
     logger.info("Loading extensions")
     chickennuggets.load(bot, ["help", "errors"])
     bot.load_extension("axyn.chat")
     bot.load_extension("axyn.react")
     bot.load_extension("axyn.train")
-    bot.load_extension("axyn.status")
     bot.load_extension("axyn.analyse")
 
     # Connect to Discord and start bot

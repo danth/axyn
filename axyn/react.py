@@ -4,9 +4,6 @@ import re
 import discord
 from discord.ext import commands
 
-from axyn.chatbot.response import get_reaction
-from axyn.chatbot.train import train_reaction
-
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -31,18 +28,13 @@ class React(commands.Cog):
         # Get a chatbot response
         if not self.should_ignore(msg):
             logger.info("Getting reaction")
+            emoji, distance = self.bot.reaction_responder.get_response(msg.content)
 
-            # Get a reaction
-            session = self.bot.Session()
-            emoji, confidence = get_reaction(msg.content, session)
-            session.close()
-
-            # Add reaction
-            if confidence >= 0.5:
+            if distance <= 4:
                 logger.info("Reacting with %s", emoji)
                 await msg.add_reaction(emoji)
             else:
-                logger.info("Confidence %d, not reacting", confidence)
+                logger.info("Distance %.2f, not reacting", distance)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -58,12 +50,9 @@ class React(commands.Cog):
         if self.should_learn_reaction(reaction.message, user):
             # Check if this is a unicode emoji or a custom one
             if type(reaction.emoji) == str:
-                # Learn the emoji as a reaction
                 logger.info("Learning reaction")
-
-                session = self.bot.Session()
-                train_reaction(reaction.emoji, reaction.message.content, session)
-                session.close()
+                self.bot.reaction_responder.learn_response(
+                    reaction.message.content, reaction.emoji)
 
     def should_ignore(self, msg):
         """Check if the given message should not be reacted to."""
