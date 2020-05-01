@@ -18,7 +18,7 @@ setup(
     author_email="danthwaites30@btinternet.com",
     classifiers=[
         "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU Affero General Public License v3",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
