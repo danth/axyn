@@ -66,7 +66,8 @@ class Chat(commands.Cog):
                     previous_msg.clean_content,
                 )
                 self.bot.message_responder.learn_response(
-                    previous_msg.content, msg.content)
+                    previous_msg.content, msg.content
+                )
 
     async def process_dm_response(self, msg):
         """Send a response to a DM."""
@@ -77,9 +78,7 @@ class Chat(commands.Cog):
 
         if distance <= 4:
             # Send to Discord
-            logger.info(
-                'Sending response "%s" at distance %.2f', response, distance
-            )
+            logger.info('Sending response "%s" at distance %.2f', response, distance)
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond
@@ -102,9 +101,7 @@ class Chat(commands.Cog):
 
         if distance <= 1.5:  # Lower threshold than DMs
             # Send to Discord
-            logger.info(
-                'Sending response "%s" at distance %.2f', response, distance
-            )
+            logger.info('Sending response "%s" at distance %.2f', response, distance)
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond

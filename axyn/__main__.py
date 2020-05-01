@@ -30,9 +30,9 @@ def launch():
     # Create Session class
     bot.Session = sqlalchemy.orm.sessionmaker(bind=engine)
 
-    logger.info('Initializing message responder')
+    logger.info("Initializing message responder")
     bot.message_responder = Responder(get_path("messages"))
-    logger.info('Initializing reaction responder')
+    logger.info("Initializing reaction responder")
     bot.reaction_responder = Responder(get_path("reactions"))
 
     # Load extensions

@@ -52,7 +52,8 @@ class React(commands.Cog):
             if type(reaction.emoji) == str:
                 logger.info("Learning reaction")
                 self.bot.reaction_responder.learn_response(
-                    reaction.message.content, reaction.emoji)
+                    reaction.message.content, reaction.emoji
+                )
 
     def should_ignore(self, msg):
         """Check if the given message should not be reacted to."""

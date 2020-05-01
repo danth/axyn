@@ -56,7 +56,8 @@ class Training(commands.Cog):
                 if previous_statement is not None:
                     # Create a statement in response to the previous one
                     self.bot.message_responder.learn_response(
-                        previous_statement, statement)
+                        previous_statement, statement
+                    )
                 previous_statement = statement
 
         # Completed, respond to command
