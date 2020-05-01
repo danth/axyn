@@ -1,4 +1,9 @@
-![Axyn logo](images/axyn.png)
+<p align="center">
+  <img
+    src="images/axyn.png"
+    alt="Axyn logo"
+  />
+</p>
 
 # Axyn
 
