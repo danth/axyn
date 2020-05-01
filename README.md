@@ -49,22 +49,6 @@ A reference of what the different dependency types mean is available
 
 ## How does it work?
 
-*This was originally a wrapper around
-[Chatterbot](https://github.com/gunthercox/ChatterBot), however response times
-were getting far too slow and I was customizing the behaviour a lot. In the end
-I wrote my own implementation following the same basic principles.*
-
-Axyn learns how to respond based on messages it receives. It tries to guess
-which other message the message is in response to, and saves it. If someone
-sends the first message again, it will find the stored response and re-use it.
-
-First, input messages are converted to a 300-dimensional vector
-[using SpaCy](https://spacy.io/api/token#vector). Then this vector is used to
-find the closest match in an [NGT](https://github.com/yahoojapan/NGT) index
-containing the vectors of learned messages. Each object ID from the index
-corresponds to one or more possible responses, which are stored in a simple
-database table. Finally, the most common response from the possibilities is
-chosen, or if there is no mode then one is selected at random.
-
-A similar approach is applied for reactions, swapping the stored textual
-responses for a single emoji per entry.
+See the 'how it works' section of [Flipgenic](https://github.com/AlphaMycelium/flipgenic/blob/master/README.md#how-does-it-work).
+Axyn is simply a Discord wrapper around this library (although, Flipgenic was
+originally `axyn.chatbot` before it was extracted).
