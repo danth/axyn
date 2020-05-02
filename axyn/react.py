@@ -30,7 +30,7 @@ class React(commands.Cog):
             logger.info("Getting reaction")
             emoji, distance = self.bot.reaction_responder.get_response(msg.content)
 
-            if distance <= 4:
+            if distance <= 2:
                 logger.info("Reacting with %s", emoji)
                 await msg.add_reaction(emoji)
             else:
