@@ -25,10 +25,10 @@ setup(
         "Programming Language :: Python :: 3.8",
     ],
     keywords="Discord bot chatbot",
-    url="https://github.com/AlphaMycelium/axyn",
+    url="https://github.com/danth/axyn",
     project_urls={
-        "Bug Reports": "https://github.com/AlphaMycelium/axyn/issues",
-        "Source": "https://github.com/AlphaMycelium/axyn",
+        "Bug Reports": "https://github.com/danth/axyn/issues",
+        "Source": "https://github.com/danth/axyn",
     },
     packages=find_packages(),
     python_requires=">=3.6,<4",

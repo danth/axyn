@@ -7,8 +7,6 @@
 
 # Axyn
 
-[![Maintainability](https://api.codeclimate.com/v1/badges/a86290ca2ee89d387756/maintainability)](https://codeclimate.com/github/AlphaMycelium/axyn/maintainability)
-
 A Discord chatbot built using Flipgenic.
 
 ## Run
@@ -54,6 +52,6 @@ A reference of what the different dependency types mean is available
 
 ## How does it work?
 
-See the 'how it works' section of [Flipgenic](https://github.com/AlphaMycelium/flipgenic/blob/master/README.md#how-does-it-work).
+See the 'how it works' section of [Flipgenic](https://github.com/danth/flipgenic/blob/master/README.md#how-does-it-work).
 Axyn is simply a Discord wrapper around this library (although, Flipgenic was
 originally `axyn.chatbot` before it was extracted).
