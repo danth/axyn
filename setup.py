@@ -42,5 +42,9 @@ setup(
         "chickennuggets >=1,<2",
         "nltk >=3.4,<4",
     ],
-    entry_points={"console_scripts": ["axyn=axyn.__main__:launch",],},
+    entry_points={
+        "console_scripts": [
+            "axyn=axyn.__main__:launch",
+        ],
+    },
 )

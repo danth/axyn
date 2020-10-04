@@ -98,7 +98,8 @@ class Training(commands.Cog):
 
         # Send in embed as response to command
         e = discord.Embed(
-            title="Training Completed", description=f"```\n{conversation}```",
+            title="Training Completed",
+            description=f"```\n{conversation}```",
         )
         e.set_footer(text=ctx.author.name, icon_url=ctx.author.avatar_url)
         await send_to.send(embed=e)
