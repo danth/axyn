@@ -40,6 +40,7 @@ setup(
         "discord.py >=1.2.5,<2",
         "emoji >=0.5,<1",
         "chickennuggets >=1,<2",
+        "nltk >=3.4,<4",
     ],
     entry_points={"console_scripts": ["axyn=axyn.__main__:launch",],},
 )
