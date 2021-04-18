@@ -34,8 +34,11 @@ class Chat(commands.Cog):
         if self.should_ignore(msg):
             return
 
-        if msg.channel.type == discord.ChannelType.private:
-            # Respond immediately to DMs
+        if (
+            msg.channel.type == discord.ChannelType.private
+            or self.bot.user.mentioned_in(msg)
+        ):
+            # Respond immediately to DMs and mentions
             await self.process_dm_response(msg)
 
         elif msg.channel.type == discord.ChannelType.text:

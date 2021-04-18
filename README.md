@@ -43,7 +43,8 @@ certain.
 ![Screenshot of example conversation](images/Screenshot_20200426_124703.png)
 
 Axyn will also respond to messages in servers, if noone else has responded
-within 3 minutes and it is more than 80% certain.
+within 3 minutes and it is more than 80% certain. Mention the bot to get an
+instant response.
 
 ### Reactions
 
