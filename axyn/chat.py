@@ -31,32 +31,18 @@ class Chat(commands.Cog):
         """Process a message and send a chatbot response to the channel."""
 
         logger.info('Receved message "%s"', msg.clean_content)
+
         if self.should_ignore(msg):
             return
 
-        if (
-            msg.channel.type == discord.ChannelType.private
-            or self.bot.user.mentioned_in(msg)
-        ):
-            # Respond immediately to DMs and mentions
-            await self.process_dm_response(msg)
+        # Remove task for previous message, if any
+        if msg.channel.id in self.response_timers:
+            self.response_timers[msg.channel.id].cancel()
 
-        elif msg.channel.type == discord.ChannelType.text:
-            # Delayed response to server channels
-            if msg.channel.id in self.response_timers:
-                # Remove timer for previous message
-                self.response_timers[msg.channel.id].cancel()
-
-            if len(msg.content) < 10:
-                # Don't respond to short texts like "ok" or "yes"
-                # Or greetings targetted at server members
-                logger.info("Not responding to short server message")
-            else:
-                # Respond after a delay if no humans have responded
-                logger.info("Delaying response to server message")
-                self.response_timers[msg.channel.id] = asyncio.create_task(
-                    self.process_server_response_later(msg)
-                )
+        # Spawn a new task to reply to this message
+        self.response_timers[msg.channel.id] = asyncio.create_task(
+            self.schedule_process_response(msg)
+        )
 
         if self.should_learn(msg):
             await self.learn(msg)
@@ -80,40 +66,61 @@ class Chat(commands.Cog):
 
         return self.bot.message_responder.get_response(content)
 
-    async def process_dm_response(self, msg):
-        """Send a response to a DM."""
+    def is_direct(self, msg):
+        """Return whether the given message is directly talking to Axyn."""
+
+        return (
+            msg.channel.type == discord.ChannelType.private
+            or self.bot.user.mentioned_in(msg)
+        )
+
+    def get_reply_delay(self, msg):
+        """Return number of seconds to wait before replying to the given message."""
+
+        if self.is_direct(msg):
+            return 0
+        else:
+            return 180
+
+    def get_distance_threshold(self, msg):
+        """Return the maximum acceptible distance for replies to the given message."""
+
+        if self.is_direct(msg):
+            return 4
+        else:
+            return 1.5
+
+    async def schedule_process_response(self, msg):
+        """Respond to the given message after a suitable (possibly 0) delay."""
+
+        await asyncio.sleep(self.get_reply_delay(msg))
+        await self.process_response(msg)
+
+    async def process_response(self, msg):
+        """Respond to the given message."""
 
         # Get a response from the chatbot
         async with msg.channel.typing():
             response, distance = self.get_response(msg)
 
-        if distance <= 4:
+        acceptable_distance = self.get_distance_threshold(msg)
+        if distance <= acceptable_distance:
             # Send to Discord
-            logger.info('Sending response "%s" at distance %.2f', response, distance)
+            logger.info(
+                'Responding to "%s" with "%s" at distance %.2f',
+                msg.clean_content,
+                response,
+                distance
+            )
             await msg.channel.send(response)
         else:
             # Uncertain, don't respond
-            logger.info("Distance %.2f > 4, not sending anything", distance)
-
-    async def process_server_response_later(self, *args, **kwargs):
-        """Call process_server_response after a delay."""
-
-        await asyncio.sleep(180)
-        await self.process_server_response(*args, **kwargs)
-
-    async def process_server_response(self, msg):
-        """Respond to a message from a server."""
-
-        # Get a response from the chatbot
-        response, distance = self.get_response(msg)
-
-        if distance <= 1.5:  # Lower threshold than DMs
-            # Send to Discord
-            logger.info('Sending response "%s" at distance %.2f', response, distance)
-            await msg.channel.send(response)
-        else:
-            # Uncertain, don't respond
-            logger.info("Distance %.2f > 1.5, not sending anything", distance)
+            logger.info(
+                'Distance %.2f > %.2f, not responding to "%s"',
+                distance,
+                acceptable_distance,
+                msg.clean_content
+            )
 
     def should_ignore(self, msg):
         """Check if the given message should be completely ignored."""
