@@ -11,15 +11,19 @@ A Discord chatbot built using Flipgenic.
 
 ## Run
 
+Obtain a bot token from the
+[Discord developer portal](https://discord.com/developers/applications).
+Currently, the server members intent is required.
+
+### Without Docker
+
 ```sh
 python -m pip install -e .
 python -m spacy download en_core_web_md
 DISCORD_TOKEN=… axyn
 ```
 
-### Docker
-
-Alternatively, you can run Axyn using Docker:
+### With Docker
 
 ```sh
 docker build -t axyn .

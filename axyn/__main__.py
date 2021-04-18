@@ -3,6 +3,7 @@ import os.path
 from functools import wraps
 
 import chickennuggets
+import discord
 import spacy
 import sqlalchemy
 from discord.ext import commands
@@ -20,7 +21,9 @@ def launch():
     """Launch the Discord bot."""
     # Set up Discord bot
     logger.info("Setting up bot")
-    bot = commands.Bot(command_prefix="a!")
+    intents = discord.Intents.default()
+    intents.members = True  # Required for on_reaction_add in DMs
+    bot = commands.Bot(command_prefix="a!", intents=intents)
 
     # Connect to database
     db_url = "sqlite:///" + get_path("axyn.sqlite3")
