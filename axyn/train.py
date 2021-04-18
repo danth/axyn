@@ -143,7 +143,7 @@ class Training(commands.Cog):
                     trainer_list.append(user.mention)
                 else:
                     # We couldn't find the user, show ID instead
-                    trainer_list.append(trainer.id)
+                    trainer_list.append(str(trainer.id))
 
             # Send to channel
             await ctx.send(
