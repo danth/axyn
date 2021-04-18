@@ -59,25 +59,33 @@ class Chat(commands.Cog):
                 )
 
         if self.should_learn(msg):
-            # Look for a previous message
-            previous_msg = await self.get_previous(msg)
-            if previous_msg is not None:
-                # Learn this statement
-                logger.info(
-                    'Learning "%s" as a response to "%s"',
-                    msg.clean_content,
-                    previous_msg.clean_content,
-                )
-                self.bot.message_responder.learn_response(
-                    previous_msg.content, msg.content
-                )
+            await self.learn(msg)
+
+    def preprocess_message(self, msg):
+        content = msg.clean_content
+
+        # Strip off leading @Axyn if it exists
+        axyn = f"@{self.bot.user.display_name}"
+        if content.startswith(axyn):
+            content = content[len(axyn):]
+
+        # Remove leading/trailing whitespace
+        return content.strip()
+
+    def get_response(self, msg):
+        logger.info('Getting response to "%s"', msg.clean_content)
+
+        content = self.preprocess_message(msg)
+        logger.info('Preprocessed to "%s"', content)
+
+        return self.bot.message_responder.get_response(content)
 
     async def process_dm_response(self, msg):
         """Send a response to a DM."""
 
+        # Get a response from the chatbot
         async with msg.channel.typing():
-            logger.info("Getting response")
-            response, distance = self.bot.message_responder.get_response(msg.content)
+            response, distance = self.get_response(msg)
 
         if distance <= 4:
             # Send to Discord
@@ -97,10 +105,7 @@ class Chat(commands.Cog):
         """Respond to a message from a server."""
 
         # Get a response from the chatbot
-        logger.info(
-            'Getting response to delayed server message "%s"', msg.clean_content
-        )
-        response, distance = self.bot.message_responder.get_response(msg.content)
+        response, distance = self.get_response(msg)
 
         if distance <= 1.5:  # Lower threshold than DMs
             # Send to Discord
@@ -151,6 +156,26 @@ class Chat(commands.Cog):
                 return False
 
         return True
+
+    async def learn(self, msg):
+        """Learn from the given message."""
+
+        # Look for a previous message
+        previous_msg = await self.get_previous(msg)
+        if not previous_msg:
+            return
+
+        # Preprocess both messages
+        content = self.preprocess_message(msg)
+        previous_content = self.preprocess_message(previous_msg)
+
+        # Learn this statement
+        logger.info(
+            'Learning "%s" as a response to "%s"',
+            content,
+            previous_content
+        )
+        self.bot.message_responder.learn_response(previous_content, content)
 
     async def get_previous(self, msg, minutes=5):
         """
