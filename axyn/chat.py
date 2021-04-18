@@ -160,6 +160,13 @@ class Chat(commands.Cog):
 
         logger.info("Looking for a previous message")
 
+        if msg.reference and msg.reference.resolved:
+            logger.info(
+                'Found "%s" as a reference',
+                msg.reference.resolved.clean_content,
+            )
+            return msg.reference.resolved
+
         prev = await msg.channel.history(
             # Find the message directly before this
             limit=1,
@@ -188,7 +195,7 @@ class Chat(commands.Cog):
                 return
 
             # This message is valid!
-            logger.info('Found "%s"', prev_msg.clean_content)
+            logger.info('Found "%s" as the previous message', prev_msg.clean_content)
             return prev_msg
         else:
             # We didn't find any messages
