@@ -36,11 +36,9 @@ setup(
     install_requires=[
         "sqlalchemy >=1.3,<4",
         "flipgenic >=0.3.1,<1",
-        "cairosvg >=2,<3",
         "discord.py >=1.2.5,<2",
         "emoji >=0.5,<1",
         "chickennuggets >=1,<2",
-        "nltk >=3.4,<4",
     ],
     entry_points={
         "console_scripts": [

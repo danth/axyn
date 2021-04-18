@@ -41,7 +41,6 @@ def launch():
     bot.load_extension("axyn.chat")
     bot.load_extension("axyn.react")
     bot.load_extension("axyn.train")
-    bot.load_extension("axyn.analyse")
 
     # Connect to Discord and start bot
     logger.info("Starting bot")

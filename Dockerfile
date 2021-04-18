@@ -8,10 +8,11 @@ ENV HOME=/axyn
 COPY setup.py README.md ./
 COPY .git/ .git/
 RUN pip install --no-cache-dir -e .
-# Download NLP models
-RUN python -m spacy download en_core_web_sm
+
+# Download NLP model
 RUN python -m spacy download en_core_web_md
 
+# Copy code
 COPY . .
 
 CMD [ "axyn" ]
