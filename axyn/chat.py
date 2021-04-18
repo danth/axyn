@@ -67,7 +67,7 @@ class Chat(commands.Cog):
         # Strip off leading @Axyn if it exists
         axyn = f"@{self.bot.user.display_name}"
         if content.startswith(axyn):
-            content = content[len(axyn):]
+            content = content[len(axyn) :]
 
         # Remove leading/trailing whitespace
         return content.strip()
@@ -170,11 +170,7 @@ class Chat(commands.Cog):
         previous_content = self.preprocess_message(previous_msg)
 
         # Learn this statement
-        logger.info(
-            'Learning "%s" as a response to "%s"',
-            content,
-            previous_content
-        )
+        logger.info('Learning "%s" as a response to "%s"', content, previous_content)
         self.bot.message_responder.learn_response(previous_content, content)
 
     async def get_previous(self, msg, minutes=5):
