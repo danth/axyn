@@ -110,7 +110,7 @@ class Chat(commands.Cog):
                 'Responding to "%s" with "%s" at distance %.2f',
                 msg.clean_content,
                 response,
-                distance
+                distance,
             )
             await msg.channel.send(response)
         else:
@@ -119,7 +119,7 @@ class Chat(commands.Cog):
                 'Distance %.2f > %.2f, not responding to "%s"',
                 distance,
                 acceptable_distance,
-                msg.clean_content
+                msg.clean_content,
             )
 
     def should_ignore(self, msg):
