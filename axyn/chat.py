@@ -72,6 +72,11 @@ class Chat(commands.Cog):
         return (
             msg.channel.type == discord.ChannelType.private
             or self.bot.user.mentioned_in(msg)
+            or (
+                msg.reference
+                and msg.reference.resolved
+                and msg.reference.resolved.author == self.bot.user
+            )
         )
 
     def get_reply_delay(self, msg):
