@@ -77,6 +77,7 @@ class Chat(commands.Cog):
                 and msg.reference.resolved
                 and msg.reference.resolved.author == self.bot.user
             )
+            or "axyn" in msg.channel.name
         )
 
     def get_reply_delay(self, msg):
