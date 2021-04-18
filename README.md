@@ -11,18 +11,21 @@ A Discord chatbot built using Flipgenic.
 
 ## Run
 
-1. Install using `setup.py`.
-1. Download the NLP model:
-  ```
-  python -m spacy download en_core_web_md
-  ```
-1. Set the environment variable `DISCORD_TOKEN` to your Discord bot token. This is
-needed to access the Discord API.
-1. Launch the console script `axyn`:
+```sh
+python -m pip install -e .
+python -m spacy download en_core_web_md
+DISCORD_TOKEN=… axyn
+```
 
-  ```
-  DISCORD_TOKEN=... axyn
-  ```
+### Docker
+
+Alternatively, you can run Axyn using Docker:
+
+```sh
+docker build -t axyn .
+docker container create -e DISCORD_TOKEN=… --mount source=axyn,target=/axyn --name axyn axyn
+docker start -a axyn
+```
 
 ## Usage
 
