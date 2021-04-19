@@ -33,10 +33,14 @@ def launch():
     # Create Session class
     bot.Session = sqlalchemy.orm.sessionmaker(bind=engine)
 
+    # Create model here so Flipgenic does not load it twice
+    logger.info("Loading NLP model")
+    model = spacy.load("en_core_web_md", disable=["ner", "textcat"])
+
     logger.info("Initializing message responder")
-    bot.message_responder = Responder(get_path("messages"))
+    bot.message_responder = Responder(get_path("messages"), model)
     logger.info("Initializing reaction responder")
-    bot.reaction_responder = Responder(get_path("reactions"))
+    bot.reaction_responder = Responder(get_path("reactions"), model)
 
     # Load extensions
     logger.info("Loading extensions")
