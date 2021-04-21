@@ -1,6 +1,5 @@
 import logging
 import os.path
-from functools import wraps
 
 import chickennuggets
 import discord
@@ -45,8 +44,7 @@ def launch():
     # Load extensions
     logger.info("Loading extensions")
     chickennuggets.load(bot, ["help", "errors"])
-    bot.load_extension("axyn.chat")
-    bot.load_extension("axyn.react")
+    bot.load_extension("axyn.handle")
     bot.load_extension("axyn.train")
 
     # Connect to Discord and start bot
