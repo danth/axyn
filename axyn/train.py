@@ -44,21 +44,17 @@ class Training(commands.Cog):
 
         logger.info("Processing training from command")
 
+        # Learn the inputted statements
         async with ctx.channel.typing():
-            # Split statements on newline
             statements = training.split("\n")
 
-            # Do training
-            previous_statement = None
-            for statement in statements:
-                # The first statement is not saved as it has nothing it is
-                # responding to
-                if previous_statement is not None:
-                    # Create a statement in response to the previous one
-                    self.bot.message_responder.learn_response(
-                        previous_statement, statement
-                    )
-                previous_statement = statement
+            # [1, 2, 3, 4] -> [(1, 2), (2, 3), (3, 4)]
+            pairs = zip(statements, statements[1:])
+            for pair in pairs:
+                logger.info('Learning "%s" as a reply to "%s"', pair[1], pair[0])
+                self.bot.message_responder.add_response(*pair)
+
+            self.bot.message_responder.commit_responses()
 
         # Completed, respond to command
         logger.info("Sending response")
