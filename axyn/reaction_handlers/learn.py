@@ -1,6 +1,6 @@
-from axyn.reaction_handlers import ReactionHandler
-from axyn.preprocessor import preprocess
 from axyn.filters import reason_not_to_learn_reaction_pair
+from axyn.preprocessor import preprocess
+from axyn.reaction_handlers import ReactionHandler
 
 
 class LearnReaction(ReactionHandler):
@@ -15,6 +15,8 @@ class LearnReaction(ReactionHandler):
         self.logger.info("Preprocessing text")
         content = preprocess(self.bot, self.reaction.message)
 
-        self.logger.info('Learning %s as a reaction to "%s"', self.reaction.emoji, content)
+        self.logger.info(
+            'Learning %s as a reaction to "%s"', self.reaction.emoji, content
+        )
         self.bot.reaction_responder.learn_response(content, self.reaction.emoji)
         self.logger.info("Learning complete")

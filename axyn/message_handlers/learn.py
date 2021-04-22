@@ -1,8 +1,9 @@
 from datetime import timedelta
 
-from axyn.message_handlers import MessageHandler
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
+from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
+
 
 class Learn(MessageHandler):
     async def handle(self):

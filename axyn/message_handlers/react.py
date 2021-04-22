@@ -1,5 +1,5 @@
-from axyn.message_handlers import MessageHandler
 from axyn.filters import reason_not_to_react
+from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
 
 
@@ -22,4 +22,6 @@ class React(MessageHandler):
             self.logger.info("Reacting with %s", emoji)
             await self.message.add_reaction(emoji)
         else:
-            self.logger.info("Not reacting because %.2f is greater than the threshold of 2", distance)
+            self.logger.info(
+                "Not reacting because %.2f is greater than the threshold of 2", distance
+            )

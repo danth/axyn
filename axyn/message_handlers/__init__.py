@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 
+
 class MessageHandler(ABC):
     def __init__(self, bot, message):
         self.bot = bot

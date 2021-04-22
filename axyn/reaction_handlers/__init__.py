@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 
+
 class ReactionHandler(ABC):
     def __init__(self, bot, reaction, reaction_user):
         self.bot = bot

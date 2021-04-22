@@ -1,5 +1,6 @@
-import discord
 import re
+
+import discord
 
 
 def _is_command(text):

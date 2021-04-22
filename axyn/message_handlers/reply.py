@@ -1,8 +1,9 @@
 import asyncio
+
 import discord
 
-from axyn.message_handlers import MessageHandler
 from axyn.filters import reason_not_to_reply
+from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
 
 

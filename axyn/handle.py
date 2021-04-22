@@ -1,10 +1,11 @@
 import asyncio
 import logging
+
 from discord.ext import commands
 
+from axyn.message_handlers.learn import Learn
 from axyn.message_handlers.react import React
 from axyn.message_handlers.reply import Reply
-from axyn.message_handlers.learn import Learn
 from axyn.reaction_handlers.learn import LearnReaction
 
 # Set up logging
@@ -24,7 +25,10 @@ class Handle(commands.Cog):
         # tasks in the channel so only the last message in a conversation
         # finishes the timer and recieves a reply.
         if message.channel.id in self.reply_tasks:
-            logger.info("Cancelling reply task in channel %i due to a newer message", message.channel.id)
+            logger.info(
+                "Cancelling reply task in channel %i due to a newer message",
+                message.channel.id,
+            )
             self.reply_tasks[message.channel.id].cancel()
 
         logger.info("Queueing reply task for %i", message.id)
