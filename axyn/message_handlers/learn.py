@@ -1,9 +1,9 @@
 from datetime import timedelta
 
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
+from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
-from axyn.interval import quantile_interval
 
 
 class Learn(MessageHandler):
@@ -70,7 +70,9 @@ class Learn(MessageHandler):
             quantile=0.75,
             default=300,
         )
-        self.logger.info("Only accepting recent messages within %.1f seconds", threshold)
+        self.logger.info(
+            "Only accepting recent messages within %.1f seconds", threshold
+        )
 
         history = await self.message.channel.history(
             # Find messages before self

@@ -3,9 +3,9 @@ import asyncio
 import discord
 
 from axyn.filters import reason_not_to_reply
+from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
-from axyn.interval import quantile_interval
 
 
 class Reply(MessageHandler):
