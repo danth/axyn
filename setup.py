@@ -39,6 +39,7 @@ setup(
         "discord.py >=1.2.5,<2",
         "emoji >=0.5,<1",
         "chickennuggets >=1,<2",
+        "numpy >=1.20,<2",
     ],
     entry_points={
         "console_scripts": [

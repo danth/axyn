@@ -3,6 +3,7 @@ from datetime import timedelta
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
+from axyn.interval import quantile_interval
 
 
 class Learn(MessageHandler):
@@ -60,8 +61,16 @@ class Learn(MessageHandler):
         if self.message.reference and self.message.reference.resolved:
             return self.message.reference.resolved
 
-    async def _get_recent(self, minutes=5):
+    async def _get_recent(self):
         """Return the message just before this message, if it was recent."""
+
+        threshold = await quantile_interval(
+            self.bot,
+            self.message.channel,
+            quantile=0.75,
+            default=300,
+        )
+        self.logger.info("Only accepting recent messages within %.1f seconds", threshold)
 
         history = await self.message.channel.history(
             # Find messages before self
@@ -69,8 +78,8 @@ class Learn(MessageHandler):
             # Only request a single message
             limit=1,
             oldest_first=False,
-            # Limit to messages within timeframe
-            after=self.message.created_at - timedelta(minutes=minutes),
+            # Limit to messages within threshold
+            after=self.message.created_at - timedelta(seconds=threshold),
         ).flatten()
 
         if len(history) > 0:

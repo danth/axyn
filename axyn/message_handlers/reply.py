@@ -5,6 +5,7 @@ import discord
 from axyn.filters import reason_not_to_reply
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
+from axyn.interval import quantile_interval
 
 
 class Reply(MessageHandler):
@@ -18,9 +19,8 @@ class Reply(MessageHandler):
 
         self.logger.info("OK to reply")
 
-        delay = self._get_reply_delay()
+        delay = await self._get_reply_delay()
         if delay > 0:
-            self.logger.info("Waiting %i seconds before replying", delay)
             await asyncio.sleep(delay)
 
         await self._process_reply()
@@ -57,13 +57,17 @@ class Reply(MessageHandler):
             or "axyn" in self.message.channel.name
         )
 
-    def _get_reply_delay(self):
+    async def _get_reply_delay(self):
         """Return number of seconds to wait before replying to this message."""
 
         if self._is_direct():
+            self.logger.info("Replying instantly to a direct message")
             return 0
-        else:
-            return 180
+
+        interval = await quantile_interval(self.bot, self.message.channel, default=60)
+        delay = interval * 1.5
+        self.logger.info("Delaying by %.1f × 1.5 = %.1f seconds", interval, delay)
+        return delay
 
     def _get_distance_threshold(self):
         """Return the maximum acceptible distance for replies to this message."""
