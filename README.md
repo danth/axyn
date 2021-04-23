@@ -42,7 +42,8 @@ Axyn will reply immediately if you:
 - Reply to a message it sent
 - Talk in a channel with `axyn` in its name
 
-Otherwise, it will only reply after a few minutes of silence.
+Otherwise, it will wait some time before replying. The delay is adjusted using
+the average interval between messages in the current channel.
 
 ![Screenshot of example conversation](images/Screenshot_20200426_124703.png)
 
