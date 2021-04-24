@@ -2,7 +2,6 @@ import re
 
 import discord
 
-
 def _is_command(text):
     """Check if the given text appears to be a command."""
 
@@ -59,7 +58,12 @@ def reason_not_to_learn(bot, message):
             if bad_string in message.channel.name:
                 return "the channel name contains " + bad_string
 
-    return _reason_to_ignore(bot, message)
+    reason = _reason_to_ignore(bot, message)
+    if reason:
+        return reason
+
+    if not bot.settings["learning"].get_value(message.author, message.channel, message.guild):
+        return "learning is disabled by settings"
 
 
 def reason_not_to_learn_pair(bot, previous_message, message):
@@ -83,4 +87,25 @@ def reason_not_to_learn_reaction_pair(bot, reaction, reaction_user):
     if reaction_user == reaction.message.author:
         return "this reaction is from the message author"
 
-    return _reason_to_ignore(bot, reaction.message, allow_axyn=True)
+    reason = _reason_to_ignore(bot, reaction.message, allow_axyn=True)
+    if reason:
+        return reason
+
+    if not bot.settings["learning"].get_value(
+            reaction_user,
+            reaction.message.channel,
+            reaction.message.guild
+    ):
+        return "learning is disabled by settings"
+
+
+def reason_to_ignore_interval(bot, previous_message, message):
+    """If the given pair's interval should be ignored, return a reason why."""
+
+    if previous_message.author == message.author:
+        return "both messages have the same author"
+
+    return (
+        _reason_to_ignore(bot, message)
+        or _reason_to_ignore(bot, previous_message, allow_axyn=True)
+    )

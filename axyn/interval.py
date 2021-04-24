@@ -2,7 +2,7 @@ import logging
 
 import numpy
 
-from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
+from axyn.filters import reason_to_ignore_interval
 
 
 async def quantile_interval(bot, channel, quantile=0.5, default=None):
@@ -46,8 +46,7 @@ async def _get_intervals(bot, channel, logger):
 
     intervals = []
     for a, b in pairs:
-        # Use the learning filters to remove any unsuitable pairs
-        if not reason_not_to_learn(bot, b) and not reason_not_to_learn_pair(bot, a, b):
+        if not reason_to_ignore_interval(bot, a, b):
             # Calculate how many seconds passed between the two messages being sent
             interval = (b.created_at - a.created_at).total_seconds()
             intervals.append(interval)

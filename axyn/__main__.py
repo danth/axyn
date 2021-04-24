@@ -27,8 +27,6 @@ def launch():
     # Connect to database
     db_url = "sqlite:///" + get_path("axyn.sqlite3")
     engine = sqlalchemy.create_engine(db_url)
-    # Create tables
-    Base.metadata.create_all(engine)
     # Create Session class
     bot.Session = sqlalchemy.orm.sessionmaker(bind=engine)
 
@@ -44,8 +42,12 @@ def launch():
     # Load extensions
     logger.info("Loading extensions")
     chickennuggets.load(bot, ["help", "errors"])
+    bot.load_extension("axyn.settings.cog")
     bot.load_extension("axyn.handle")
     bot.load_extension("axyn.train")
+
+    # Create database tables
+    Base.metadata.create_all(engine)
 
     # Connect to Discord and start bot
     logger.info("Starting bot")
