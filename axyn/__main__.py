@@ -44,6 +44,7 @@ def launch():
     chickennuggets.load(bot, ["help", "errors"])
     bot.load_extension("axyn.settings.cog")
     bot.load_extension("axyn.handle")
+    bot.load_extension("axyn.introduction")
     bot.load_extension("axyn.train")
 
     # Create database tables
