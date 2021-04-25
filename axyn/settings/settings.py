@@ -22,6 +22,11 @@ class Setting(ABC):
 
     @property
     @abstractmethod
+    def merge_values_help(self):
+        """A description of the algorithm in merge_values."""
+
+    @property
+    @abstractmethod
     def datatype(self):
         """The type of value this setting stores."""
 
@@ -83,6 +88,12 @@ class Setting(ABC):
 class LearningSetting(Setting):
     name = "learning"
     thing = "whether Axyn will learn messages"
+    merge_values_help = (
+        "Learning will never happen unless the user setting is on. "
+        "If learning is *disabled* on the channel or server level, "
+        "that setting will override your personal choice."
+    )
+
     datatype = bool
     sql_datatype = Boolean
     available_scopes = ALL_SCOPES

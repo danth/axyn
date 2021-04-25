@@ -31,8 +31,9 @@ class Settings(commands.Cog):
             cog=self,
             name=setting.name,
             help=(
-                f"Show the effective setting for {setting.thing} here.\n\n"
-                "Subcommands are used to change this setting in different scopes."
+                f"Show {setting.thing} here.\n\n"
+                "This setting can be changed in various scopes using the subcommands. "
+                + setting.merge_values_help
             ),
         )
         async def group(ctx):
@@ -49,9 +50,9 @@ class Settings(commands.Cog):
         @group.command(
             name=scope.name,
             help=(
-                f"Check or change {setting.thing} for this {scope.name}.\n\n"
-                "Specify a new value to change the setting. "
-                "Use this command with no arguments to view the current value."
+                f"Control {setting.thing} for your current {scope.name}.\n\n"
+                "Use this command with no arguments to view the current setting; "
+                "specify a new value to change it."
             ),
         )
         @commands.check(scope.check)
@@ -71,6 +72,7 @@ class Settings(commands.Cog):
         clean_value = cleanup_value(value)
         embed = discord.Embed(
             title=f"{setting.name.title()} {connective} {clean_value} here",
+            description=setting.merge_values_help,
             colour=discord.Colour.blurple(),
         )
 
@@ -87,6 +89,7 @@ class Settings(commands.Cog):
         clean_value = cleanup_value(value)
         embed = discord.Embed(
             title=f"{setting.name.title()} {connective} {clean_value} for this {scope_name}",
+            description=setting.merge_values_help,
             colour=discord.Colour.blurple(),
         )
 
