@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from sqlalchemy import Boolean
+
 from axyn.settings.scopes import ALL_SCOPES
 
 
@@ -52,10 +53,7 @@ class Setting(ABC):
     def __init__(self, bot):
         self.bot = bot
 
-        self.scopes = [
-            scope(self.bot, self)
-            for scope in self.available_scopes
-        ]
+        self.scopes = [scope(self.bot, self) for scope in self.available_scopes]
 
     def get_value(self, context):
         """Get the effective value of this setting in the given context."""
@@ -71,10 +69,7 @@ class Setting(ABC):
     def get_all_values(self, context):
         """Get all values of this setting in the given context."""
 
-        return {
-            scope.name: scope.get_value(context)
-            for scope in self.scopes
-        }
+        return {scope.name: scope.get_value(context) for scope in self.scopes}
 
     def set_value_in_scope(self, context, scope_name, value):
         """Set the value of this setting in the given context and scope."""
@@ -107,6 +102,4 @@ class LearningSetting(Setting):
         return bool(user)
 
 
-ALL_SETTINGS = [
-    LearningSetting
-]
+ALL_SETTINGS = [LearningSetting]

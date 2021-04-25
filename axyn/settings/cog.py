@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
 
-from axyn.settings.settings import ALL_SETTINGS
 from axyn.settings.context import SettingContext
+from axyn.settings.settings import ALL_SETTINGS
 
 
 def cleanup_value(value):
@@ -56,14 +56,16 @@ class Settings(commands.Cog):
             ),
         )
         @commands.check(scope.check)
-        async def check_or_change(ctx, new_value : setting.datatype = None):
+        async def check_or_change(ctx, new_value: setting.datatype = None):
             context = SettingContext.from_context(ctx)
 
             if new_value is None:
                 await self._show_scope_value(ctx, context, setting, scope.name)
             else:
                 setting.set_value_in_scope(context, scope.name, new_value)
-                await self._show_scope_value(ctx, context, setting, scope.name, "is now")
+                await self._show_scope_value(
+                    ctx, context, setting, scope.name, "is now"
+                )
 
     async def _show_value(self, ctx, context, setting, connective="is"):
         """Show the effective value of the given setting."""
@@ -82,7 +84,9 @@ class Settings(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    async def _show_scope_value(self, ctx, context, setting, scope_name, connective="is"):
+    async def _show_scope_value(
+        self, ctx, context, setting, scope_name, connective="is"
+    ):
         """Show the value of the given setting in the given scope."""
 
         value = setting.get_value_in_scope(context, scope_name)
@@ -98,10 +102,7 @@ class Settings(commands.Cog):
 
 def setup(bot):
     # All settings are made available on the bot instance for easy access
-    bot.settings = {
-        setting.name: setting(bot)
-        for setting in ALL_SETTINGS
-    }
+    bot.settings = {setting.name: setting(bot) for setting in ALL_SETTINGS}
     settings = bot.settings.values()
 
     bot.add_cog(Settings(bot, settings))

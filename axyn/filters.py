@@ -1,7 +1,9 @@
 import re
 
 import discord
+
 from axyn.settings.context import SettingContext
+
 
 def _is_command(text):
     """Check if the given text appears to be a command."""
@@ -108,7 +110,6 @@ def reason_to_ignore_interval(bot, previous_message, message):
     if previous_message.author == message.author:
         return "both messages have the same author"
 
-    return (
-        _reason_to_ignore(bot, message)
-        or _reason_to_ignore(bot, previous_message, allow_axyn=True)
+    return _reason_to_ignore(bot, message) or _reason_to_ignore(
+        bot, previous_message, allow_axyn=True
     )

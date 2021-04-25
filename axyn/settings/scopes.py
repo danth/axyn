@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
-from sqlalchemy import BigInteger, Column
 from discord.ext import commands
+from sqlalchemy import BigInteger, Column
+
 from axyn.models import Base
 
 
@@ -50,12 +51,7 @@ class Scope(ABC):
         """Fetch and return a value from the database, or None if not found."""
 
         session = self.bot.Session()
-        entry = (
-            session
-            .query(self.model)
-            .where(self.model.id == id_)
-            .one_or_none()
-        )
+        entry = session.query(self.model).where(self.model.id == id_).one_or_none()
         session.close()
 
         if entry:
