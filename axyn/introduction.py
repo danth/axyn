@@ -1,6 +1,7 @@
 import asyncio
-import discord
 import logging
+
+import discord
 from discord.ext import commands, tasks
 
 from axyn.models import IntroducedUser
@@ -30,10 +31,9 @@ class Introduction(commands.Cog):
 
         logger.info("Checking for any missed introductions")
 
-        await asyncio.gather(*(
-            self._introduce(member)
-            for member in self.bot.get_all_members()
-        ))
+        await asyncio.gather(
+            *(self._introduce(member) for member in self.bot.get_all_members())
+        )
 
         logger.info("Missed introductions check finished")
 
@@ -61,10 +61,7 @@ class Introduction(commands.Cog):
     def _should_be_introduced(self, user):
         """Return whether the given user should recieve an introduction."""
 
-        return not (
-            user.bot
-            or self._is_introduced(user)
-        )
+        return not (user.bot or self._is_introduced(user))
 
     async def _send_introduction(self, member):
         """Send an introduction to the given user."""
@@ -98,8 +95,7 @@ class Introduction(commands.Cog):
 
         session = self.bot.Session()
         entry = (
-            session
-            .query(IntroducedUser)
+            session.query(IntroducedUser)
             .filter(IntroducedUser.id == user.id)
             .one_or_none()
         )
