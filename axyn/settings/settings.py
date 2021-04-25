@@ -69,7 +69,11 @@ class Setting(ABC):
     def get_all_values(self, context):
         """Get all values of this setting in the given context."""
 
-        return {scope.name: scope.get_value(context) for scope in self.scopes}
+        return {
+            scope.name: scope.get_value(context)
+            for scope in self.scopes
+            if scope.is_applicable(context)
+        }
 
     def set_value_in_scope(self, context, scope_name, value):
         """Set the value of this setting in the given context and scope."""
@@ -93,7 +97,7 @@ class LearningSetting(Setting):
     sql_datatype = Boolean
     available_scopes = ALL_SCOPES
 
-    def merge_values(self, user, channel, server):
+    def merge_values(self, user=None, channel=None, server=None):
         # If the channel or guild has explicitly disabled learning, honour that
         if channel is False or server is False:
             return False

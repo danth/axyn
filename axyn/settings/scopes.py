@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 
+import discord
 from discord.ext import commands
 from sqlalchemy import BigInteger, Column
 
 from axyn.models import Base
+from axyn.settings.context import SettingContext
 
 
 class Scope(ABC):
@@ -13,11 +15,15 @@ class Scope(ABC):
         """The name of this scope."""
 
     @abstractmethod
+    def is_applicable(self, context):
+        """Given a SettingContext, return whether this scope is applicable."""
+
+    @abstractmethod
     def get_id(self, context):
         """Given a SettingContext, return the ID of the scope it is in."""
 
     @abstractmethod
-    async def check(self, ctx):
+    async def permission_check(self, ctx):
         """Check whether a user is allowed to edit this scope."""
 
     def __init__(self, bot, setting):
@@ -34,6 +40,15 @@ class Scope(ABC):
                 "value": Column(self.setting.sql_datatype),
             },
         )
+
+    async def check(self, ctx):
+        """Return whether the command for this scope can be used in the given context."""
+
+        applicable = self.is_applicable(SettingContext.from_context(ctx))
+        if not applicable:
+            return False
+
+        return await self.permission_check(ctx)
 
     def get_value(self, context):
         """Fetch and return a value for the given context, or None if unset."""
@@ -69,10 +84,13 @@ class Scope(ABC):
 class UserScope(Scope):
     name = "user"
 
+    def is_applicable(self, context):
+        return context.user is not None
+
     def get_id(self, context):
         return context.user.id
 
-    async def check(self, ctx):
+    async def permission_check(self, ctx):
         # Users can edit their own preference anywhere
         return True
 
@@ -80,20 +98,30 @@ class UserScope(Scope):
 class ChannelScope(Scope):
     name = "channel"
 
+    def is_applicable(self, context):
+        if context.channel:
+            # Not applicable to DM channels
+            return context.channel.type != discord.ChannelType.private
+
+        return False
+
     def get_id(self, context):
         return context.channel.id
 
-    async def check(self, ctx):
+    async def permission_check(self, ctx):
         return await commands.has_permissions(administrator=True).predicate(ctx)
 
 
 class GuildScope(Scope):
     name = "server"
 
+    def is_applicable(self, context):
+        return context.guild is not None
+
     def get_id(self, context):
         return context.guild.id
 
-    async def check(self, ctx):
+    async def permission_check(self, ctx):
         return await commands.has_permissions(administrator=True).predicate(ctx)
 
 
