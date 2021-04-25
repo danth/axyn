@@ -73,7 +73,8 @@ class Introduction(commands.Cog):
                 "I'm a robot who joins in with human conversations. "
                 f"I observe **{member.guild.name}** to help expand the topics "
                 "I can chat about. If you don't mind me borrowing your "
-                "phrases, please let me know by sending `a!learning user on`!"
+                "phrases, please let me know by sending:\n\n"
+                "`a!learning user on`"
             ),
             colour=discord.Colour.green(),
         )
