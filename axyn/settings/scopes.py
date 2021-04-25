@@ -12,8 +12,8 @@ class Scope(ABC):
         """The name of this scope."""
 
     @abstractmethod
-    def get_id(self, ctx):
-        """Given a context, get the current scope and return its ID."""
+    def get_id(self, context):
+        """Given a SettingContext, return the ID of the scope it is in."""
 
     @abstractmethod
     async def check(self, ctx):
@@ -34,16 +34,16 @@ class Scope(ABC):
             },
         )
 
-    def get_value(self, ctx):
+    def get_value(self, context):
         """Fetch and return a value for the given context, or None if unset."""
 
-        id_ = self.get_id(ctx)
+        id_ = self.get_id(context)
         return self._get_database_value(id_)
 
-    def set_value(self, ctx, value):
+    def set_value(self, context, value):
         """Set the value for the given context."""
 
-        id_ = self.get_id(ctx)
+        id_ = self.get_id(context)
         return self._set_database_value(id_, value)
 
     def _get_database_value(self, id_):
@@ -73,8 +73,8 @@ class Scope(ABC):
 class UserScope(Scope):
     name = "user"
 
-    def get_id(self, ctx):
-        return ctx.author.id
+    def get_id(self, context):
+        return context.user.id
 
     async def check(self, ctx):
         # Users can edit their own preference anywhere
@@ -84,8 +84,8 @@ class UserScope(Scope):
 class ChannelScope(Scope):
     name = "channel"
 
-    def get_id(self, ctx):
-        return ctx.channel.id
+    def get_id(self, context):
+        return context.channel.id
 
     async def check(self, ctx):
         return await commands.has_permissions(administrator=True).predicate(ctx)
@@ -94,8 +94,8 @@ class ChannelScope(Scope):
 class GuildScope(Scope):
     name = "server"
 
-    def get_id(self, ctx):
-        return ctx.guild.id
+    def get_id(self, context):
+        return context.guild.id
 
     async def check(self, ctx):
         return await commands.has_permissions(administrator=True).predicate(ctx)

@@ -52,31 +52,31 @@ class Setting(ABC):
             for scope in self.available_scopes
         ]
 
-    def get_value(self, ctx):
+    def get_value(self, context):
         """Get the effective value of this setting in the given context."""
 
-        values = self.get_all_values(ctx)
+        values = self.get_all_values(context)
         return self.merge_values(**values)
 
-    def get_value_in_scope(self, ctx, scope_name):
+    def get_value_in_scope(self, context, scope_name):
         """Get the value of this setting in the given context and scope."""
 
-        return self.get_all_values(ctx)[scope_name]
+        return self.get_all_values(context)[scope_name]
 
-    def get_all_values(self, ctx):
+    def get_all_values(self, context):
         """Get all values of this setting in the given context."""
 
         return {
-            scope.name: scope.get_value(ctx)
+            scope.name: scope.get_value(context)
             for scope in self.scopes
         }
 
-    def set_value_in_scope(self, ctx, scope_name, value):
+    def set_value_in_scope(self, context, scope_name, value):
         """Set the value of this setting in the given context and scope."""
 
         for scope in self.scopes:
             if scope.name == scope_name:
-                scope.set_value(ctx, value)
+                scope.set_value(context, value)
                 break
 
 

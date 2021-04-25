@@ -1,6 +1,7 @@
 import re
 
 import discord
+from axyn.settings.context import SettingContext
 
 def _is_command(text):
     """Check if the given text appears to be a command."""
@@ -62,7 +63,8 @@ def reason_not_to_learn(bot, message):
     if reason:
         return reason
 
-    if not bot.settings["learning"].get_value(message.author, message.channel, message.guild):
+    context = SettingContext.from_message(message)
+    if not bot.settings["learning"].get_value(context):
         return "learning is disabled by settings"
 
 
@@ -91,11 +93,12 @@ def reason_not_to_learn_reaction_pair(bot, reaction, reaction_user):
     if reason:
         return reason
 
-    if not bot.settings["learning"].get_value(
-            reaction_user,
-            reaction.message.channel,
-            reaction.message.guild
-    ):
+    context = SettingContext(
+        reaction_user,
+        reaction.message.channel,
+        reaction.message.guild,
+    )
+    if not bot.settings["learning"].get_value(context):
         return "learning is disabled by settings"
 
 
