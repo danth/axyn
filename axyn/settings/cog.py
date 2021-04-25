@@ -39,25 +39,26 @@ class Settings(commands.Cog):
                 await self._show_value(ctx, setting)
 
         for scope in setting.scopes:
-            self._add_scope_command(setting, scope.name, group)
+            self._add_scope_command(setting, scope, group)
 
-    def _add_scope_command(self, setting, scope_name, group):
+    def _add_scope_command(self, setting, scope, group):
         """Add a command for the given scope."""
 
         @group.command(
-            name=scope_name,
+            name=scope.name,
             help=(
-                f"Check or change {setting.thing} for this {scope_name}.\n\n"
+                f"Check or change {setting.thing} for this {scope.name}.\n\n"
                 "Specify a new value to change the setting. "
                 "Use this command with no arguments to view the current value."
             ),
         )
+        @commands.check(scope.check)
         async def check_or_change(ctx, new_value : setting.datatype = None):
             if new_value is None:
-                await self._show_scope_value(ctx, setting, scope_name)
+                await self._show_scope_value(ctx, setting, scope.name)
             else:
-                setting.set_value_in_scope(ctx, scope_name, new_value)
-                await self._show_scope_value(ctx, setting, scope_name, "is now")
+                setting.set_value_in_scope(ctx, scope.name, new_value)
+                await self._show_scope_value(ctx, setting, scope.name, "is now")
 
     async def _show_value(self, ctx, setting, connective="is"):
         """Show the effective value of the given setting."""

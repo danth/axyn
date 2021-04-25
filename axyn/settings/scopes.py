@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from sqlalchemy import BigInteger, Column
+from discord.ext import commands
 from axyn.models import Base
 
 
@@ -13,6 +14,10 @@ class Scope(ABC):
     @abstractmethod
     def get_id(self, ctx):
         """Given a context, get the current scope and return its ID."""
+
+    @abstractmethod
+    async def check(self, ctx):
+        """Check whether a user is allowed to edit this scope."""
 
     def __init__(self, bot, setting):
         self.bot = bot
@@ -71,6 +76,10 @@ class UserScope(Scope):
     def get_id(self, ctx):
         return ctx.author.id
 
+    async def check(self, ctx):
+        # Users can edit their own preference anywhere
+        return True
+
 
 class ChannelScope(Scope):
     name = "channel"
@@ -78,12 +87,18 @@ class ChannelScope(Scope):
     def get_id(self, ctx):
         return ctx.channel.id
 
+    async def check(self, ctx):
+        return await commands.has_permissions(administrator=True).predicate(ctx)
+
 
 class GuildScope(Scope):
     name = "server"
 
     def get_id(self, ctx):
         return ctx.guild.id
+
+    async def check(self, ctx):
+        return await commands.has_permissions(administrator=True).predicate(ctx)
 
 
 USER_SCOPES = [UserScope]
