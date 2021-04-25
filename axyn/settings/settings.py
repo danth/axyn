@@ -1,37 +1,101 @@
-from sqlalchemy import BigInteger, Column, Boolean
+from abc import ABC, abstractmethod
 
-from axyn.settings import Setting
-from axyn.models import Base
-
-
-def make_model(name, datatype):
-    """Create a database model with the given name and datatype."""
-
-    # This dynamically defines a class with the given name
-    return type(name, (Base,), {
-        "__tablename__": f"setting_{name}",
-        "id": Column(BigInteger, primary_key=True),
-        "value": Column(datatype),
-    })
+from sqlalchemy import Boolean
+from axyn.settings.scopes import ALL_SCOPES
 
 
-class Learning(Setting):
+class Setting(ABC):
+    @property
+    @abstractmethod
+    def name(self):
+        """The name of this setting."""
+
+    @property
+    @abstractmethod
+    def thing(self):
+        """
+        A short description of what this setting controls.
+
+        This should be formatted like "whether learning is enabled" or "how
+        long Axyn waits before replying".
+        """
+
+    @property
+    @abstractmethod
+    def datatype(self):
+        """The type of value this setting stores."""
+
+    @property
+    @abstractmethod
+    def sql_datatype(self):
+        """The type of value this setting stores, as an sqlalchemy column type."""
+
+    @property
+    @abstractmethod
+    def available_scopes(self):
+        """List of scopes this can be set for."""
+
+    @abstractmethod
+    def merge_values(self, **kwargs):
+        """
+        Merge values from different scopes into a single value.
+
+        Values are passed as keyword arguments corresponding to the name of the
+        scope, and will be None if they have not been set.
+        """
+
+    def __init__(self, bot):
+        self.bot = bot
+
+        self.scopes = [
+            scope(self.bot, self)
+            for scope in self.available_scopes
+        ]
+
+    def get_value(self, ctx):
+        """Get the effective value of this setting in the given context."""
+
+        values = self.get_all_values(ctx)
+        return self.merge_values(**values)
+
+    def get_value_in_scope(self, ctx, scope_name):
+        """Get the value of this setting in the given context and scope."""
+
+        return self.get_all_values(ctx)[scope_name]
+
+    def get_all_values(self, ctx):
+        """Get all values of this setting in the given context."""
+
+        return {
+            scope.name: scope.get_value(ctx)
+            for scope in self.scopes
+        }
+
+    def set_value_in_scope(self, ctx, scope_name, value):
+        """Set the value of this setting in the given context and scope."""
+
+        for scope in self.scopes:
+            if scope.name == scope_name:
+                scope.set_value(ctx, value)
+                break
+
+
+class LearningSetting(Setting):
     name = "learning"
-    datatype = bool
     thing = "whether Axyn will learn messages"
-    user_model = make_model("learning_user", Boolean)
-    channel_model = make_model("learning_channel", Boolean)
-    guild_model = make_model("learning_guild", Boolean)
+    datatype = bool
+    sql_datatype = Boolean
+    available_scopes = ALL_SCOPES
 
-    def merge_values(self, user_value, channel_value, guild_value):
+    def merge_values(self, user, channel, server):
         # If the channel or guild has explicitly disabled learning, honour that
-        if channel_value is False or guild_value is False:
+        if channel is False or server is False:
             return False
 
         # Otherwise, use the user's preference
-        return bool(user_value)
+        return bool(user)
 
 
 ALL_SETTINGS = [
-    Learning
+    LearningSetting
 ]

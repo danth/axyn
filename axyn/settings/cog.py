@@ -30,7 +30,7 @@ class Settings(commands.Cog):
             cog=self,
             name=setting.name,
             help=(
-                f"Show {setting.thing} in the current context.\n\n"
+                f"Show the effective setting for {setting.thing} here.\n\n"
                 "Subcommands are used to change this setting in different scopes."
             ),
         )
@@ -38,135 +38,53 @@ class Settings(commands.Cog):
             if ctx.subcommand_passed is None:
                 await self._show_value(ctx, setting)
 
-        if setting.user_model:
-            self._add_user_command(setting, group)
+        for scope in setting.scopes:
+            self._add_scope_command(setting, scope.name, group)
 
-        if setting.channel_model:
-            self._add_channel_command(setting, group)
-
-        if setting.guild_model:
-            self._add_guild_command(setting, group)
-
-    def _add_user_command(self, setting, group):
-        """Add a command to the given group to change the user setting."""
+    def _add_scope_command(self, setting, scope_name, group):
+        """Add a command for the given scope."""
 
         @group.command(
-            name="user",
+            name=scope_name,
             help=(
-                f"Check or change your personal preference for {setting.thing}.\n\n"
-                "Specify a new value to change the setting, "
-                "otherwise this command will just show the current value."
+                f"Check or change {setting.thing} for this {scope_name}.\n\n"
+                "Specify a new value to change the setting. "
+                "Use this command with no arguments to view the current value."
             ),
         )
-        async def change_user(ctx, new_value : setting.datatype = None):
+        async def check_or_change(ctx, new_value : setting.datatype = None):
             if new_value is None:
-                await self._show_user_value(ctx, setting)
+                await self._show_scope_value(ctx, setting, scope_name)
             else:
-                setting.set_user_value(ctx.author, new_value)
-                await self._show_user_value(ctx, setting, "is now")
-
-    def _add_channel_command(self, setting, group):
-        """Add a command to the given group to change the channel setting."""
-
-        @group.command(
-            name="channel",
-            help=(
-                f"Check or change {setting.thing} in this channel.\n\n"
-                "Specify a new value to change the setting, "
-                "otherwise this command will just show the current value."
-            ),
-        )
-        @commands.guild_only()
-        @commands.has_permissions(administrator=True)
-        async def change_channel(ctx, new_value : setting.datatype = None):
-            if new_value is None:
-                await self._show_channel_value(ctx, setting)
-            else:
-                setting.set_channel_value(ctx.channel, new_value)
-                await self._show_channel_value(ctx, setting, "is now")
-
-    def _add_guild_command(self, setting, group):
-        """Add a command to the given group to change the guild setting."""
-
-        @group.command(
-            name="server",
-            aliases=["guild"],
-            help=(
-                f"Check or change {setting.thing} in this server.\n\n"
-                "Specify a new value to change the setting, "
-                "otherwise this command will just show the current value."
-            ),
-        )
-        @commands.guild_only()
-        @commands.has_permissions(administrator=True)
-        async def change_guild(ctx, new_value : setting.datatype = None):
-            if new_value is None:
-                await self._show_guild_value(ctx, setting)
-            else:
-                setting.set_guild_value(ctx.guild, new_value)
-                await self._show_guild_value(ctx, setting, "is now")
+                setting.set_value_in_scope(ctx, scope_name, new_value)
+                await self._show_scope_value(ctx, setting, scope_name, "is now")
 
     async def _show_value(self, ctx, setting, connective="is"):
         """Show the effective value of the given setting."""
 
-        value = setting.get_value(ctx.author, ctx.channel, ctx.guild)
+        value = setting.get_value(ctx)
         clean_value = cleanup_value(value)
         embed = discord.Embed(
             title=f"{setting.name.title()} {connective} {clean_value} here",
             colour=discord.Colour.blurple(),
         )
 
-        if setting.user_model:
-            user_value = setting.get_user_value(ctx.author)
-            clean_user_value = cleanup_value(user_value)
-            embed.add_field(name=ctx.author.display_name, value=clean_user_value, inline=False)
-
-        if setting.channel_model:
-            channel_value = setting.get_channel_value(ctx.channel)
-            clean_channel_value = cleanup_value(channel_value)
-            embed.add_field(name=f"#{ctx.channel.name}", value=clean_channel_value, inline=False)
-
-        if setting.guild_model:
-            guild_value = setting.get_guild_value(ctx.guild)
-            clean_guild_value = cleanup_value(guild_value)
-            embed.add_field(name=ctx.guild.name, value=clean_guild_value, inline=False)
+        for scope_name, value in setting.get_all_values(ctx).items():
+            clean_value = cleanup_value(value)
+            embed.add_field(name=scope_name.title(), value=clean_value, inline=False)
 
         await ctx.send(embed=embed)
 
-    async def _show_user_value(self, ctx, setting, connective="is"):
-        """show the value of the given setting for the current user."""
+    async def _show_scope_value(self, ctx, setting, scope_name, connective="is"):
+        """Show the value of the given setting in the given scope."""
 
-        value = setting.get_user_value(ctx.author)
+        value = setting.get_value_in_scope(ctx, scope_name)
         clean_value = cleanup_value(value)
-
         embed = discord.Embed(
-            description=f"{setting.name.title()} {connective} {clean_value} for {ctx.author.mention}",
+            title=f"{setting.name.title()} {connective} {clean_value} for this {scope_name}",
             colour=discord.Colour.blurple(),
         )
-        await ctx.send(embed=embed)
 
-    async def _show_channel_value(self, ctx, setting, connective="is"):
-        """show the value of the given setting for the current channel."""
-
-        value = setting.get_channel_value(ctx.channel)
-        clean_value = cleanup_value(value)
-
-        embed = discord.Embed(
-            description=f"{setting.name.title()} {connective} {clean_value} in {ctx.channel.mention}",
-            colour=discord.Colour.blurple(),
-        )
-        await ctx.send(embed=embed)
-
-    async def _show_guild_value(self, ctx, setting, connective="is"):
-        """show the value of the given setting for the current guild."""
-
-        value = setting.get_guild_value(ctx.guild)
-        clean_value = cleanup_value(value)
-
-        embed = discord.Embed(
-            description=f"{setting.name.title()} {connective} {clean_value} in {ctx.guild.name}",
-            colour=discord.Colour.blurple(),
-        )
         await ctx.send(embed=embed)
 
 
