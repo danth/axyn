@@ -31,9 +31,8 @@ class Introduction(commands.Cog):
 
         logger.info("Checking for any missed introductions")
 
-        await asyncio.gather(
-            *(self._introduce(member) for member in self.bot.get_all_members())
-        )
+        for member in self.bot.get_all_members():
+            await self._introduce(member)
 
         logger.info("Missed introductions check finished")
 
