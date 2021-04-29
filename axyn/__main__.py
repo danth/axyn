@@ -3,6 +3,7 @@ import os.path
 
 import chickennuggets
 import discord
+import discordhealthcheck
 import spacy
 import sqlalchemy
 from discord.ext import commands
@@ -49,6 +50,9 @@ def launch():
 
     # Create database tables
     Base.metadata.create_all(engine)
+
+    # Set up Docker health checks
+    discordhealthcheck.start(bot)
 
     # Connect to Discord and start bot
     logger.info("Starting bot")

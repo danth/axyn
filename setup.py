@@ -37,6 +37,7 @@ setup(
         "sqlalchemy >=1.3,<2",
         "flipgenic >=0.3.1,<1",
         "discord.py >=1.2.5,<2",
+        "discordhealthcheck >=0.0.7,<1",
         "emoji >=0.5,<1",
         "chickennuggets >=1,<2",
         "numpy >=1.20,<2",

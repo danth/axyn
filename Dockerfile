@@ -15,4 +15,5 @@ RUN python -m spacy download en_core_web_md
 # Copy code
 COPY . .
 
+HEALTHCHECK CMD discordhealthcheck || exit 1
 CMD [ "axyn" ]
