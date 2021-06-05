@@ -35,7 +35,7 @@ setup(
     setup_requires=["setuptools_scm"],
     install_requires=[
         "sqlalchemy >=1.3,<2",
-        "flipgenic >=0.3.1,<1",
+        "flipgenic >=1,<2",
         "discord.py >=1.2.5,<2",
         "discordhealthcheck >=0.0.7,<1",
         "emoji >=0.5,<1",
