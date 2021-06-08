@@ -33,6 +33,14 @@ docker start -a axyn
 
 ## Usage
 
+### Required Permissions
+
+- Send messages
+- Manage messages
+- Embed links
+- Read message history
+- Add reactions
+
 ### Chat
 
 Axyn will reply immediately if you:
