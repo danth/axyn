@@ -2,8 +2,6 @@ import re
 
 import discord
 
-from axyn.settings.context import SettingContext
-
 
 def _is_command(text):
     """Check if the given text appears to be a command."""
@@ -65,10 +63,6 @@ def reason_not_to_learn(bot, message):
     if reason:
         return reason
 
-    context = SettingContext.from_message(message)
-    if not bot.settings["learning"].get_value(context):
-        return "learning is disabled by settings"
-
 
 def reason_not_to_learn_pair(bot, previous_message, message):
     """If the given pair shouldn't be learned, return a reason why."""
@@ -94,15 +88,6 @@ def reason_not_to_learn_reaction_pair(bot, reaction, reaction_user):
     reason = _reason_to_ignore(bot, reaction.message, allow_axyn=True)
     if reason:
         return reason
-
-    context = SettingContext(
-        reaction_user,
-        reaction.message.channel,
-        reaction.message.guild,
-    )
-    if not bot.settings["learning"].get_value(context):
-        return "learning is disabled by settings"
-
 
 def reason_to_ignore_interval(bot, previous_message, message):
     """If the given pair's interval should be ignored, return a reason why."""
