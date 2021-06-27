@@ -36,9 +36,9 @@ setup(
     install_requires=[
         "flipgenic >=1,<2",
         "discord.py >=1.2.5,<2",
+        "discord-py-slash-command >2,<3",
         "discordhealthcheck >=0.0.7,<1",
         "emoji >=0.5,<1",
-        "chickennuggets >=1,<2",
         "numpy >=1.20,<2",
     ],
     entry_points={
