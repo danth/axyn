@@ -10,7 +10,6 @@ from discord.ext import commands
 from flipgenic import Responder
 
 from axyn.datastore import get_path
-from axyn.models import Base
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -25,12 +24,6 @@ def launch():
     intents.members = True  # Required for on_reaction_add in DMs
     bot = commands.Bot(command_prefix="a!", intents=intents)
 
-    # Connect to database
-    db_url = "sqlite:///" + get_path("axyn.sqlite3")
-    engine = sqlalchemy.create_engine(db_url)
-    # Create Session class
-    bot.Session = sqlalchemy.orm.sessionmaker(bind=engine)
-
     # Create model here so Flipgenic does not load it twice
     logger.info("Loading NLP model")
     model = spacy.load("en_core_web_md", disable=["ner", "textcat"])
@@ -44,10 +37,6 @@ def launch():
     logger.info("Loading extensions")
     chickennuggets.load(bot, ["help", "errors"])
     bot.load_extension("axyn.handle")
-    bot.load_extension("axyn.train")
-
-    # Create database tables
-    Base.metadata.create_all(engine)
 
     # Set up Docker health checks
     discordhealthcheck.start(bot)
