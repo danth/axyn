@@ -10,7 +10,7 @@ class Learn(MessageHandler):
     async def handle(self):
         """Learn this message, if allowed."""
 
-        reason = reason_not_to_learn(self.bot, self.message)
+        reason = reason_not_to_learn(self.client, self.message)
         if reason:
             self.logger.info("Not learning because %s", reason)
             return
@@ -19,17 +19,17 @@ class Learn(MessageHandler):
         if not previous:
             return
 
-        reason = reason_not_to_learn_pair(self.bot, previous, self.message)
+        reason = reason_not_to_learn_pair(self.client, previous, self.message)
         if reason:
             self.logger.info("Not learning because %s", reason)
             return
 
         self.logger.info("Preprocessing texts")
-        previous_content = preprocess(self.bot, previous)
-        content = preprocess(self.bot, self.message)
+        previous_content = preprocess(self.client, previous)
+        content = preprocess(self.client, self.message)
 
         self.logger.info('Learning "%s" as a reply to "%s"', content, previous_content)
-        self.bot.message_responder.learn_response(previous_content, content)
+        self.client.message_responder.learn_response(previous_content, content)
         self.logger.info("Learning complete")
 
     async def get_previous(self):
@@ -65,7 +65,7 @@ class Learn(MessageHandler):
         """Return the message just before this message, if it was recent."""
 
         threshold = await quantile_interval(
-            self.bot,
+            self.client,
             self.message.channel,
             quantile=0.75,
             default=300,

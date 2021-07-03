@@ -5,7 +5,7 @@ import numpy
 from axyn.filters import reason_to_ignore_interval
 
 
-async def quantile_interval(bot, channel, quantile=0.5, default=None):
+async def quantile_interval(client, channel, quantile=0.5, default=None):
     """
     Compute a quantile of the reply time in the given channel.
 
@@ -15,7 +15,7 @@ async def quantile_interval(bot, channel, quantile=0.5, default=None):
 
     logger = logging.getLogger(f"{__name__}.{channel.id}")
 
-    intervals = await _get_intervals(bot, channel, logger)
+    intervals = await _get_intervals(client, channel, logger)
     logger.info("Computing %.2fth quantile of %i intervals", quantile, len(intervals))
 
     if len(intervals) > 0:
@@ -27,7 +27,7 @@ async def quantile_interval(bot, channel, quantile=0.5, default=None):
         return default
 
 
-async def _get_intervals(bot, channel, logger):
+async def _get_intervals(client, channel, logger):
     """
     Calculate the delay in seconds between pairs of recent messages in a channel.
 
@@ -46,7 +46,7 @@ async def _get_intervals(bot, channel, logger):
 
     intervals = []
     for a, b in pairs:
-        if not reason_to_ignore_interval(bot, a, b):
+        if not reason_to_ignore_interval(client, a, b):
             # Calculate how many seconds passed between the two messages being sent
             interval = (b.created_at - a.created_at).total_seconds()
             intervals.append(interval)

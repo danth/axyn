@@ -12,7 +12,7 @@ def _is_command(text):
     return re.match(r"^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)", text) is not None
 
 
-def _reason_to_ignore(bot, message, allow_axyn=False):
+def _reason_to_ignore(client, message, allow_axyn=False):
     """If the given message should be ignored, return a reason why."""
 
     if message.type != discord.MessageType.default:
@@ -21,7 +21,7 @@ def _reason_to_ignore(bot, message, allow_axyn=False):
     if len(message.content) == 0:
         return "this message has no text"
 
-    if message.author == bot.user:
+    if message.author == client.user:
         if not allow_axyn:
             return "this message is authored by Axyn"
     elif message.author.bot:
@@ -38,19 +38,19 @@ def _reason_to_ignore(bot, message, allow_axyn=False):
         return "this message looks like a bot command"
 
 
-def reason_not_to_reply(bot, message):
+def reason_not_to_reply(client, message):
     """If the given message shouldn't be replied to, return a reason why."""
 
-    return _reason_to_ignore(bot, message)
+    return _reason_to_ignore(client, message)
 
 
-def reason_not_to_react(bot, message):
+def reason_not_to_react(client, message):
     """If the given message shouldn't be reacted to, return a reason why."""
 
-    return _reason_to_ignore(bot, message)
+    return _reason_to_ignore(client, message)
 
 
-def reason_not_to_learn(bot, message):
+def reason_not_to_learn(client, message):
     """If the given message shouldn't be learned, return a reason why."""
 
     # Only for text channels, not DMs
@@ -59,24 +59,24 @@ def reason_not_to_learn(bot, message):
             if bad_string in message.channel.name:
                 return "the channel name contains " + bad_string
 
-    reason = _reason_to_ignore(bot, message)
+    reason = _reason_to_ignore(client, message)
     if reason:
         return reason
 
-    if not bot.consent_manager.has_consented(message.author):
+    if not client.consent_manager.has_consented(message.author):
         return "the author has not given consent"
 
 
-def reason_not_to_learn_pair(bot, previous_message, message):
+def reason_not_to_learn_pair(client, previous_message, message):
     """If the given pair shouldn't be learned, return a reason why."""
 
     if previous_message.author == message.author:
         return "the previous message has the same author as this message"
 
-    return _reason_to_ignore(bot, previous_message, allow_axyn=True)
+    return _reason_to_ignore(client, previous_message, allow_axyn=True)
 
 
-def reason_not_to_learn_reaction_pair(bot, reaction, reaction_user):
+def reason_not_to_learn_reaction_pair(client, reaction, reaction_user):
     """If the given reaction pair shouldn't be learned, return a reason why."""
 
     if not isinstance(reaction.emoji, str):
@@ -88,20 +88,20 @@ def reason_not_to_learn_reaction_pair(bot, reaction, reaction_user):
     if reaction_user == reaction.message.author:
         return "this reaction is from the message author"
 
-    reason = _reason_to_ignore(bot, reaction.message, allow_axyn=True)
+    reason = _reason_to_ignore(client, reaction.message, allow_axyn=True)
     if reason:
         return reason
 
-    if not bot.consent_manager.has_consented(reaction_user):
+    if not client.consent_manager.has_consented(reaction_user):
         return "the reacting user has not given consent"
 
 
-def reason_to_ignore_interval(bot, previous_message, message):
+def reason_to_ignore_interval(client, previous_message, message):
     """If the given pair's interval should be ignored, return a reason why."""
 
     if previous_message.author == message.author:
         return "both messages have the same author"
 
-    return _reason_to_ignore(bot, message) or _reason_to_ignore(
-        bot, previous_message, allow_axyn=True
+    return _reason_to_ignore(client, message) or _reason_to_ignore(
+        client, previous_message, allow_axyn=True
     )

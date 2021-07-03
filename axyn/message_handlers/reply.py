@@ -12,7 +12,7 @@ class Reply(MessageHandler):
     async def handle(self):
         """Respond to this message, if allowed."""
 
-        reason = reason_not_to_reply(self.bot, self.message)
+        reason = reason_not_to_reply(self.client, self.message)
         if reason:
             self.logger.info("Not replying because %s", reason)
             return False
@@ -48,11 +48,11 @@ class Reply(MessageHandler):
 
         return (
             self.message.channel.type == discord.ChannelType.private
-            or self.bot.user.mentioned_in(self.message)
+            or self.client.user.mentioned_in(self.message)
             or (
                 self.message.reference
                 and self.message.reference.resolved
-                and self.message.reference.resolved.author == self.bot.user
+                and self.message.reference.resolved.author == self.client.user
             )
             or "axyn" in self.message.channel.name
         )
@@ -64,7 +64,7 @@ class Reply(MessageHandler):
             self.logger.info("Replying instantly to a direct message")
             return 0
 
-        interval = await quantile_interval(self.bot, self.message.channel, default=60)
+        interval = await quantile_interval(self.client, self.message.channel, default=60)
         delay = interval * 1.5
         self.logger.info("Delaying by %.1f × 1.5 = %.1f seconds", interval, delay)
         return delay
@@ -81,10 +81,10 @@ class Reply(MessageHandler):
         """Return the chosen reply, and its distance, for this message."""
 
         self.logger.info("Preprocessing text")
-        content = preprocess(self.bot, self.message)
+        content = preprocess(self.client, self.message)
 
         self.logger.info("Selecting a reply")
-        reply, distance = self.bot.message_responder.get_response(content)
+        reply, distance = self.client.message_responder.get_response(content)
 
         if reply:
             self.logger.info('Selected reply "%s" at distance %.2f', reply, distance)
