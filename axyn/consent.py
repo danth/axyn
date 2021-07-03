@@ -15,7 +15,7 @@ Base = declarative_base()
 class UserConsent(Base):
     __tablename__ = "consent"
     user_id = Column(BigInteger, primary_key=True)
-    consented = Column(Boolean, primary_key=True)
+    consented = Column(Boolean)
 
 
 def _format_button_id(user, consented):
