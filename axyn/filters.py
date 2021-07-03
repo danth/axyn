@@ -63,6 +63,9 @@ def reason_not_to_learn(bot, message):
     if reason:
         return reason
 
+    if not bot.consent_manager.has_consented(message.author):
+        return "the author has not given consent"
+
 
 def reason_not_to_learn_pair(bot, previous_message, message):
     """If the given pair shouldn't be learned, return a reason why."""
@@ -88,6 +91,10 @@ def reason_not_to_learn_reaction_pair(bot, reaction, reaction_user):
     reason = _reason_to_ignore(bot, reaction.message, allow_axyn=True)
     if reason:
         return reason
+
+    if not bot.consent_manager.has_consented(reaction_user):
+        return "the reacting user has not given consent"
+
 
 def reason_to_ignore_interval(bot, previous_message, message):
     """If the given pair's interval should be ignored, return a reason why."""
