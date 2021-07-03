@@ -5,11 +5,11 @@ import discord
 import discordhealthcheck
 import spacy
 import sqlalchemy
-from discord_slash import SlashCommand
 from flipgenic import Responder
 
 from axyn.datastore import get_path
 from axyn.handle import setup_handlers
+from axyn.consent import setup_consent
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +21,6 @@ def launch():
     intents = discord.Intents.default()
     intents.members = True  # Required for on_reaction_add in DMs
     client = discord.Client(intents=intents)
-    slash = SlashCommand(client, sync_commands=True)
 
     logger.info("Loading NLP model")
     # Create model here so Flipgenic does not load it twice
@@ -34,6 +33,7 @@ def launch():
 
     logger.info("Attaching handlers")
     setup_handlers(client)
+    setup_consent(client)
     discordhealthcheck.start(client)
 
     logger.info("Starting client")
