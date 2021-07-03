@@ -1,42 +1,19 @@
 import logging
-import os.path
+import os
 
-import discord
-import discordhealthcheck
-import spacy
-import sqlalchemy
-from flipgenic import Responder
-
-from axyn.datastore import get_path
-from axyn.handle import setup_handlers
-from axyn.consent import setup_consent
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from axyn.client import AxynClient
 
 
 def launch():
-    logger.info("Setting up client")
-    intents = discord.Intents.default()
-    intents.members = True  # Required for on_reaction_add in DMs
-    client = discord.Client(intents=intents)
+    """
+    Start Axyn.
 
-    logger.info("Loading NLP model")
-    # Create model here so Flipgenic does not load it twice
-    model = spacy.load("en_core_web_md", disable=["ner", "textcat"])
+    The login token is taken from the environment variable ``DISCORD_TOKEN``.
+    """
 
-    logger.info("Initializing message responder")
-    client.message_responder = Responder(get_path("messages"), model)
-    logger.info("Initializing reaction responder")
-    client.reaction_responder = Responder(get_path("reactions"), model)
+    logging.basicConfig(level=logging.INFO)
 
-    logger.info("Attaching handlers")
-    setup_handlers(client)
-    setup_consent(client)
-    discordhealthcheck.start(client)
-
-    logger.info("Starting client")
+    client = AxynClient()
     client.run(os.environ["DISCORD_TOKEN"])
 
 
