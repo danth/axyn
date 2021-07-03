@@ -71,7 +71,7 @@ class ConsentManager:
 
         self.logger.info("%i requested a consent menu", ctx.author.id)
 
-        await ctx.send("Can I learn your messages?", hidden=True, components=[create_actionrow(
+        await ctx.send("May I learn from your messages?", hidden=True, components=[create_actionrow(
             create_button(
                 style=ButtonStyle.green,
                 label="Yes",
@@ -152,9 +152,21 @@ class ConsentManager:
         self.logger.info("User %i changed their consent setting to %s", user_id, consented)
 
         if consented:
-            await ctx.send(content="I'll learn messages you send from now on. Thanks!", hidden=True)
+            await ctx.send(
+                content=(
+                    "Thanks! From now on, I'll remember some of your phrases. "
+                    "If you change your mind, type `/consent`."
+                ),
+                hidden=True,
+            )
         else:
-            await ctx.send(content="No problem, I won't learn from you.", hidden=True)
+            await ctx.send(
+                content=(
+                    "No problem, I've turned off learning for you. "
+                    "You can enable it later by sending `/consent`."
+                ),
+                hidden=True,
+            )
 
     def _get_setting(self, user, session):
         """Fetch the database entry for a user."""
