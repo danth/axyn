@@ -35,8 +35,8 @@ docker start -a axyn
 
 ### Required Permissions
 
+- Manage slash commands
 - Send messages
-- Manage messages
 - Embed links
 - Read message history
 - Add reactions
