@@ -66,7 +66,7 @@ class ConsentManager:
 
         self.logger.info("Sending consent menu to %i", ctx.author.id)
 
-        await ctx.send("Can I learn your messages?", components=[create_actionrow(
+        await ctx.send("Can I learn your messages?", hidden=True, components=[create_actionrow(
             create_button(
                 style=ButtonStyle.green,
                 label="Yes",
@@ -82,8 +82,6 @@ class ConsentManager:
     async def handle_button(self, ctx):
         """Change a user's consent setting in response to an interaction."""
 
-        await ctx.defer(edit_origin=True)
-
         user_id, consented = _unpack_button_id(ctx.custom_id)
         with self._database_session() as session:
             session.merge(UserConsent(user_id=user_id, consented=consented))
@@ -91,9 +89,9 @@ class ConsentManager:
         self.logger.info("User %i changed their consent setting to %s", user_id, consented)
 
         if consented:
-            await ctx.edit_origin(content="I'll learn messages you send from now on. Thanks!", components=[])
+            await ctx.send(content="I'll learn messages you send from now on. Thanks!", hidden=True)
         else:
-            await ctx.edit_origin(content="No problem, I won't learn from you.", components=[])
+            await ctx.send(content="No problem, I won't learn from you.", hidden=True)
 
     def has_consented(self, user):
         """Return whether a user has allowed their messages to be learned."""

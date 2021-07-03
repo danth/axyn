@@ -53,15 +53,15 @@ def reason_not_to_react(client, message):
 def reason_not_to_learn(client, message):
     """If the given message shouldn't be learned, return a reason why."""
 
+    reason = _reason_to_ignore(client, message)
+    if reason:
+        return reason
+
     # Only for text channels, not DMs
     if message.channel.type == discord.ChannelType.text:
         for bad_string in ["spam", "command", "meme"]:
             if bad_string in message.channel.name:
                 return "the channel name contains " + bad_string
-
-    reason = _reason_to_ignore(client, message)
-    if reason:
-        return reason
 
     if not client.consent_manager.has_consented(message.author):
         return "the author has not given consent"
