@@ -46,6 +46,7 @@ def filter_responses(client, messages, current_channel):
     """Remove any messages from the given list which are not allowed to be sent."""
 
     return [
-        message for message in messages
+        message
+        for message in messages
         if should_send_in_channel(client, message, current_channel)
     ]

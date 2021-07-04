@@ -22,7 +22,9 @@ class React(MessageHandler):
         responses, distance = self.client.reaction_responder.get_all_responses(content)
 
         self.logger.info("%i reactions produced", len(responses))
-        filtered_responses = filter_responses(self.client, responses, self.message.channel)
+        filtered_responses = filter_responses(
+            self.client, responses, self.message.channel
+        )
         self.logger.info("%i reactions after filtering", len(filtered_responses))
 
         if distance <= 2:

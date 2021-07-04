@@ -20,8 +20,11 @@ class LearnReaction(ReactionHandler):
         self.logger.info(
             'Learning %s as a reaction to "%s"', self.reaction.emoji, content
         )
-        self.client.reaction_responder.learn_response(content, Message(
-            self.reaction.emoji,
-            self.reaction.message.channel.id,
-        ))
+        self.client.reaction_responder.learn_response(
+            content,
+            Message(
+                self.reaction.emoji,
+                self.reaction.message.channel.id,
+            ),
+        )
         self.logger.info("Learning complete")
