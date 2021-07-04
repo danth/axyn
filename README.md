@@ -41,12 +41,6 @@ docker start -a axyn
 - Add reactions
 - Manage slash commands
 
-### Learning
-
-The first time a user enters a server with Axyn, they will be sent a direct
-message allowing them to give permission for their messages or reactions to be
-learned. This menu can be accessed later using the `/consent` command.
-
 ### Chat
 
 Axyn will reply immediately if you:
@@ -97,3 +91,14 @@ Axyn will learn a reaction if it fits all of these criteria:
 See the 'how it works' section of [Flipgenic](https://github.com/danth/flipgenic/blob/master/README.md#how-does-it-work).
 Axyn is simply a Discord wrapper around this library (although, Flipgenic was
 originally `axyn.chatbot` before it was extracted).
+
+## Privacy
+
+Users must give permission for their messages and reactions to be stored. The
+first time a user joins a server with Axyn, they will receive a menu allowing
+their preference to be changed. This menu can be accessed later using the
+`/consent` command.
+
+For a message to be reused, everyone in the current channel must have access to
+the channel where the message was originally sent. This also applies to
+reactions.

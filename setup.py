@@ -34,7 +34,7 @@ setup(
     python_requires=">=3.6,<4",
     setup_requires=["setuptools_scm"],
     install_requires=[
-        "flipgenic >=1,<2",
+        "flipgenic >=2.1.1,<3",
         "discord.py >=1.2.5,<2",
         "discord-py-slash-command >2,<3",
         "discordhealthcheck >=0.0.7,<1",

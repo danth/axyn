@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from flipgenic import Message
+
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
@@ -29,7 +31,10 @@ class Learn(MessageHandler):
         content = preprocess(self.client, self.message)
 
         self.logger.info('Learning "%s" as a reply to "%s"', content, previous_content)
-        self.client.message_responder.learn_response(previous_content, content)
+        self.client.message_responder.learn_response(
+            previous_content,
+            Message(content, self.message.channel.id),
+        )
         self.logger.info("Learning complete")
 
     async def get_previous(self):

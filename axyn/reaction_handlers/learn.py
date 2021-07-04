@@ -1,3 +1,5 @@
+from flipgenic import Message
+
 from axyn.filters import reason_not_to_learn_reaction_pair
 from axyn.preprocessor import preprocess
 from axyn.reaction_handlers import ReactionHandler
@@ -18,5 +20,8 @@ class LearnReaction(ReactionHandler):
         self.logger.info(
             'Learning %s as a reaction to "%s"', self.reaction.emoji, content
         )
-        self.client.reaction_responder.learn_response(content, self.reaction.emoji)
+        self.client.reaction_responder.learn_response(content, Message(
+            self.reaction.emoji,
+            self.reaction.message.channel.id,
+        ))
         self.logger.info("Learning complete")

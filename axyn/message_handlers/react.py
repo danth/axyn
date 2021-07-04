@@ -1,6 +1,9 @@
+import random
+
 from axyn.filters import reason_not_to_react
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
+from axyn.privacy import filter_responses
 
 
 class React(MessageHandler):
@@ -16,9 +19,14 @@ class React(MessageHandler):
         content = preprocess(self.client, self.message)
 
         self.logger.info("Getting reaction")
-        emoji, distance = self.client.reaction_responder.get_response(content)
+        responses, distance = self.client.reaction_responder.get_all_responses(content)
+
+        self.logger.info("%i reactions produced", len(responses))
+        filtered_responses = filter_responses(self.client, responses, self.message.channel)
+        self.logger.info("%i reactions after filtering", len(filtered_responses))
 
         if distance <= 2:
+            emoji = random.choice(filtered_responses).text
             self.logger.info("Reacting with %s", emoji)
             await self.message.add_reaction(emoji)
         else:

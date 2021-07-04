@@ -1,4 +1,5 @@
 import asyncio
+import random
 
 import discord
 
@@ -6,6 +7,7 @@ from axyn.filters import reason_not_to_reply
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
+from axyn.privacy import filter_responses
 
 
 class Reply(MessageHandler):
@@ -86,11 +88,16 @@ class Reply(MessageHandler):
         content = preprocess(self.client, self.message)
 
         self.logger.info("Selecting a reply")
-        reply, distance = self.client.message_responder.get_response(content)
+        responses, distance = self.client.message_responder.get_all_responses(content)
 
-        if reply:
+        self.logger.info("%i replies produced", len(responses))
+        filtered_responses = filter_responses(self.client, responses, self.message.channel)
+        self.logger.info("%i replies after filtering", len(filtered_responses))
+
+        if filtered_responses:
+            reply = random.choice(filtered_responses).text
             self.logger.info('Selected reply "%s" at distance %.2f', reply, distance)
-        else:
-            self.logger.info("Flipgenic did not produce a reply")
+            return reply, distance
 
-        return reply, distance
+        self.logger.info("No suitable replies found")
+        return None, distance
