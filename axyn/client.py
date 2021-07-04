@@ -30,7 +30,7 @@ class AxynClient(discord.Client):
 
         self.logger.info("Loading SpaCy model")
         # Loading the model here stops Flipgenic creating two separate instances
-        self.spacy_model = spacy.load("en_core_web_md", disable=["ner", "textcat"])
+        self.spacy_model = spacy.load("en_core_web_md", exclude=["ner"])
         self.logger.info("Loading message responder")
         self.message_responder = Responder(get_path("messages"), self.spacy_model)
         self.logger.info("Loading reaction responder")
