@@ -64,7 +64,9 @@ class Reply(MessageHandler):
             self.logger.info("Replying instantly to a direct message")
             return 0
 
-        interval = await quantile_interval(self.client, self.message.channel, default=60)
+        interval = await quantile_interval(
+            self.client, self.message.channel, default=60
+        )
         delay = interval * 1.5
         self.logger.info("Delaying by %.1f × 1.5 = %.1f seconds", interval, delay)
         return delay

@@ -1,18 +1,18 @@
 import asyncio
 import logging
 
-import spacy
 import discord
 import discordhealthcheck
+import spacy
 from discord_slash import SlashCommand
 from flipgenic import Responder
 
+from axyn.consent import ConsentManager
+from axyn.datastore import get_path
 from axyn.message_handlers.learn import Learn
 from axyn.message_handlers.react import React
 from axyn.message_handlers.reply import Reply
 from axyn.reaction_handlers.learn import LearnReaction
-from axyn.datastore import get_path
-from axyn.consent import ConsentManager
 
 
 class AxynClient(discord.Client):

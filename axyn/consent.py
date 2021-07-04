@@ -2,17 +2,17 @@ import logging
 from contextlib import contextmanager
 
 import discord
-from discord_slash.utils.manage_components import create_button, create_actionrow
-from discord_slash.model import ButtonStyle
-from discord.ext import tasks
 import sqlalchemy
-from sqlalchemy import BigInteger, Column, Boolean
+from discord.ext import tasks
+from discord_slash.model import ButtonStyle
+from discord_slash.utils.manage_components import create_actionrow, create_button
+from sqlalchemy import BigInteger, Boolean, Column
 from sqlalchemy.ext.declarative import declarative_base
 
 from axyn.datastore import get_path
 
-
 Base = declarative_base()
+
 
 class UserConsent(Base):
     __tablename__ = "consent"
@@ -25,6 +25,7 @@ def _format_button_id(user, consented):
 
     choice = "yes" if consented else "no"
     return f"{user.id}-{choice}"
+
 
 def _unpack_button_id(button_id):
     """Extract the user and choice from a button identifier."""
@@ -71,18 +72,24 @@ class ConsentManager:
 
         self.logger.info("%i requested a consent menu", ctx.author.id)
 
-        await ctx.send("May I learn from your messages?", hidden=True, components=[create_actionrow(
-            create_button(
-                style=ButtonStyle.green,
-                label="Yes",
-                custom_id=_format_button_id(ctx.author, True),
-            ),
-            create_button(
-                style=ButtonStyle.red,
-                label="No",
-                custom_id=_format_button_id(ctx.author, False),
-            ),
-        )])
+        await ctx.send(
+            "May I learn from your messages?",
+            hidden=True,
+            components=[
+                create_actionrow(
+                    create_button(
+                        style=ButtonStyle.green,
+                        label="Yes",
+                        custom_id=_format_button_id(ctx.author, True),
+                    ),
+                    create_button(
+                        style=ButtonStyle.red,
+                        label="No",
+                        custom_id=_format_button_id(ctx.author, False),
+                    ),
+                )
+            ],
+        )
 
     async def send_introduction_menu(self, member):
         """Send a pair of buttons which allow consent to be changed."""
@@ -91,18 +98,20 @@ class ConsentManager:
             f"**Hello {member.display_name} :wave:**\n"
             f"I'm a robot who joins in with conversations in {member.guild}. "
             "May I learn from what you say there?",
-            components=[create_actionrow(
-                create_button(
-                    style=ButtonStyle.green,
-                    label="Yes",
-                    custom_id=_format_button_id(member, True),
-                ),
-                create_button(
-                    style=ButtonStyle.red,
-                    label="No",
-                    custom_id=_format_button_id(member, False),
-                ),
-            )]
+            components=[
+                create_actionrow(
+                    create_button(
+                        style=ButtonStyle.green,
+                        label="Yes",
+                        custom_id=_format_button_id(member, True),
+                    ),
+                    create_button(
+                        style=ButtonStyle.red,
+                        label="No",
+                        custom_id=_format_button_id(member, False),
+                    ),
+                )
+            ],
         )
 
     async def _send_introduction(self, member, session):
@@ -149,7 +158,9 @@ class ConsentManager:
         with self._database_session() as session:
             session.merge(UserConsent(user_id=user_id, consented=consented))
 
-        self.logger.info("User %i changed their consent setting to %s", user_id, consented)
+        self.logger.info(
+            "User %i changed their consent setting to %s", user_id, consented
+        )
 
         if consented:
             await ctx.send(
@@ -171,7 +182,11 @@ class ConsentManager:
     def _get_setting(self, user, session):
         """Fetch the database entry for a user."""
 
-        return session.query(UserConsent).where(UserConsent.user_id == user.id).one_or_none()
+        return (
+            session.query(UserConsent)
+            .where(UserConsent.user_id == user.id)
+            .one_or_none()
+        )
 
     def has_consented(self, user):
         """Return whether a user has allowed their messages to be learned."""
