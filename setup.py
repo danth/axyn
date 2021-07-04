@@ -34,12 +34,12 @@ setup(
     python_requires=">=3.6,<4",
     setup_requires=["setuptools_scm"],
     install_requires=[
-        "sqlalchemy >=1.3,<2",
         "flipgenic >=1,<2",
         "discord.py >=1.2.5,<2",
+        "discord-py-slash-command >2,<3",
         "discordhealthcheck >=0.0.7,<1",
+        "sqlalchemy >=1,<2",
         "emoji >=0.5,<1",
-        "chickennuggets >=1,<2",
         "numpy >=1.20,<2",
     ],
     entry_points={

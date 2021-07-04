@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 
 class ReactionHandler(ABC):
-    def __init__(self, bot, reaction, reaction_user):
-        self.bot = bot
+    def __init__(self, client, reaction, reaction_user):
+        self.client = client
         self.reaction = reaction
         self.reaction_user = reaction_user
 

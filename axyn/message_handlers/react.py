@@ -7,16 +7,16 @@ class React(MessageHandler):
     async def handle(self):
         """React to this message, if possible."""
 
-        reason = reason_not_to_react(self.bot, self.message)
+        reason = reason_not_to_react(self.client, self.message)
         if reason:
             self.logger.info("Not reacting because %s", reason)
             return
 
         self.logger.info("Preprocessing text")
-        content = preprocess(self.bot, self.message)
+        content = preprocess(self.client, self.message)
 
         self.logger.info("Getting reaction")
-        emoji, distance = self.bot.reaction_responder.get_response(content)
+        emoji, distance = self.client.reaction_responder.get_response(content)
 
         if distance <= 2:
             self.logger.info("Reacting with %s", emoji)

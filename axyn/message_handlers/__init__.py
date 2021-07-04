@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 
 class MessageHandler(ABC):
-    def __init__(self, bot, message):
-        self.bot = bot
+    def __init__(self, client, message):
+        self.client = client
         self.message = message
 
         # Each instance has its own logger
