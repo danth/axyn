@@ -15,10 +15,23 @@ class React(MessageHandler):
             self.logger.info("Not reacting because %s", reason)
             return
 
+        emoji, distance = self._get_reaction()
+
+        if distance <= 2:
+            self.logger.info("Reacting with %s", emoji)
+            await self.message.add_reaction(emoji)
+        else:
+            self.logger.info(
+                "Not reacting because %.2f is greater than the threshold of 2", distance
+            )
+
+    def _get_reaction(self):
+        """Return the chosen reaction, and its distance, for this message."""
+
         self.logger.info("Preprocessing text")
         content = preprocess(self.client, self.message)
 
-        self.logger.info("Getting reaction")
+        self.logger.info("Selecting a reaction")
         responses, distance = self.client.reaction_responder.get_all_responses(content)
 
         self.logger.info("%i reactions produced", len(responses))
@@ -27,11 +40,10 @@ class React(MessageHandler):
         )
         self.logger.info("%i reactions after filtering", len(filtered_responses))
 
-        if distance <= 2:
+        if filtered_responses:
             emoji = random.choice(filtered_responses).text
-            self.logger.info("Reacting with %s", emoji)
-            await self.message.add_reaction(emoji)
-        else:
-            self.logger.info(
-                "Not reacting because %.2f is greater than the threshold of 2", distance
-            )
+            self.logger.info('Selected reaction "%s" at distance %.2f', emoji, distance)
+            return emoji, distance
+
+        self.logger.info("No suitable reactions found")
+        return None, float("inf")

@@ -102,4 +102,4 @@ class Reply(MessageHandler):
             return reply, distance
 
         self.logger.info("No suitable replies found")
-        return None, distance
+        return None, float("inf")
