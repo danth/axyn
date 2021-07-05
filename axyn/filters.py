@@ -57,12 +57,6 @@ def reason_not_to_learn(client, message):
     if reason:
         return reason
 
-    # Only for text channels, not DMs
-    if message.channel.type == discord.ChannelType.text:
-        for bad_string in ["spam", "command", "meme"]:
-            if bad_string in message.channel.name:
-                return "the channel name contains " + bad_string
-
     if not client.consent_manager.has_consented(message.author):
         return "the author has not given consent"
 
