@@ -33,6 +33,11 @@ def should_send_in_channel(client, message, current_channel):
 
     original_channel = client.get_channel(int(message.metadata))
 
+    if original_channel is None:
+        # We are unable to fetch the member list for the original channel
+        # It was deleted or Axyn was removed
+        return False
+
     if current_channel == original_channel:
         return True
 
