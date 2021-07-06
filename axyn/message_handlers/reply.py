@@ -35,7 +35,7 @@ class Reply(MessageHandler):
 
         acceptable_distance = self._get_distance_threshold()
 
-        if distance <= acceptable_distance:
+        if reply and distance <= acceptable_distance:
             self.logger.info("Sending reply")
             await self.message.channel.send(reply)
         else:
@@ -77,7 +77,7 @@ class Reply(MessageHandler):
         """Return the maximum acceptible distance for replies to this message."""
 
         if self._is_direct():
-            return 4
+            return float("inf")
         else:
             return 1.5
 
