@@ -1,7 +1,7 @@
 import logging
 
-from logdecorator import log_on_start, log_on_end
 import discord
+from logdecorator import log_on_end, log_on_start
 
 
 def _members_to_set(members):

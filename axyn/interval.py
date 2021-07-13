@@ -1,12 +1,14 @@
 import logging
 
 import numpy
-from logdecorator.asyncio import async_log_on_start, async_log_on_end
+from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
 from axyn.filters import reason_to_ignore_interval
 
 
-@async_log_on_start(logging.DEBUG, "Computing {quantile}th quantile for channel {channel.id}")
+@async_log_on_start(
+    logging.DEBUG, "Computing {quantile}th quantile for channel {channel.id}"
+)
 @async_log_on_end(logging.DEBUG, "The quantile is {result}")
 async def quantile_interval(client, channel, quantile=0.5, default=None):
     """

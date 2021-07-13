@@ -2,16 +2,19 @@ import logging
 from datetime import timedelta
 
 from flipgenic import Message
+from logdecorator import log_on_end, log_on_start
+from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
-from logdecorator import log_on_start, log_on_end
-from logdecorator.asyncio import async_log_on_start, async_log_on_end
 
 
-@log_on_start(logging.INFO, 'Learning "{message.clean_content}" as a reply to "{previous.clean_content}"')
+@log_on_start(
+    logging.INFO,
+    'Learning "{message.clean_content}" as a reply to "{previous.clean_content}"',
+)
 @log_on_end(logging.DEBUG, "Learning complete")
 def _learn(client, previous, message):
     """Learn a response pair after preprocessing."""
@@ -55,14 +58,14 @@ class Learn(MessageHandler):
         if recent:
             return recent
 
-    @log_on_end(logging.DEBUG, 'This message references {result}')
+    @log_on_end(logging.DEBUG, "This message references {result}")
     def _get_reference(self):
         """Return the message this message references, if any."""
 
         if self.message.reference and self.message.reference.resolved:
             return self.message.reference.resolved
 
-    @async_log_on_end(logging.DEBUG, '{result} was sent recently')
+    @async_log_on_end(logging.DEBUG, "{result} was sent recently")
     async def _get_recent(self):
         """Return the message just before this message, if it was recent."""
 

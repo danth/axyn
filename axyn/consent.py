@@ -6,10 +6,14 @@ import sqlalchemy
 from discord.ext import tasks
 from discord_slash.model import ButtonStyle
 from discord_slash.utils.manage_components import create_actionrow, create_button
+from logdecorator import log_on_end, log_on_start
+from logdecorator.asyncio import (
+    async_log_on_end,
+    async_log_on_error,
+    async_log_on_start,
+)
 from sqlalchemy import BigInteger, Boolean, Column
 from sqlalchemy.ext.declarative import declarative_base
-from logdecorator import log_on_start, log_on_end
-from logdecorator.asyncio import async_log_on_start, async_log_on_end, async_log_on_error
 
 from axyn.datastore import get_path
 
@@ -180,7 +184,9 @@ class ConsentManager:
             .one_or_none()
         )
 
-    @log_on_end(logging.INFO, "User {user_id} changed their consent setting to {consented}")
+    @log_on_end(
+        logging.INFO, "User {user_id} changed their consent setting to {consented}"
+    )
     def _set_setting(self, user_id, consented):
         """Change the setting for a user."""
 

@@ -1,16 +1,16 @@
-import logging
 import asyncio
+import logging
 import random
 
 import discord
+from logdecorator import log_on_end, log_on_start
+from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
 from axyn.filters import reason_not_to_reply
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
 from axyn.privacy import filter_responses
-from logdecorator import log_on_start, log_on_end
-from logdecorator.asyncio import async_log_on_start, async_log_on_end
 
 
 class Reply(MessageHandler):

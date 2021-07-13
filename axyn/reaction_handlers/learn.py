@@ -1,14 +1,16 @@
 import logging
 
 from flipgenic import Message
+from logdecorator import log_on_end, log_on_start
 
 from axyn.filters import reason_not_to_learn_reaction_pair
 from axyn.preprocessor import preprocess
 from axyn.reaction_handlers import ReactionHandler
-from logdecorator import log_on_start, log_on_end
 
 
-@log_on_start(logging.INFO, 'Learning {emoji} as a reaction to "{message.clean_content}"')
+@log_on_start(
+    logging.INFO, 'Learning {emoji} as a reaction to "{message.clean_content}"'
+)
 @log_on_end(logging.DEBUG, "Learning complete")
 def _learn(client, message, emoji):
     """Learn a reaction after preprocessing."""
