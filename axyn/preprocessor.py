@@ -1,3 +1,9 @@
+import logging
+
+from logdecorator import log_on_end
+
+
+@log_on_end(logging.DEBUG, 'Preprocessed "{message.clean_content}" to "{result}"')
 def preprocess(client, message):
     """Return a cleaned-up version of the contents of the given message."""
     content = message.clean_content

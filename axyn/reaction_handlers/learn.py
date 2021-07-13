@@ -1,8 +1,24 @@
+import logging
+
 from flipgenic import Message
 
 from axyn.filters import reason_not_to_learn_reaction_pair
 from axyn.preprocessor import preprocess
 from axyn.reaction_handlers import ReactionHandler
+from logdecorator import log_on_start, log_on_end
+
+
+@log_on_start(logging.INFO, 'Learning {emoji} as a reaction to "{message.clean_content}"')
+@log_on_end(logging.DEBUG, "Learning complete")
+def _learn(client, message, emoji):
+    """Learn a reaction after preprocessing."""
+
+    content = preprocess(client, message)
+
+    client.reaction_responder.learn_response(
+        content,
+        Message(emoji, message.channel.id),
+    )
 
 
 class LearnReaction(ReactionHandler):
@@ -11,20 +27,6 @@ class LearnReaction(ReactionHandler):
             self.client, self.reaction, self.reaction_user
         )
         if reason:
-            self.logger.info("Not learning because %s", reason)
             return
 
-        self.logger.info("Preprocessing text")
-        content = preprocess(self.client, self.reaction.message)
-
-        self.logger.info(
-            'Learning %s as a reaction to "%s"', self.reaction.emoji, content
-        )
-        self.client.reaction_responder.learn_response(
-            content,
-            Message(
-                self.reaction.emoji,
-                self.reaction.message.channel.id,
-            ),
-        )
-        self.logger.info("Learning complete")
+        _learn(self.client, self.reaction.message, self.reaction.emoji)

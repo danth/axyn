@@ -1,17 +1,14 @@
 import logging
 from abc import ABC, abstractmethod
 
+from logdecorator import log_on_start
+
 
 class MessageHandler(ABC):
+    @log_on_start(logging.INFO, 'Received message "{message.clean_content}"')
     def __init__(self, client, message):
         self.client = client
         self.message = message
-
-        # Each instance has its own logger
-        self.logger = logging.getLogger(
-            f"{__name__}.{self.__class__.__name__}.{self.message.id}"
-        )
-        self.logger.info('Received message "%s"', self.message.clean_content)
 
     @abstractmethod
     async def handle(self):

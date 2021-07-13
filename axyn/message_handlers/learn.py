@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from flipgenic import Message
@@ -6,6 +7,22 @@ from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
+from logdecorator import log_on_start, log_on_end
+from logdecorator.asyncio import async_log_on_start, async_log_on_end
+
+
+@log_on_start(logging.INFO, 'Learning "{message.clean_content}" as a reply to "{previous.clean_content}"')
+@log_on_end(logging.DEBUG, "Learning complete")
+def _learn(client, previous, message):
+    """Learn a response pair after preprocessing."""
+
+    previous_content = preprocess(client, previous)
+    content = preprocess(client, message)
+
+    client.message_responder.learn_response(
+        previous_content,
+        Message(content, message.channel.id),
+    )
 
 
 class Learn(MessageHandler):
@@ -14,7 +31,6 @@ class Learn(MessageHandler):
 
         reason = reason_not_to_learn(self.client, self.message)
         if reason:
-            self.logger.info("Not learning because %s", reason)
             return
 
         previous = await self.get_previous()
@@ -23,49 +39,30 @@ class Learn(MessageHandler):
 
         reason = reason_not_to_learn_pair(self.client, previous, self.message)
         if reason:
-            self.logger.info("Not learning because %s", reason)
             return
 
-        self.logger.info("Preprocessing texts")
-        previous_content = preprocess(self.client, previous)
-        content = preprocess(self.client, self.message)
+        _learn(self.client, previous, self.message)
 
-        self.logger.info('Learning "%s" as a reply to "%s"', content, previous_content)
-        self.client.message_responder.learn_response(
-            previous_content,
-            Message(content, self.message.channel.id),
-        )
-        self.logger.info("Learning complete")
-
+    @async_log_on_start(logging.DEBUG, "Searching for a previous message")
     async def get_previous(self):
         """Return the message this message was seemingly in response to, if any."""
 
-        self.logger.info("Searching for a previous message")
-
         reference = self._get_reference()
         if reference:
-            self.logger.info(
-                '"%s" is replied to by this message',
-                reference.clean_content,
-            )
             return reference
 
         recent = await self._get_recent()
         if recent:
-            self.logger.info(
-                '"%s" was recently sent in the same channel as this message',
-                recent.clean_content,
-            )
             return recent
 
-        self.logger.info("No previous message found")
-
+    @log_on_end(logging.DEBUG, 'This message references {result}')
     def _get_reference(self):
         """Return the message this message references, if any."""
 
         if self.message.reference and self.message.reference.resolved:
             return self.message.reference.resolved
 
+    @async_log_on_end(logging.DEBUG, '{result} was sent recently')
     async def _get_recent(self):
         """Return the message just before this message, if it was recent."""
 
@@ -74,9 +71,6 @@ class Learn(MessageHandler):
             self.message.channel,
             quantile=0.75,
             default=300,
-        )
-        self.logger.info(
-            "Only accepting recent messages within %.1f seconds", threshold
         )
 
         history = await self.message.channel.history(

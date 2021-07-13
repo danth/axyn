@@ -1,3 +1,6 @@
+import logging
+
+from logdecorator import log_on_start, log_on_end
 import discord
 
 
@@ -47,6 +50,8 @@ def should_send_in_channel(client, message, current_channel):
     return current_channel_members.issubset(original_channel_members)
 
 
+@log_on_start(logging.INFO, "Messages before filtering: {messages}")
+@log_on_end(logging.INFO, "Messages after filtering: {result}")
 def filter_responses(client, messages, current_channel):
     """Remove any messages from the given list which are not allowed to be sent."""
 

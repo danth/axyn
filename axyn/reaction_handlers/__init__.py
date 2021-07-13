@@ -1,22 +1,15 @@
 import logging
 from abc import ABC, abstractmethod
 
+from logdecorator import log_on_start
+
 
 class ReactionHandler(ABC):
+    @log_on_start(logging.INFO, 'Received reaction {reaction.emoji} on "{reaction.message.clean_content}"')
     def __init__(self, client, reaction, reaction_user):
         self.client = client
         self.reaction = reaction
         self.reaction_user = reaction_user
-
-        # Each instance has its own logger
-        self.logger = logging.getLogger(
-            f"{__name__}.{self.__class__.__name__}.{self.reaction.message.id}"
-        )
-        self.logger.info(
-            'Received reaction %s on "%s"',
-            self.reaction.emoji,
-            self.reaction.message.clean_content,
-        )
 
     @abstractmethod
     async def handle(self):

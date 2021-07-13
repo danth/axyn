@@ -8,6 +8,8 @@ from discord_slash.model import ButtonStyle
 from discord_slash.utils.manage_components import create_actionrow, create_button
 from sqlalchemy import BigInteger, Boolean, Column
 from sqlalchemy.ext.declarative import declarative_base
+from logdecorator import log_on_start, log_on_end
+from logdecorator.asyncio import async_log_on_start, async_log_on_end, async_log_on_error
 
 from axyn.datastore import get_path
 
@@ -35,19 +37,17 @@ def _unpack_button_id(button_id):
 
 
 class ConsentManager:
+    @log_on_start(logging.INFO, "Opening consent database")
     def __init__(self, client):
         self.client = client
-        self.logger = logging.getLogger(__name__)
 
         self.client.slash.slash(
             name="consent", description="Change whether Axyn learns your messages."
         )(self.send_menu)
 
-        self.logger.info("Opening SQLite database")
         database_url = "sqlite:///" + get_path("consent.sqlite3")
         engine = sqlalchemy.create_engine(database_url)
 
-        self.logger.info("Creating tables")
         Base.metadata.create_all(engine)
 
         self.Session = sqlalchemy.orm.sessionmaker(bind=engine)
@@ -67,10 +67,9 @@ class ConsentManager:
         finally:
             session.close()
 
+    @async_log_on_start(logging.INFO, "{ctx.author.id} requested a consent menu")
     async def send_menu(self, ctx):
         """Send a pair of buttons which allow consent to be changed."""
-
-        self.logger.info("%i requested a consent menu", ctx.author.id)
 
         await ctx.send(
             "May I learn from your messages?",
@@ -114,27 +113,26 @@ class ConsentManager:
             ],
         )
 
+    @async_log_on_start(logging.INFO, "Sending an introduction to {member.id}")
+    @async_log_on_error(
+        logging.WARNING,
+        "Insufficient permissions to DM {member.id}",
+        on_exceptions=discord.errors.Forbidden,
+    )
+    @async_log_on_end(logging.INFO, "Sent an introduction to {member.id}")
     async def _send_introduction(self, member, session):
         """Send an introduction to someone who hasn't met Axyn before."""
 
-        self.logger.info("Sending an introduction to %i", member.id)
-        try:
-            await self.send_introduction_menu(member)
+        await self.send_introduction_menu(member)
 
-        except discord.errors.Forbidden:
-            self.logger.warning("Insufficient permissions to introduce %i", member.id)
-
-        else:
-            # Record an empty setting to signify that a menu was sent
-            session.merge(UserConsent(user_id=member.id, consented=None))
-
-            self.logger.info("Successfully introduced %i", member.id)
+        # Record an empty setting to signify that a menu was sent
+        session.merge(UserConsent(user_id=member.id, consented=None))
 
     @tasks.loop(hours=1)
+    @async_log_on_start(logging.INFO, "Checking for new members")
+    @async_log_on_end(logging.INFO, "Finished checking for new members")
     async def _send_introductions(self):
         """Send introductions to all new members."""
-
-        self.logger.info("Checking for new members")
 
         for member in self.client.get_all_members():
             if member.bot:
@@ -145,8 +143,6 @@ class ConsentManager:
                 if setting is None:
                     await self._send_introduction(member, session)
 
-        self.logger.info("Finished checking for new members")
-
     @_send_introductions.before_loop
     async def _send_introductions_before(self):
         await self.client.wait_until_ready()
@@ -155,12 +151,8 @@ class ConsentManager:
         """Change a user's consent setting in response to an interaction."""
 
         user_id, consented = _unpack_button_id(ctx.custom_id)
-        with self._database_session() as session:
-            session.merge(UserConsent(user_id=user_id, consented=consented))
 
-        self.logger.info(
-            "User %i changed their consent setting to %s", user_id, consented
-        )
+        self._set_setting(user_id, consented)
 
         if consented:
             await ctx.send(
@@ -187,6 +179,13 @@ class ConsentManager:
             .where(UserConsent.user_id == user.id)
             .one_or_none()
         )
+
+    @log_on_end(logging.INFO, "User {user_id} changed their consent setting to {consented}")
+    def _set_setting(self, user_id, consented):
+        """Change the setting for a user."""
+
+        with self._database_session() as session:
+            session.merge(UserConsent(user_id=user_id, consented=consented))
 
     def has_consented(self, user):
         """Return whether a user has allowed their messages to be learned."""

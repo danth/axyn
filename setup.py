@@ -42,6 +42,7 @@ setup(
         "sqlalchemy >=1,<2",
         "emoji >=0.5,<1",
         "numpy >=1.20,<2",
+        "logdecorator >=2.2,<3",
     ],
     entry_points={
         "console_scripts": [

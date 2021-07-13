@@ -12,6 +12,7 @@ def launch():
     """
 
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("axyn").setLevel(logging.DEBUG)
 
     client = AxynClient()
     client.run(os.environ["DISCORD_TOKEN"])
