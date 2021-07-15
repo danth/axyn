@@ -27,9 +27,8 @@ def _reason_to_ignore(client, message, allow_axyn=False):
     elif message.author.bot:
         return "this message is authored by a bot"
 
-    if (
-        message.channel.type != discord.ChannelType.private
-        and _is_command(message.content)
+    if message.channel.type != discord.ChannelType.private and _is_command(
+        message.content
     ):
         return "this message looks like a bot command"
 
