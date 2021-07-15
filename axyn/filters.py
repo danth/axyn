@@ -27,11 +27,7 @@ def _reason_to_ignore(client, message, allow_axyn=False):
     elif message.author.bot:
         return "this message is authored by a bot"
 
-    if message.content.startswith("a!"):
-        return "this message is an Axyn command"
-
     if (
-        # In DMs, only Axyn commands will be used
         message.channel.type != discord.ChannelType.private
         and _is_command(message.content)
     ):
