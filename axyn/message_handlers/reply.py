@@ -60,7 +60,7 @@ class Reply(MessageHandler):
             return 0
 
         interval = await quantile_interval(
-            self.client, self.message.channel, default=60
+            self.client, self.message.channel, quantile=0.5, default=60
         )
 
         return interval * 1.5

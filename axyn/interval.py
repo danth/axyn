@@ -10,7 +10,7 @@ from axyn.filters import reason_to_ignore_interval
     logging.DEBUG, "Computing {quantile}th quantile for channel {channel.id}"
 )
 @async_log_on_end(logging.DEBUG, "The quantile is {result}")
-async def quantile_interval(client, channel, quantile=0.5, default=None):
+async def quantile_interval(client, channel, quantile, default=None):
     """
     Compute a quantile of the reply time in the given channel.
 
