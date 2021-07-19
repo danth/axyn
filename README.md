@@ -64,7 +64,6 @@ Axyn will learn a message if it fits all of these criteria:
 - It does not look like a bot command
 - It was sent by a human user
 - The author has enabled learning
-- The channel does not have `spam`, `command` or `meme` in its name
 - It is a reply, or Axyn can find a message which:
   - Contains some text
   - Is directly above this message
