@@ -40,7 +40,6 @@ setup(
         "discord-py-slash-command >2,<3",
         "discordhealthcheck >=0.0.7,<1",
         "sqlalchemy >=1,<2",
-        "emoji >=0.5,<1",
         "numpy >=1.20,<2",
         "logdecorator >=2.2,<3",
     ],

@@ -38,7 +38,6 @@ docker start -a axyn
 - Send messages
 - Embed links
 - Read message history
-- Add reactions
 - Manage slash commands
 
 ### Chat
@@ -71,20 +70,6 @@ Axyn will learn a message if it fits all of these criteria:
   - Was sent by a different author to this message
   - Was sent no more than 5 minutes before this message
 
-### Reactions
-
-Axyn adds reactions to incoming messages if it has learned any which match that
-message.
-
-Axyn will learn a reaction if it fits all of these criteria:
-
-- It was added by a human user
-- It was not added by the author of the message being reacted to
-- The message being reacted to contains some text
-- The message being reacted to does not look like a bot command
-- The message being reacted to was sent by Axyn or a human user (not other bots)
-- The person adding the reaction has enabled learning
-
 ## How does it work?
 
 See the 'how it works' section of [Flipgenic](https://github.com/danth/flipgenic/blob/master/README.md#how-does-it-work).
@@ -93,11 +78,10 @@ originally `axyn.chatbot` before it was extracted).
 
 ## Privacy
 
-Users must give permission for their messages and reactions to be stored. The
+Users must give permission for their messages to be stored. The
 first time a user joins a server with Axyn, they will receive a menu allowing
 their preference to be changed. This menu can be accessed later using the
 `/consent` command.
 
 For a message to be reused, everyone in the current channel must have access to
-the channel where the message was originally sent. This also applies to
-reactions.
+the channel where the message was originally sent.

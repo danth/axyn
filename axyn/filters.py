@@ -39,12 +39,6 @@ def reason_not_to_reply(client, message):
     return _reason_to_ignore(client, message)
 
 
-def reason_not_to_react(client, message):
-    """If the given message shouldn't be reacted to, return a reason why."""
-
-    return _reason_to_ignore(client, message)
-
-
 def reason_not_to_learn(client, message):
     """If the given message shouldn't be learned, return a reason why."""
 
@@ -63,26 +57,6 @@ def reason_not_to_learn_pair(client, previous_message, message):
         return "the previous message has the same author as this message"
 
     return _reason_to_ignore(client, previous_message, allow_axyn=True)
-
-
-def reason_not_to_learn_reaction_pair(client, reaction, reaction_user):
-    """If the given reaction pair shouldn't be learned, return a reason why."""
-
-    if not isinstance(reaction.emoji, str):
-        return "this is not a unicode emoji"
-
-    if reaction_user.bot:
-        return "this reaction is from a bot"
-
-    if reaction_user == reaction.message.author:
-        return "this reaction is from the message author"
-
-    reason = _reason_to_ignore(client, reaction.message, allow_axyn=True)
-    if reason:
-        return reason
-
-    if not client.consent_manager.has_consented(reaction_user):
-        return "the reacting user has not given consent"
 
 
 def reason_to_ignore_interval(client, previous_message, message):
