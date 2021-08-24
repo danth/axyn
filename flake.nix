@@ -89,7 +89,7 @@
           src = ./.;
           postPatch = ''
             substituteInPlace axyn/__main__.py \
-              --replace "DEBUG" "INFO"
+              --replace "DEBUG" "WARNING"
           '';
           SETUPTOOLS_SCM_PRETEND_VERSION = "version";
           nativeBuildInputs = [ setuptools-scm ];
