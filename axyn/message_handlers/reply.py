@@ -63,7 +63,7 @@ class Reply(MessageHandler):
             self.client, self.message.channel, quantile=0.5, default=60
         )
 
-        return interval * 1.5
+        return max(interval * 1.5, 180)
 
     @log_on_end(logging.INFO, "The distance threshold is {result}")
     def _get_distance_threshold(self):
