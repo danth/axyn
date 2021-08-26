@@ -15,20 +15,10 @@ Obtain a bot token from the
 [Discord developer portal](https://discord.com/developers/applications).
 Currently, the server members intent is required.
 
-### Without Docker
-
 ```sh
 python -m pip install -e .
 python -m spacy download en_core_web_md
 DISCORD_TOKEN=… axyn
-```
-
-### With Docker
-
-```sh
-docker build -t axyn .
-docker container create -e DISCORD_TOKEN=… --mount source=axyn,target=/axyn --name axyn axyn
-docker start -a axyn
 ```
 
 ## Usage
