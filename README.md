@@ -9,6 +9,11 @@
 
 A Discord chatbot built using Flipgenic.
 
+## This repository is not maintained
+
+I decided to remake Axyn to run on [Matrix](https://matrix.org/) due to some planned changes
+to Discord's API. You can find the new bot [here](https://github.com/danth/axyn-matrix).
+
 ## Run
 
 Obtain a bot token from the
