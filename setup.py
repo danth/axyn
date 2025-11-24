@@ -11,7 +11,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as readme:
 setup(
     name="axyn",
     use_scm_version=True,
-    description="A Discord chatbot built using Flipgenic",
+    description="A Discord chatbot using traditional algorithms",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Daniel Thwaites",
@@ -34,7 +34,6 @@ setup(
     python_requires=">=3.6,<4",
     setup_requires=["setuptools_scm"],
     install_requires=[
-        "flipgenic >=2.2.0,<3",
         "spacy >=3,<4",
         "discord.py >=1.2.5,<2",
         "discord-py-slash-command >2,<3",

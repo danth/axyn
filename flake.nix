@@ -2,10 +2,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/7e567a3d092b7de69cdf5deaeb8d9526de230916";
     utils.url = "github:numtide/flake-utils";
-    flipgenic = {
-      url = "github:danth/flipgenic";
-      flake = false;
-    };
   };
   outputs = inputs@{ nixpkgs, utils, ... }:
     utils.lib.eachSystem ["x86_64-linux"]
@@ -78,12 +74,6 @@
           propagatedBuildInputs = [ spacy ];
         };
 
-        flipgenic = buildPythonPackage rec {
-          name = "flipgenic";
-          src = inputs.flipgenic;
-          propagatedBuildInputs = [ ngt spacy sqlalchemy ];
-        };
-
         axyn = buildPythonApplication rec {
           name = "axyn";
           src = ./.;
@@ -98,8 +88,8 @@
             discordhealthcheck
             discordpy
             en-core-web-md
-            flipgenic
             logdecorator
+            ngt
             numpy
             spacy
             sqlalchemy

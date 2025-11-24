@@ -7,12 +7,7 @@
 
 # Axyn
 
-A Discord chatbot built using Flipgenic.
-
-## This repository is not maintained
-
-I decided to remake Axyn to run on [Matrix](https://matrix.org/) due to some planned changes
-to Discord's API. You can find the new bot [here](https://github.com/danth/axyn-matrix).
+A Discord chatbot using traditional algorithms.
 
 ## Run
 
@@ -67,9 +62,16 @@ Axyn will learn a message if it fits all of these criteria:
 
 ## How does it work?
 
-See the 'how it works' section of [Flipgenic](https://github.com/danth/flipgenic/blob/master/README.md#how-does-it-work).
-Axyn is simply a Discord wrapper around this library (although, Flipgenic was
-originally `axyn.chatbot` before it was extracted).
+Axyn only uses traditional algorithms: in other words, it does not use a
+[large language model](https://en.wikipedia.org/wiki/Large_language_model)
+to generate output.
+
+Instead, it watches real conversations and stores the messages, then when
+prompted, it uses the sort of code you might find in a search engine to pick
+out an appropriate reply from its database.
+
+This means that anything Axyn says is a direct quote from a conversation it's
+seen before.
 
 ## Privacy
 

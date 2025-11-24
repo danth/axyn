@@ -5,8 +5,8 @@ import discord
 import discordhealthcheck
 import spacy
 from discord_slash import SlashCommand
-from flipgenic import Responder
 
+from axyn.chatbot import Responder
 from axyn.consent import ConsentManager
 from axyn.datastore import get_path
 from axyn.message_handlers.learn import Learn

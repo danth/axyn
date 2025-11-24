@@ -1,10 +1,10 @@
 import logging
 from datetime import timedelta
 
-from flipgenic import Message
 from logdecorator import log_on_end, log_on_start
 from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
+from axyn.chatbot import Message
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
