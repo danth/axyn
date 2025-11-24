@@ -53,17 +53,32 @@ jobs:
     needs: [beautify]
     if: github.repository_owner == 'danth'
 
+    concurrency:
+      group: release-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
-          ref: ${{ needs.beautify.outputs.new_sha }}
 
-      - name: Fetch master
-        run: git fetch --prune origin +refs/heads/master:refs/remotes/origin/master
+      - name: Checkout commit
+        run: git reset --hard ${{ needs.beautify.outputs.new_sha }}
 
-      - name: Semantic Release
+      - name: Create release
+        id: release
         uses: python-semantic-release/python-semantic-release@v10
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        uses: python-semantic-release/publish-action@v10
+        if: steps.release.outputs.released == 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.release.outputs.tag }}
