@@ -36,12 +36,10 @@ jobs:
         run: python -m isort -y -rc .
 
       - name: Commit and push changes
-        uses: github-actions-x/commit@v2.5
+        uses: EndBug/add-and-commit@v9
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'style: beautify ${{ github.sha }}'
-          name: github-actions
-          email: action@github.com
+            message: 'style: beautify ${{ github.sha }}'
+            default_author: github_actions
 
       - name: Get new SHA
         id: sha
