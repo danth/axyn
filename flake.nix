@@ -101,7 +101,7 @@
             ngt
             numpy
             spacy
-            sqlalchemy_1_4
+            sqlalchemy
           ];
         };
 

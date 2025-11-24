@@ -37,7 +37,7 @@ setup(
         "spacy >=3,<4",
         "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
-        "sqlalchemy >=1,<2",
+        "sqlalchemy >=2,<3",
         "numpy >=2,<3",
         "logdecorator >=2.2,<3",
     ],
