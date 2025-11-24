@@ -4,7 +4,6 @@ import logging
 import discord
 import discordhealthcheck
 import spacy
-from discord_slash import SlashCommand
 
 from axyn.chatbot import Responder
 from axyn.consent import ConsentManager
@@ -17,13 +16,16 @@ class AxynClient(discord.Client):
     def __init__(self, *args, **kwargs):
         intents = discord.Intents.default()
         intents.members = True
+        intents.message_content = True
+
         super().__init__(*args, intents=intents, **kwargs)
 
         self.logger = logging.getLogger(__name__)
 
         self.reply_tasks = dict()
 
-        self.slash = SlashCommand(self, sync_commands=True)
+        self.command_tree = discord.app_commands.CommandTree(self)
+
         self.consent_manager = ConsentManager(self)
 
         self.logger.info("Loading SpaCy model")
@@ -31,8 +33,14 @@ class AxynClient(discord.Client):
         self.logger.info("Loading message responder")
         self.message_responder = Responder(get_path("messages"), self.spacy_model)
 
+    async def setup_hook(self):
+        self.consent_manager.setup_hook()
+
+        self.logger.info("Syncing command definitions")
+        asyncio.create_task(self.command_tree.sync())
+
         self.logger.info("Starting Docker health check")
-        discordhealthcheck.start(self)
+        asyncio.create_task(discordhealthcheck.start(self))
 
     async def on_message(self, message):
         """Reply to and learn incoming messages."""
@@ -52,7 +60,3 @@ class AxynClient(discord.Client):
         )
         asyncio.create_task(Learn(self, message).handle())
 
-    async def on_component(self, ctx):
-        """Handle consent interactions."""
-
-        await self.consent_manager.handle_button(ctx)

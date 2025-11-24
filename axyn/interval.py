@@ -53,4 +53,6 @@ async def _get_intervals(client, channel):
 async def _fetch_messages(channel):
     """Fetch recent messages in a channel."""
 
-    return await channel.history(limit=100, oldest_first=True).flatten()
+    history = channel.history(limit=100, oldest_first=True)
+
+    return [message async for message in history]

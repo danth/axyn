@@ -76,7 +76,7 @@ class Learn(MessageHandler):
             default=300,
         )
 
-        history = await self.message.channel.history(
+        history = self.message.channel.history(
             # Find messages before self
             before=self.message,
             # Only request a single message
@@ -84,7 +84,8 @@ class Learn(MessageHandler):
             oldest_first=False,
             # Limit to messages within threshold
             after=self.message.created_at - timedelta(seconds=threshold),
-        ).flatten()
+        )
+        history = [message async for message in history]
 
         if len(history) > 0:
             return history[0]

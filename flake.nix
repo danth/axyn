@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/7e567a3d092b7de69cdf5deaeb8d9526de230916";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
   };
   outputs = inputs@{ nixpkgs, utils, ... }:
@@ -12,79 +12,88 @@
 
         ngt = buildPythonPackage rec {
           pname = "ngt";
-          version = "v1.12.3";
+          version = "v2.5.0";
+
           src = pkgs.fetchFromGitHub {
             owner = "yahoojapan";
             repo = "NGT";
             rev = version;
-            sha256 = "d2DUnuSlnMhd/QDJZRJLXQvcat37dEM+s9Ci4KXxxvQ=";
+            hash = "sha256-2cCuVeg7y3butTIAQaYIgx+DPqIFEA2qqVe3exAoAY8=";
           };
+
           postPatch = ''
             substituteInPlace python/src/ngtpy.cpp \
-              --replace "NGT_VERSION" '"${version}"'
+              --replace-fail "NGT_VERSION" '"${version}"'
           '';
+
           preConfigure = ''
             export HOME=$PWD
-            export LD_LIBRARY_PATH=${pkgs.ngt}/lib
             cd python
           '';
-          buildInputs = [ pkgs.ngt ];
-          propagatedBuildInputs = [ numpy pybind11 ];
-        };
 
-        discord-py-slash-command = buildPythonPackage rec {
-          pname = "discord-py-slash-command";
-          version = "2.3.1";
-          src = fetchPypi {
-            inherit pname version;
-            sha256 = "R2+lSV3WIZDg02F0Qbqn5ef6Mb/v73+I945CgWZsDUE=";
-          };
-          propagatedBuildInputs = [ aiohttp discordpy ];
+          format = "pyproject";
+          build-system = [ setuptools ];
+          buildInputs = [ pkgs.ngt ] ++ pkgs.ngt.buildInputs;
+          propagatedBuildInputs = [ numpy pybind11 ];
         };
 
         discordhealthcheck = buildPythonPackage rec {
           pname = "discordhealthcheck";
-          version = "0.0.8";
+          version = "0.1.1";
+
           src = pkgs.fetchFromGitHub {
             owner = "psidex";
             repo = "DiscordHealthCheck";
-            rev = "f05bc47160db56629e0b502e6814b21d71b42cda";
-            sha256 = "P8JGa9k8Df9bowsnD56nMLj9KimkcRShu7Ux5sc6yXU=";
+            rev = "1822ca34190fb34cb51779876ba3aebd760219fb";
+            hash = "sha256-icFlbOTJtFfZJC4A4Fz7c6/aXT1vaFgmkBbBmdScBxM=";
           };
+
+          format = "pyproject";
+          build-system = [ setuptools ];
           propagatedBuildInputs = [ discordpy ];
         };
 
         logdecorator = buildPythonPackage rec {
           pname = "logdecorator";
           version = "2.2";
+
           src = fetchPypi {
             inherit pname version;
             sha256 = "jm0SWc9hW30nIHOacaO2Lbz68i2QI4K31BrIcvSh1tk=";
           };
+
+          format = "pyproject";
+          build-system = [ setuptools ];
         };
 
         en-core-web-md = buildPythonPackage rec {
           pname = "en-core-web-md";
-          version = "3.0.0";
+          version = "3.8.0";
+
           src = pkgs.fetchzip {
-            url =
-              "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.0.0/en_core_web_md-3.0.0.tar.gz";
-            sha256 = "4UrUhHNVLHxbOdm3BIIetv4Pk86GzFoKoSnlvLFqesI=";
+            url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0.tar.gz";
+            hash = "sha256-0+W2x+xUYrHs4e+EibhoRcxXMfC8SnUXVK1Lh/RiIaU=";
           };
+
+          format = "pyproject";
+          build-system = [ setuptools ];
           propagatedBuildInputs = [ spacy ];
         };
 
         axyn = buildPythonApplication rec {
           name = "axyn";
           src = ./.;
+
+          format = "pyproject";
+          build-system = [ setuptools setuptools-scm ];
+          SETUPTOOLS_SCM_PRETEND_VERSION = "0.0.0";
+
           postPatch = ''
             substituteInPlace axyn/__main__.py \
-              --replace "DEBUG" "WARNING"
+              --replace-fail "DEBUG" "WARNING"
           '';
-          SETUPTOOLS_SCM_PRETEND_VERSION = "version";
-          nativeBuildInputs = [ setuptools-scm ];
+
           propagatedBuildInputs = [
-            discord-py-slash-command
             discordhealthcheck
             discordpy
             en-core-web-md
@@ -92,7 +101,7 @@
             ngt
             numpy
             spacy
-            sqlalchemy
+            sqlalchemy_1_4
           ];
         };
 

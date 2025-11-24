@@ -35,11 +35,10 @@ setup(
     setup_requires=["setuptools_scm"],
     install_requires=[
         "spacy >=3,<4",
-        "discord.py >=1.2.5,<2",
-        "discord-py-slash-command >2,<3",
+        "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
         "sqlalchemy >=1,<2",
-        "numpy >=1.20,<2",
+        "numpy >=2,<3",
         "logdecorator >=2.2,<3",
     ],
     entry_points={

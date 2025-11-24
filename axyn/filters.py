@@ -15,7 +15,10 @@ def _is_command(text):
 def _reason_to_ignore(client, message, allow_axyn=False):
     """If the given message should be ignored, return a reason why."""
 
-    if message.type != discord.MessageType.default:
+    if (
+        message.type != discord.MessageType.default and
+        message.type != discord.MessageType.reply
+    ):
         return "this is not a regular message"
 
     if len(message.content) == 0:
