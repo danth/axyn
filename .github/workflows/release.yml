@@ -16,12 +16,12 @@ jobs:
 
     steps:
       - name: Set up Python 3.9
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
 
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Install Black
         run: python -m pip install black
@@ -55,7 +55,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ needs.beautify.outputs.new_sha }}
@@ -64,6 +64,6 @@ jobs:
         run: git fetch --prune origin +refs/heads/master:refs/remotes/origin/master
 
       - name: Semantic Release
-        uses: relekang/python-semantic-release@v7.15.5
+        uses: python-semantic-release/python-semantic-release@v10
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
