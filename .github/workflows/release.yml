@@ -34,6 +34,7 @@ jobs:
         uses: python-semantic-release/python-semantic-release@v10
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit: false
 
       - if: steps.release.outputs.released == 'true'
         uses: python-semantic-release/publish-action@v10
