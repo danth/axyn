@@ -106,7 +106,10 @@
         };
 
       in {
-        packages = { inherit axyn; };
-        defaultPackage = axyn;
+        packages.default = axyn;
+
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [ axyn ];
+        };
       });
 }
