@@ -1,53 +1,19 @@
-import logging
-from contextlib import contextmanager
-
+from axyn.database import DatabaseManager, ConsentRecord
 import discord
-import sqlalchemy
 from discord.ext import tasks
-from logdecorator import log_on_end, log_on_start
+from logdecorator import log_on_end
 from logdecorator.asyncio import (
     async_log_on_end,
     async_log_on_error,
     async_log_on_start,
 )
-from sqlalchemy import BigInteger, Boolean, Column
-from sqlalchemy.ext.declarative import declarative_base
-
-from axyn.datastore import get_path
-
-Base = declarative_base()
-
-
-class UserConsent(Base):
-    __tablename__ = "consent"
-    user_id = Column(BigInteger, primary_key=True)
-    consented = Column(Boolean)
+import logging
 
 
 class ConsentManager:
-    @log_on_start(logging.INFO, "Opening consent database")
-    def __init__(self, client):
+    def __init__(self, client, database: DatabaseManager):
         self.client = client
-
-        database_url = "sqlite:///" + get_path("consent.sqlite3")
-        engine = sqlalchemy.create_engine(database_url)
-
-        Base.metadata.create_all(engine)
-
-        self.Session = sqlalchemy.orm.sessionmaker(bind=engine)
-
-    @contextmanager
-    def _database_session(self):
-        session = self.Session()
-        session.begin()
-        try:
-            yield session
-            session.commit()
-        except:
-            session.rollback()
-            raise
-        finally:
-            session.close()
+        self._database = database
 
     def setup_hook(self):
         self._send_introductions.start()
@@ -88,7 +54,7 @@ class ConsentManager:
         await self.send_introduction_menu(member)
 
         # Record an empty setting to signify that a menu was sent
-        session.merge(UserConsent(user_id=member.id, consented=None))
+        session.merge(ConsentRecord(user_id=member.id, consented=None))
 
     @tasks.loop(hours=1)
     @async_log_on_start(logging.INFO, "Checking for new members")
@@ -100,7 +66,7 @@ class ConsentManager:
             if member.bot:
                 continue
 
-            with self._database_session() as session:
+            with self._database.session() as session:
                 setting = self._get_setting(member, session)
 
                 if setting is None:
@@ -114,8 +80,8 @@ class ConsentManager:
         """Fetch the database entry for a user."""
 
         return (
-            session.query(UserConsent)
-            .where(UserConsent.user_id == user.id)
+            session.query(ConsentRecord)
+            .where(ConsentRecord.user_id == user.id)
             .one_or_none()
         )
 
@@ -125,13 +91,13 @@ class ConsentManager:
     def _set_setting(self, user_id, consented):
         """Change the setting for a user."""
 
-        with self._database_session() as session:
-            session.merge(UserConsent(user_id=user_id, consented=consented))
+        with self._database.session() as session:
+            session.merge(ConsentRecord(user_id=user_id, consented=consented))
 
     def has_consented(self, user):
         """Return whether a user has allowed their messages to be learned."""
 
-        with self._database_session() as session:
+        with self._database.session() as session:
             setting = self._get_setting(user, session)
 
             if setting is None:

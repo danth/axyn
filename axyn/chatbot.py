@@ -4,9 +4,8 @@ from dataclasses import dataclass
 
 import ngtpy
 import spacy
-import sqlalchemy
 
-from axyn.chatbot.db_models import Base, Response
+from axyn.database import DatabaseManager, ResponseRecord
 
 
 def _load_spacy_model(model):
@@ -41,41 +40,28 @@ class Responder:
     """
     Holds a database connection and handles learning and producing responses.
 
-    :param data_directory: Path to a folder which holds files for this Responder.
-        Will be created if it doesn't exist.
+    :param directory: Path to a folder which stores the index for this responder.
+    :param database: Database connection used to store responses.
     :param model: SpaCy model, or the name of one to be loaded.
     """
 
-    def __init__(self, data_directory, spacy_model="en_core_web_md"):
-        self.data_directory = data_directory
+    def __init__(self, directory: str, database: DatabaseManager, spacy_model="en_core_web_md"):
         self._batch_responses = list()
-
-        # Create the directory if it doesn't exist
-        os.makedirs(self.data_directory, exist_ok=True)
-
-        self._index = self._load_index()
-        self._sessionmaker = self._load_db()
+        self._index = self._load_index(directory)
+        self._database = database
         self._spacy_model = _load_spacy_model(spacy_model)
 
-    def _load_index(self):
-        """Create or open the NGT index."""
+    def _load_index(self, directory: str):
+        """
+        Create or open the NGT index.
 
-        path = os.path.join(self.data_directory, "ngt")
+        :param directory: Path to a folder which stores the index.
+        """
 
-        if not os.path.exists(path):
-            ngtpy.create(path, dimension=300)  # Spacy word vectors are 300D
+        if not os.path.exists(directory):
+            ngtpy.create(directory, dimension=300)  # Spacy word vectors are 300D
 
-        return ngtpy.Index(path)
-
-    def _load_db(self):
-        """Create or open the SQLite database."""
-
-        path = os.path.join(self.data_directory, "responses.sqlite3")
-        engine = sqlalchemy.create_engine("sqlite:///" + path)
-
-        Base.metadata.create_all(engine)  # Create tables
-
-        return sqlalchemy.orm.sessionmaker(bind=engine)
+        return ngtpy.Index(directory)
 
     def get_all_responses(self, text):
         """
@@ -102,13 +88,17 @@ class Responder:
             # No results were found, this most likely indicates an empty index
             return [], float("inf")
 
-        # Get the known responses to this vector
-        session = self._sessionmaker()
-        responses = session.query(Response).filter(Response.ngt_id == match_id).all()
-        session.close()
+        with self._database.session() as session:
+            # Get the known responses to this vector
+            responses = (
+                session
+                    .query(ResponseRecord)
+                    .filter(ResponseRecord.ngt_id == match_id)
+                    .all()
+            )
 
-        # Convert each Response to a Message
-        messages = [Message(response.response, response.meta) for response in responses]
+            # Convert each Response to a Message
+            messages = [Message(response.response, response.meta) for response in responses]
 
         return messages, distance
 
@@ -181,22 +171,19 @@ class Responder:
         """Save any responses which have not yet been written to the database."""
 
         self._batch_vectors = dict()
-        session = self._sessionmaker()
 
-        for vector, message in self._batch_responses:
-            session.add(
-                Response(
-                    ngt_id=self._get_index_id(vector),
-                    response=message.text,
-                    meta=message.metadata,
+        with self._database.session() as session:
+            for vector, message in self._batch_responses:
+                session.add(
+                    ResponseRecord(
+                        ngt_id=self._get_index_id(vector),
+                        response=message.text,
+                        meta=message.metadata,
+                    )
                 )
-            )
 
         self._index.build_index()
         self._index.save()
-
-        session.commit()
-        session.close()
 
         del self._batch_vectors
         self._batch_responses = list()
