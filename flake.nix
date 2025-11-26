@@ -88,11 +88,6 @@
           build-system = [ setuptools setuptools-scm ];
           SETUPTOOLS_SCM_PRETEND_VERSION = "0.0.0";
 
-          postPatch = ''
-            substituteInPlace axyn/__main__.py \
-              --replace-fail "DEBUG" "WARNING"
-          '';
-
           propagatedBuildInputs = [
             discordhealthcheck
             discordpy
