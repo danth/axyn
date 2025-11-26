@@ -75,10 +75,10 @@ seen before.
 
 ## Privacy
 
-Users must give permission for their messages to be stored. The
-first time a user joins a server with Axyn, they will receive a menu allowing
-their preference to be changed. This menu can be accessed later using the
-`/consent` command.
+Users must give permission for their messages to be stored. The first time a
+user pings, replies to, or directly messages Axyn, they will receive a menu
+allowing their preference to be changed. This menu can be accessed later using
+the `/consent` command.
 
 For a message to be reused, everyone in the current channel must have access to
 the channel where the message was originally sent.
