@@ -35,7 +35,7 @@ class ConsentManager:
             """Change whether Axyn learns from your messages."""
 
             response = await interaction.response.send_message(
-                "May I learn from your messages?",
+                "May I take quotes from you?",
                 ephemeral=True,
                 view=ConsentMenu()
             )
@@ -75,18 +75,27 @@ class ConsentManager:
     async def _send_introduction(self, user: Union[User, Member], session: Session):
         """Send a consent prompt to the given user."""
 
+        introduction = (
+            f"**Hello {user.display_name} :wave:**\n"
+            "You just messaged me"
+        )
+
         if isinstance(user, Member):
-            introduction = (
-                f"I'm a robot who joins in with conversations in {user.guild}. "
-                "May I learn from what you say there?"
-            )
-        else:
-            introduction = (
-                "I'm a robot who can have conversations. May I learn from what you say?"
-            )
+            introduction += f" in **{user.guild}**"
+
+        introduction += (
+            ", and it seems like it's the first time we've met. "
+            "I'm a retro chatbot that tries to hold a conversation using only "
+            "messages I've seen in the past. "
+            "May I take quotes from you for this purpose?\n"
+            "- Any message I can see might be learned, even if you're talking "
+            "to someone else.\n"
+            "- Quotes will only be shared with people who can see the "
+            "original channel.\n"
+        )
 
         message = await user.send(
-            f"**Hello {user.display_name} :wave:**\n" + introduction,
+            introduction,
             view=ConsentMenu()
         )
 
@@ -140,33 +149,31 @@ class ConsentMenu(View):
         super().__init__(timeout=None)
 
     @button(
-        label="Yes",
+        label="Accept",
         custom_id="consent:yes",
-        style=ButtonStyle.green
+        style=ButtonStyle.primary
     )
     async def yes(self, interaction: Interaction, button: Button):
         interaction.client.consent_manager._set_response(interaction, ConsentResponse.YES)
 
         await interaction.response.send_message(
-            content=(
-                "Thanks! From now on, I'll remember some of your phrases. "
-                "If you change your mind, type `/consent`."
-            ),
+            content="Thank you! I've turned on learning for your messages.",
             ephemeral=True
         )
 
     @button(
-        label="No",
+        label="Decline",
         custom_id="consent:no",
-        style=ButtonStyle.red
+        style=ButtonStyle.secondary
     )
     async def no(self, interaction: Interaction, button: Button):
         interaction.client.consent_manager._set_response(interaction, ConsentResponse.NO)
 
         await interaction.response.send_message(
             content=(
-                "No problem, I've turned off learning for you. "
-                "You can enable it later by sending `/consent`."
+                "No problem! I've turned off learning for your messages. "
+                "I'll still respond if you talk to me, but I won't record "
+                "what you say."
             ),
             ephemeral=True
         )
