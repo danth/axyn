@@ -1,28 +1,31 @@
 import logging
 
-import discord
+from discord import (
+    DMChannel,
+    GroupChannel,
+    Member,
+    User,
+)
 from logdecorator import log_on_end, log_on_start
+from typing import Sequence, Union
 
 from axyn.database import MessageRevisionRecord
 
 
-def _members_to_set(members):
+def _members_to_set(users: Sequence[Union[User, Member]]) -> set[int]:
     """
     Convert a list of members to a set of their IDs.
 
     Bot users are filtered out.
     """
 
-    return set(member.id for member in members if not member.bot)
+    return set(user.id for user in users if not (user.bot or user.system))
 
 
-def _channel_members(channel):
+def _channel_members(channel) -> Sequence[Union[User, Member]]:
     """List everyone who can view a channel."""
 
-    if isinstance(channel, discord.DMChannel):
-        return [channel.recipient]
-
-    if isinstance(channel, discord.GroupChannel):
+    if isinstance(channel, DMChannel) or isinstance(channel, GroupChannel):
         return channel.recipients
 
     return channel.members
