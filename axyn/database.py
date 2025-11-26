@@ -13,11 +13,15 @@ import os
 from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
-    create_engine
+    create_engine,
+    desc,
+    select,
 )
+from sqlalchemy.exc import NoResultFound, OperationalError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    Session,
     mapped_column,
     relationship,
     sessionmaker,
@@ -36,8 +40,23 @@ def get_path(file):
     return os.path.join(folder, file)
 
 
+SCHEMA_VERSION: int = 0
+
+
 class BaseRecord(DeclarativeBase):
     """Base class for database records."""
+
+
+class SchemaVersionRecord(BaseRecord):
+    """Database record storing the version of the database schema currently in use."""
+
+    __tablename__ = "schema_version"
+
+    schema_version: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=False, # Should match the hardcoded version ID
+    )
+    applied_at: Mapped[datetime]
 
 
 class UserRecord(BaseRecord):
@@ -303,13 +322,13 @@ class ConsentResponseRecord(BaseRecord):
 
 
 class DatabaseManager:
-    """Holds a connection to the database and constructs database sessions."""
+    """Holds a connection to the database and controls database migrations."""
 
     def __init__(self):
         uri = "sqlite:///" + get_path("database.sqlite3")
         engine = create_engine(uri)
-        BaseRecord.metadata.create_all(engine)
         self._session_maker = sessionmaker(bind=engine)
+        self._prepare()
 
     @contextmanager
     def session(self):
@@ -325,4 +344,59 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def _prepare(self):
+        """Ensure the database is following the current schema."""
+
+        with self.session() as session:
+            try:
+                version = (
+                    session
+                    .execute(
+                        select(SchemaVersionRecord.schema_version)
+                        .order_by(desc(SchemaVersionRecord.applied_at))
+                        .limit(1)
+                    )
+                    .scalar_one()
+                )
+            except (OperationalError, NoResultFound):
+                self._create_new(session)
+            else:
+                self._migrate_existing(session, version)
+
+    def _create_new(self, session: Session):
+        """Create a new database from a blank slate."""
+
+        BaseRecord.metadata.create_all(session.connection())
+
+        session.add(SchemaVersionRecord(
+            schema_version=SCHEMA_VERSION,
+            applied_at=datetime.now(),
+        ))
+
+    def _migrate_existing(self, session: Session, version: int):
+        """
+        Migrate an existing database starting from the given version.
+
+        Throws an axception if the current version is less than zero or greated
+        than the current version.
+        """
+
+        if version < 0:
+            raise Exception(f"database schema version {version} is not valid")
+
+        if version > SCHEMA_VERSION:
+            raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
+
+        # When a new version is added, this should look like:
+        #
+        # if version < 1:
+        #    ...migrate...
+        #
+        #    session.add(SchemaVersionRecord(
+        #      schema_version=1,
+        #      applied_at=datetime.now(),
+        #    ))
+        #
+        # if version < 2:
+        #    ...
 
