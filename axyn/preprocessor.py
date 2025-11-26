@@ -3,13 +3,12 @@ import logging
 from logdecorator import log_on_end
 
 
-@log_on_end(logging.DEBUG, 'Preprocessed "{message.clean_content}" to "{result}"')
-def preprocess(client, message):
-    """Return a cleaned-up version of the contents of the given message."""
-    content = message.clean_content
+@log_on_end(logging.DEBUG, 'Preprocessed "{content}" to "{result}"')
+def preprocess(client, content: str):
+    """Return a cleaned-up version of the given message contents."""
 
     # Strip off leading @Axyn if it exists
-    axyn = f"@{client.user.display_name}"
+    axyn = client.user.mention
     if content.startswith(axyn):
         content = content[len(axyn) :]
 

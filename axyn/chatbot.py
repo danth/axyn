@@ -1,11 +1,14 @@
+from discord import Client
 import os
-import random
-from dataclasses import dataclass
-
 import ngtpy
+import random
 import spacy
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from typing import Optional, Sequence
 
-from axyn.database import DatabaseManager, ResponseRecord
+from axyn.database import IndexRecord, MessageRecord, MessageRevisionRecord
+from axyn.preprocessor import preprocess
 
 
 def _load_spacy_model(model):
@@ -22,20 +25,6 @@ def _load_spacy_model(model):
     return model
 
 
-@dataclass
-class Message:
-    """
-    A piece of text.
-
-    :param text: The text of the message.
-    :param metadata: An arbitrary string which can be retrieved when the
-        message is chosen as a response.
-    """
-
-    text: str
-    metadata: str = None
-
-
 class Responder:
     """
     Holds a database connection and handles learning and producing responses.
@@ -45,10 +34,10 @@ class Responder:
     :param model: SpaCy model, or the name of one to be loaded.
     """
 
-    def __init__(self, directory: str, database: DatabaseManager, spacy_model="en_core_web_md"):
+    def __init__(self, directory: str, client: Client, spacy_model="en_core_web_md"):
         self._batch_responses = list()
+        self._client = client
         self._index = self._load_index(directory)
-        self._database = database
         self._spacy_model = _load_spacy_model(spacy_model)
 
     def _load_index(self, directory: str):
@@ -63,7 +52,7 @@ class Responder:
 
         return ngtpy.Index(directory)
 
-    def get_all_responses(self, text):
+    def get_all_responses(self, text, session: Session) -> tuple[Sequence[MessageRevisionRecord], float]:
         """
         Return all relevant responses to a prompt along with their distance.
 
@@ -74,7 +63,7 @@ class Responder:
         Note that this only returns messages which are linked to the same
         vector, so their distances are all the same.
 
-        :returns: (list of Message instances, distance)
+        :returns: (list of ``MessageRevisionRecord`` instances, distance)
         """
 
         # Convert the input to a vector
@@ -88,21 +77,25 @@ class Responder:
             # No results were found, this most likely indicates an empty index
             return [], float("inf")
 
-        with self._database.session() as session:
-            # Get the known responses to this vector
-            responses = (
-                session
-                    .query(ResponseRecord)
-                    .filter(ResponseRecord.ngt_id == match_id)
-                    .all()
+        # Get the known responses to this vector
+        index_records = (
+            session
+            .execute(
+                select(IndexRecord)
+                .where(IndexRecord.index_id == match_id)
             )
+            .scalars()
+            .all()
+        )
 
-            # Convert each Response to a Message
-            messages = [Message(response.response, response.meta) for response in responses]
+        messages = []
+
+        for index_record in index_records:
+            messages += index_record.message.revisions
 
         return messages, distance
 
-    def get_response(self, text):
+    def get_response(self, text, session: Session) -> tuple[Optional[MessageRevisionRecord], float]:
         """
         Return the most confident response to a prompt.
 
@@ -114,30 +107,26 @@ class Responder:
         :returns: Tuple of (message, distance).
         """
 
-        messages, distance = self.get_all_responses(text)
+        messages, distance = self.get_all_responses(text, session)
 
         if messages:
             return random.choice(messages), distance
         else:
             return None, distance
 
-    def add_response(self, prompt, message):
+    def add_response(self, prompt: MessageRevisionRecord, message: MessageRevisionRecord):
         """
         Process a response pair without saving it immediately.
 
         The response won't be available as an output from ``get_response``
         until ``commit_responses`` is called.
 
-        :param prompt: The text this is in response to.
-        :param message: The response to be learned. This can be a simple string, or
-            an instance of ``Message`` if you would like to include metadata.
+        :param prompt: The message this is in response to.
+        :param message: The response to be learned.
         """
 
-        if isinstance(message, str):
-            message = Message(message)
-
-        vector = self._average_vector(prompt)
-        self._batch_responses.append((vector, message))
+        vector = self._average_vector(preprocess(self._client, prompt.content))
+        self._batch_responses.append((vector, message.message))
 
     def _get_index_id(self, vector):
         """
@@ -172,15 +161,12 @@ class Responder:
 
         self._batch_vectors = dict()
 
-        with self._database.session() as session:
+        with self._client.database_manager.session() as session:
             for vector, message in self._batch_responses:
-                session.add(
-                    ResponseRecord(
-                        ngt_id=self._get_index_id(vector),
-                        response=message.text,
-                        meta=message.metadata,
-                    )
-                )
+                session.merge(IndexRecord(
+                    message=message,
+                    index_id=self._get_index_id(vector)
+                ))
 
         self._index.build_index()
         self._index.save()

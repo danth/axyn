@@ -3,6 +3,8 @@ import logging
 import discord
 from logdecorator import log_on_end, log_on_start
 
+from axyn.database import MessageRevisionRecord
+
 
 def _members_to_set(members):
     """
@@ -26,7 +28,7 @@ def _channel_members(channel):
     return channel.members
 
 
-def should_send_in_channel(client, message, current_channel):
+def should_send_in_channel(client, message: MessageRevisionRecord, current_channel):
     """
     Return whether a message should be sent to a channel.
 
@@ -34,7 +36,7 @@ def should_send_in_channel(client, message, current_channel):
     view the channel where the message was originally sent.
     """
 
-    original_channel = client.get_channel(int(message.metadata))
+    original_channel = client.get_channel(message.message.channel_id)
 
     if original_channel is None:
         # We are unable to fetch the member list for the original channel
@@ -52,7 +54,7 @@ def should_send_in_channel(client, message, current_channel):
 
 @log_on_start(logging.INFO, "Messages before filtering: {messages}")
 @log_on_end(logging.INFO, "Messages after filtering: {result}")
-def filter_responses(client, messages, current_channel):
+def filter_responses(client, messages: list[MessageRevisionRecord], current_channel):
     """Remove any messages from the given list which are not allowed to be sent."""
 
     return [

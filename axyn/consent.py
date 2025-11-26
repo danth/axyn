@@ -1,6 +1,15 @@
-from axyn.database import DatabaseManager, ConsentRecord
-import discord
+from axyn.database import (
+    ConsentResponse,
+    ConsentPromptRecord,
+    ConsentResponseRecord,
+    InteractionRecord,
+    MessageRecord,
+    DatabaseManager,
+)
+from discord import ButtonStyle, Interaction, Member, Message, User
+from discord.errors import Forbidden
 from discord.ext import tasks
+from discord.ui import View, Button, button
 from logdecorator import log_on_end
 from logdecorator.asyncio import (
     async_log_on_end,
@@ -8,6 +17,9 @@ from logdecorator.asyncio import (
     async_log_on_start,
 )
 import logging
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+from typing import cast
 
 
 class ConsentManager:
@@ -22,39 +34,55 @@ class ConsentManager:
 
         @self.client.command_tree.command()
         @async_log_on_start(logging.INFO, "{interaction.user.id} requested a consent menu")
-        async def consent(interaction):
+        async def consent(interaction: Interaction):
             """Change whether Axyn learns from your messages."""
 
-            await interaction.response.send_message(
+            response = await interaction.response.send_message(
                 "May I learn from your messages?",
                 ephemeral=True,
                 view=ConsentMenu()
             )
 
-    async def send_introduction_menu(self, member):
-        """Send a pair of buttons which allow consent to be changed."""
+            message = cast(Message, response.resource)
 
-        await member.send(
-            f"**Hello {member.display_name} :wave:**\n"
-            f"I'm a robot who joins in with conversations in {member.guild}. "
-            "May I learn from what you say there?",
-            view=ConsentMenu()
+            with self._database.session() as session:
+                session.merge(ConsentPromptRecord(
+                    message=MessageRecord.from_message(message)
+                ))
+
+    async def _should_send_introduction(self, user: User, session: Session) -> bool:
+        """Return whether a consent prompt should be sent to the given ``User``."""
+
+        dm_channel = await user.create_dm()
+
+        count = (
+            session.query(ConsentPromptRecord)
+            .select_from(MessageRecord)
+            .join(ConsentPromptRecord.message)
+            .where(MessageRecord.channel_id == dm_channel.id)
+            .count()
         )
+
+        return count == 0
 
     @async_log_on_start(logging.INFO, "Sending an introduction to {member.id}")
     @async_log_on_error(
         logging.WARNING,
         "Insufficient permissions to DM {member.id}",
-        on_exceptions=discord.errors.Forbidden,
+        on_exceptions=Forbidden,
     )
     @async_log_on_end(logging.INFO, "Sent an introduction to {member.id}")
-    async def _send_introduction(self, member, session):
-        """Send an introduction to someone who hasn't met Axyn before."""
+    async def _send_introduction(self, member: Member, session: Session):
+        """Send a consent prompt to someone who hasn't met Axyn before."""
 
-        await self.send_introduction_menu(member)
+        message = await member.send(
+            f"**Hello {member.display_name} :wave:**\n"
+            f"I'm a robot who joins in with conversations in {member.guild}. "
+"May I learn from what you say there?",
+            view=ConsentMenu()
+        )
 
-        # Record an empty setting to signify that a menu was sent
-        session.merge(ConsentRecord(user_id=member.id, consented=None))
+        session.merge(ConsentPromptRecord.from_message(message))
 
     @tasks.loop(hours=1)
     @async_log_on_start(logging.INFO, "Checking for new members")
@@ -67,57 +95,58 @@ class ConsentManager:
                 continue
 
             with self._database.session() as session:
-                setting = self._get_setting(member, session)
-
-                if setting is None:
+                if await self._should_send_introduction(member, session):
                     await self._send_introduction(member, session)
 
     @_send_introductions.before_loop
     async def _send_introductions_before(self):
         await self.client.wait_until_ready()
 
-    def _get_setting(self, user, session):
-        """Fetch the database entry for a user."""
-
-        return (
-            session.query(ConsentRecord)
-            .where(ConsentRecord.user_id == user.id)
-            .one_or_none()
-        )
-
     @log_on_end(
-        logging.INFO, "User {user_id} changed their consent setting to {consented}"
+        logging.INFO, "User {interaction.user.id} changed their consent setting to {response}"
     )
-    def _set_setting(self, user_id, consented):
-        """Change the setting for a user."""
+    def _set_response(self, interaction: Interaction, response: ConsentResponse):
+        """Store a new ``ConsentResponse`` resulting from the given ``Interaction``."""
 
         with self._database.session() as session:
-            session.merge(ConsentRecord(user_id=user_id, consented=consented))
+            session.merge(
+                ConsentResponseRecord(
+                    interaction=InteractionRecord.from_interaction(interaction),
+                    response=response
+                )
+            )
 
-    def has_consented(self, user):
-        """Return whether a user has allowed their messages to be learned."""
+    def has_consented(self, user: User) -> bool:
+        """Return whether the given ``User`` has allowed their messages to be learned."""
 
         with self._database.session() as session:
-            setting = self._get_setting(user, session)
+            response_record = (
+                session.query(ConsentResponseRecord)
+                .select_from(InteractionRecord)
+                .join(ConsentResponseRecord.interaction)
+                .where(InteractionRecord.user_id == user.id)
+                .order_by(desc(InteractionRecord.created_at))
+                .limit(1)
+                .one_or_none()
+            )
 
-            if setting is None:
+            if response_record is None:
                 return False
-            else:
-                # The value might be None, so we must coerce it to a boolean
-                return bool(setting.consented)
+
+            return response_record.response == ConsentResponse.YES
 
 
-class ConsentMenu(discord.ui.View):
+class ConsentMenu(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(
+    @button(
         label="Yes",
         custom_id="consent:yes",
-        style=discord.ButtonStyle.green
+        style=ButtonStyle.green
     )
-    async def yes(self, interaction: discord.Interaction, button: discord.ui.Button):
-        interaction.client.consent_manager._set_setting(interaction.user.id, True)
+    async def yes(self, interaction: Interaction, button: Button):
+        interaction.client.consent_manager._set_response(interaction, ConsentResponse.YES)
 
         await interaction.response.send_message(
             content=(
@@ -127,13 +156,13 @@ class ConsentMenu(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(
+    @button(
         label="No",
         custom_id="consent:no",
-        style=discord.ButtonStyle.red
+        style=ButtonStyle.red
     )
-    async def no(self, interaction: discord.Interaction, button: discord.ui.Button):
-        interaction.client.consent_manager._set_setting(interaction.user.id, False)
+    async def no(self, interaction: Interaction, button: Button):
+        interaction.client.consent_manager._set_response(interaction, ConsentResponse.NO)
 
         await interaction.response.send_message(
             content=(

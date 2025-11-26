@@ -79,16 +79,19 @@ class Reply(MessageHandler):
     def _get_reply(self):
         """Return the chosen reply, and its distance, for this message."""
 
-        content = preprocess(self.client, self.message)
-        responses, distance = self.client.message_responder.get_all_responses(content)
+        content = preprocess(self.client, self.message.content)
 
-        filtered_responses = filter_responses(
-            self.client, responses, self.message.channel
-        )
+        with self.client.database_manager.session() as session:
+            responses, distance = self.client.message_responder.get_all_responses(content, session)
 
-        if filtered_responses:
-            reply = random.choice(filtered_responses).text
-            return reply, distance
+            filtered_responses = filter_responses(
+                self.client, responses, self.message.channel
+            )
+
+            if filtered_responses:
+                reply = random.choice(filtered_responses).content
+                reply = preprocess(self.client, reply)
+                return reply, distance
 
         return None, float("inf")
 

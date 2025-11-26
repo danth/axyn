@@ -26,13 +26,13 @@ class AxynClient(discord.Client):
 
         self.command_tree = discord.app_commands.CommandTree(self)
 
-        database_manager = DatabaseManager()
-        self.consent_manager = ConsentManager(self, database_manager)
+        self.database_manager = DatabaseManager()
+        self.consent_manager = ConsentManager(self, self.database_manager)
 
         self.logger.info("Loading SpaCy model")
         self.spacy_model = spacy.load("en_core_web_md", exclude=["ner"])
         self.logger.info("Loading message responder")
-        self.message_responder = Responder(get_path("index"), database_manager, self.spacy_model)
+        self.message_responder = Responder(get_path("index"), self, self.spacy_model)
 
     async def setup_hook(self):
         self.consent_manager.setup_hook()

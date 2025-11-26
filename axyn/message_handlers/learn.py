@@ -1,14 +1,13 @@
 import logging
 from datetime import timedelta
-
+from discord import Client, Message
 from logdecorator import log_on_end, log_on_start
 from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
-from axyn.chatbot import Message
+from axyn.database import MessageRevisionRecord
 from axyn.filters import reason_not_to_learn, reason_not_to_learn_pair
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
-from axyn.preprocessor import preprocess
 
 
 @log_on_start(
@@ -16,16 +15,13 @@ from axyn.preprocessor import preprocess
     'Learning "{message.clean_content}" as a reply to "{previous.clean_content}"',
 )
 @log_on_end(logging.DEBUG, "Learning complete")
-def _learn(client, previous, message):
-    """Learn a response pair after preprocessing."""
+def _learn(client: Client, previous: Message, message: Message):
+    """Learn a response pair."""
 
-    previous_content = preprocess(client, previous)
-    content = preprocess(client, message)
+    previous_record = MessageRevisionRecord.from_message(previous)
+    record = MessageRevisionRecord.from_message(message)
 
-    client.message_responder.learn_response(
-        previous_content,
-        Message(content, message.channel.id),
-    )
+    client.message_responder.learn_response(previous_record, record)
 
 
 class Learn(MessageHandler):
