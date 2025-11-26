@@ -71,3 +71,19 @@ def reason_to_ignore_interval(client, previous_message, message):
     return _reason_to_ignore(client, message) or _reason_to_ignore(
         client, previous_message, allow_axyn=True
     )
+
+
+def is_direct(client, message):
+    """Return whether the given message is directly talking to Axyn."""
+
+    return (
+        message.channel.type == discord.ChannelType.private
+        or client.user.mentioned_in(message)
+        or (
+            message.reference
+            and message.reference.resolved
+            and message.reference.resolved.author == client.user
+        )
+        or "axyn" in message.channel.name
+    )
+

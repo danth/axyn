@@ -8,6 +8,7 @@ import spacy
 from axyn.chatbot import Responder
 from axyn.consent import ConsentManager
 from axyn.database import get_path, DatabaseManager
+from axyn.message_handlers.consent import Consent
 from axyn.message_handlers.learn import Learn
 from axyn.message_handlers.reply import Reply
 
@@ -60,4 +61,5 @@ class AxynClient(discord.Client):
             Reply(self, message).handle()
         )
         asyncio.create_task(Learn(self, message).handle())
+        asyncio.create_task(Consent(self, message).handle())
 

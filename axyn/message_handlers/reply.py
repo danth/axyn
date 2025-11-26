@@ -2,11 +2,10 @@ import asyncio
 import logging
 import random
 
-import discord
 from logdecorator import log_on_end, log_on_start
 from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
-from axyn.filters import reason_not_to_reply
+from axyn.filters import reason_not_to_reply, is_direct
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
@@ -38,25 +37,11 @@ class Reply(MessageHandler):
         if reply and distance <= acceptable_distance:
             await self._send_reply(reply)
 
-    def _is_direct(self):
-        """Return whether this message is directly talking to Axyn."""
-
-        return (
-            self.message.channel.type == discord.ChannelType.private
-            or self.client.user.mentioned_in(self.message)
-            or (
-                self.message.reference
-                and self.message.reference.resolved
-                and self.message.reference.resolved.author == self.client.user
-            )
-            or "axyn" in self.message.channel.name
-        )
-
     @async_log_on_end(logging.INFO, "Delaying reply by {result} seconds")
     async def _get_reply_delay(self):
         """Return number of seconds to wait before replying to this message."""
 
-        if self._is_direct():
+        if is_direct(self.client, self.message):
             return 0
 
         interval = await quantile_interval(
@@ -69,7 +54,7 @@ class Reply(MessageHandler):
     def _get_distance_threshold(self):
         """Return the maximum acceptible distance for replies to this message."""
 
-        if self._is_direct():
+        if is_direct(self.client, self.message):
             return float("inf")
         else:
             return 1.5
