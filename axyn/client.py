@@ -8,8 +8,8 @@ from axyn.consent import ConsentManager
 from axyn.database import get_path, DatabaseManager
 from axyn.index import IndexManager
 from axyn.message_handlers.consent import Consent
-from axyn.message_handlers.learn import Learn
 from axyn.message_handlers.reply import Reply
+from axyn.message_handlers.store import Store
 
 
 class AxynClient(discord.Client):
@@ -41,7 +41,7 @@ class AxynClient(discord.Client):
         asyncio.create_task(discordhealthcheck.start(self))
 
     async def on_message(self, message):
-        """Reply to and learn incoming messages."""
+        """Reply to and store incoming messages."""
 
         # If the reply handler decides to delay, this will cancel previous
         # tasks in the channel so only the last message in a conversation
@@ -56,6 +56,6 @@ class AxynClient(discord.Client):
         self.reply_tasks[message.channel.id] = asyncio.create_task(
             Reply(self, message).handle()
         )
-        asyncio.create_task(Learn(self, message).handle())
+        asyncio.create_task(Store(self, message).handle())
         asyncio.create_task(Consent(self, message).handle())
 
