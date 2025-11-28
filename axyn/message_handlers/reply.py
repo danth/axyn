@@ -86,7 +86,11 @@ class Reply(MessageHandler):
     async def _send_reply(self, reply):
         """Send a reply message."""
 
-        await self.message.channel.send(reply)
+        await self.message.channel.send(
+            reply,
+            reference=self.message,
+            mention_author=True,
+        )
 
         # We need to store Axyn's own messages so that they appear in the
         # history as a prompt for whatever the user sends next.
