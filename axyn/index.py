@@ -233,6 +233,7 @@ class IndexManager:
             session
             .execute(
                 select(MessageRecord)
+                .where(MessageRecord.channel == current_message.channel)
                 .where(MessageRecord.created_at < current_message.created_at)
                 .order_by(desc(MessageRecord.created_at))
                 .limit(100)

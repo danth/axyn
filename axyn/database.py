@@ -42,7 +42,7 @@ def get_path(file):
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 1
+SCHEMA_VERSION: int = 2
 
 
 class BaseRecord(DeclarativeBase):
@@ -390,8 +390,8 @@ class DatabaseManager:
         if version < 0:
             raise Exception(f"database schema version {version} is not valid")
 
-        if version < 1:
-            self._reset_index(session, 1)
+        if version < 2:
+            self._reset_index(session, 2)
 
         if version > SCHEMA_VERSION:
             raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
