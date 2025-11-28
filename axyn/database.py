@@ -10,10 +10,12 @@ from discord import (
 )
 from enum import Enum
 import os
+from shutil import rmtree
 from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     create_engine,
+    delete,
     desc,
     select,
 )
@@ -40,7 +42,7 @@ def get_path(file):
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 0
+SCHEMA_VERSION: int = 1
 
 
 class BaseRecord(DeclarativeBase):
@@ -216,6 +218,10 @@ class IndexRecord(BaseRecord):
     actual text. Each index ID may be mapped to more than one message (if we
     stored multiple replies to the same prompt), and those messages may also
     contain multiple edited versions to choose from.
+
+    A message not having an ``IndexRecord`` means it has not been processed
+    yet. This is different to having a record with an ``index_id`` of ``None``,
+    which means we couldn't index it because there was no previous message.
     """
 
     __tablename__ = "index"
@@ -384,19 +390,29 @@ class DatabaseManager:
         if version < 0:
             raise Exception(f"database schema version {version} is not valid")
 
+        if version < 1:
+            self._reset_index(session, 1)
+
         if version > SCHEMA_VERSION:
             raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
 
-        # When a new version is added, this should look like:
-        #
-        # if version < 1:
-        #    ...migrate...
-        #
-        #    session.add(SchemaVersionRecord(
-        #      schema_version=1,
-        #      applied_at=datetime.now(),
-        #    ))
-        #
-        # if version < 2:
-        #    ...
+    def _reset_index(self, session: Session, version: int):
+        """
+        Apply the provided schema version by resetting the index.
+
+        This clears the index table in the database, and also removes the
+        corresponding file on disk.
+
+        This must be called before the ``IndexManager`` is loaded to avoid
+        causing undefined behaviour.
+        """
+
+        session.connection().execute(delete(IndexRecord))
+
+        rmtree(get_path("index"))
+
+        session.add(SchemaVersionRecord(
+          schema_version=version,
+          applied_at=datetime.now(),
+        ))
 

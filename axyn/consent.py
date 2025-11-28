@@ -125,7 +125,14 @@ class ConsentManager:
             )
 
     def has_consented(self, user: User) -> bool:
-        """Return whether the given ``User`` has allowed their messages to be learned."""
+        """
+        Return whether the given ``User`` has allowed their messages to be learned.
+
+        This is always ``True`` for bots.
+        """
+
+        if user.bot or user.system:
+            return True
 
         with self._database.session() as session:
             response_record = (

@@ -3,11 +3,10 @@ import logging
 
 import discord
 import discordhealthcheck
-import spacy
 
-from axyn.chatbot import Responder
 from axyn.consent import ConsentManager
 from axyn.database import get_path, DatabaseManager
+from axyn.index import IndexManager
 from axyn.message_handlers.consent import Consent
 from axyn.message_handlers.learn import Learn
 from axyn.message_handlers.reply import Reply
@@ -29,14 +28,11 @@ class AxynClient(discord.Client):
 
         self.database_manager = DatabaseManager()
         self.consent_manager = ConsentManager(self, self.database_manager)
-
-        self.logger.info("Loading SpaCy model")
-        self.spacy_model = spacy.load("en_core_web_md", exclude=["ner"])
-        self.logger.info("Loading message responder")
-        self.message_responder = Responder(get_path("index"), self, self.spacy_model)
+        self.index_manager = IndexManager(self, get_path("index"))
 
     async def setup_hook(self):
         self.consent_manager.setup_hook()
+        self.index_manager.setup_hook()
 
         self.logger.info("Syncing command definitions")
         asyncio.create_task(self.command_tree.sync())

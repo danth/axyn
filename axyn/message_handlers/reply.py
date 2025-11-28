@@ -2,9 +2,10 @@ import asyncio
 import logging
 import random
 
-from logdecorator import log_on_end, log_on_start
+from logdecorator import log_on_end
 from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
+from axyn.database import MessageRevisionRecord
 from axyn.filters import reason_not_to_reply, is_direct
 from axyn.interval import quantile_interval
 from axyn.message_handlers import MessageHandler
@@ -30,7 +31,7 @@ class Reply(MessageHandler):
         """Respond to this message immediately, if distance permits."""
 
         async with self.message.channel.typing():
-            reply, distance = self._get_reply()
+            reply, distance = await self._get_reply()
 
         acceptable_distance = self._get_distance_threshold()
 
@@ -59,15 +60,16 @@ class Reply(MessageHandler):
         else:
             return 1.5
 
-    @log_on_start(logging.DEBUG, 'Getting reply to "{self.message.clean_content}"')
-    @log_on_end(logging.INFO, 'Selected reply "{result[0]}" at distance {result[1]}')
-    def _get_reply(self):
+    @async_log_on_start(logging.DEBUG, 'Getting reply to "{self.message.clean_content}"')
+    @async_log_on_end(logging.INFO, 'Selected reply "{result[0]}" at distance {result[1]}')
+    async def _get_reply(self):
         """Return the chosen reply, and its distance, for this message."""
 
-        content = preprocess(self.client, self.message.content)
-
         with self.client.database_manager.session() as session:
-            responses, distance = self.client.message_responder.get_all_responses(content, session)
+            responses, distance = await self.client.index_manager.get_responses(
+                self.message.content,
+                session,
+            )
 
             filtered_responses = filter_responses(
                 self.client, responses, self.message.channel
@@ -85,3 +87,9 @@ class Reply(MessageHandler):
         """Send a reply message."""
 
         await self.message.channel.send(reply)
+
+        # We need to store Axyn's own messages so that they appear in the
+        # history as a prompt for whatever the user sends next.
+        with self.client.database_manager.session() as session:
+            session.merge(MessageRevisionRecord.from_message(reply))
+
