@@ -3,9 +3,11 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
   };
-  outputs = inputs@{ nixpkgs, utils, ... }:
-    utils.lib.eachSystem ["x86_64-linux"]
-    (system:
+  outputs = { self, nixpkgs, utils, ... }:
+    {
+      nixosModules.default = import ./nixos.nix self;
+    } //
+    (utils.lib.eachSystem ["x86_64-linux"] (system:
       with nixpkgs.legacyPackages.${system}.python3Packages;
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -106,5 +108,5 @@
         devShells.default = pkgs.mkShell {
           inputsFrom = [ axyn ];
         };
-      });
+      }));
 }
