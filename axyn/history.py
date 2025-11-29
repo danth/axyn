@@ -1,5 +1,4 @@
 from axyn.database import ChannelRecord, MessageRecord
-from axyn.filters import is_valid_prompt
 from datetime import datetime
 from logging import getLogger
 from statistics import quantiles
@@ -55,11 +54,10 @@ def get_delays(history: Sequence[MessageRecord]) -> tuple[float, float, float]:
     delays = []
 
     for current, prompt in zip(history, history[1:]):
-        if not is_valid_prompt(current, prompt):
+        if current.author == prompt.author:
             continue
 
-        # In addition to the usual checks, also skip over bots since they
-        # usually reply immediately, which skews the results.
+        # Bots usually reply immediately, which skews the results.
         if not current.author.human:
             continue
 
