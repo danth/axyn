@@ -3,8 +3,8 @@ import logging
 import random
 from statistics import StatisticsError
 
-from logdecorator import log_on_end
-from logdecorator.asyncio import async_log_on_end, async_log_on_start
+from logdecorator import log_on_start, log_on_end
+from logdecorator.asyncio import async_log_on_start
 
 from axyn.database import ChannelRecord, MessageRevisionRecord
 from axyn.filters import reason_not_to_reply, is_direct
@@ -22,7 +22,7 @@ class Reply(MessageHandler):
         if reason:
             return
 
-        delay = await self._get_reply_delay()
+        delay = self._get_reply_delay()
         if delay > 0:
             await asyncio.sleep(delay)
 
@@ -32,15 +32,15 @@ class Reply(MessageHandler):
         """Respond to this message immediately, if distance permits."""
 
         async with self.message.channel.typing():
-            reply, distance = await self._get_reply()
+            reply, distance = self._get_reply()
 
         acceptable_distance = self._get_distance_threshold()
 
         if reply and distance <= acceptable_distance:
             await self._send_reply(reply)
 
-    @async_log_on_end(logging.INFO, "Delaying reply by {result} seconds")
-    async def _get_reply_delay(self):
+    @log_on_end(logging.INFO, "Delaying reply by {result} seconds")
+    def _get_reply_delay(self):
         """Return number of seconds to wait before replying to this message."""
 
         if is_direct(self.client, self.message):
@@ -65,13 +65,13 @@ class Reply(MessageHandler):
         else:
             return 1.5
 
-    @async_log_on_start(logging.DEBUG, 'Getting reply to "{self.message.clean_content}"')
-    @async_log_on_end(logging.INFO, 'Selected reply "{result[0]}" at distance {result[1]}')
-    async def _get_reply(self):
+    @log_on_start(logging.DEBUG, 'Getting reply to "{self.message.clean_content}"')
+    @log_on_end(logging.INFO, 'Selected reply "{result[0]}" at distance {result[1]}')
+    def _get_reply(self):
         """Return the chosen reply, and its distance, for this message."""
 
         with self.client.database_manager.session() as session:
-            responses, distance = await self.client.index_manager.get_responses(
+            responses, distance = self.client.index_manager.get_responses(
                 self.message.content,
                 session,
             )

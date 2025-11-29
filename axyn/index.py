@@ -27,7 +27,7 @@ class IndexManager:
     def setup_hook(self):
         self._update_index.start()
 
-    async def get_responses(
+    def get_responses(
         self,
         prompt: str,
         session: Session
