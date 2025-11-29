@@ -19,7 +19,7 @@ class Reply(MessageHandler):
 
         reason = reason_not_to_reply(self.client, self.message)
         if reason:
-            return False
+            return
 
         delay = await self._get_reply_delay()
         if delay > 0:
