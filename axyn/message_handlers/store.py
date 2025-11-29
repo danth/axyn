@@ -1,12 +1,21 @@
 from axyn.database import MessageRecord, MessageRevisionRecord
 from axyn.message_handlers import MessageHandler
 from logdecorator import log_on_start
-from logging import INFO
+from logging import INFO, getLogger
 
 
 class Store(MessageHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._logger = getLogger(__name__)
+
     async def handle(self):
         """Store this message."""
+
+        if self.message.flags.ephemeral:
+            self._logger.info(f"Not storing {self.message.id} because it is ephemeral")
+            return
 
         if self.client.consent_manager.has_consented(self.message.author):
             self._store_full()
