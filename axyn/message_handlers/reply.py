@@ -1,7 +1,8 @@
 import asyncio
-import logging
-import random
+from logging import INFO, DEBUG, getLogger
+from random import shuffle
 from statistics import StatisticsError
+from typing import Optional
 
 from logdecorator import log_on_start, log_on_end
 from logdecorator.asyncio import async_log_on_start
@@ -11,10 +12,15 @@ from axyn.filters import reason_not_to_reply, is_direct
 from axyn.history import get_history, get_delays
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
-from axyn.privacy import filter_responses
+from axyn.privacy import can_send_in_channel
 
 
 class Reply(MessageHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._logger = getLogger(__name__)
+
     async def handle(self):
         """Respond to this message, if allowed."""
 
@@ -40,7 +46,7 @@ class Reply(MessageHandler):
             if distance <= maximum_distance:
                 await self._send_reply(reply)
 
-    @log_on_end(logging.INFO, "Delaying reply by {result} seconds")
+    @log_on_end(INFO, "Delaying reply by {result} seconds")
     def _get_reply_delay(self):
         """Return number of seconds to wait before replying to this message."""
 
@@ -57,7 +63,7 @@ class Reply(MessageHandler):
 
         return max(median * 1.5, 180)
 
-    @log_on_end(logging.INFO, "The maximum acceptable cosine distance is {result}")
+    @log_on_end(INFO, "The maximum acceptable cosine distance is {result}")
     def _get_maximum_distance(self):
         """
         Return the maximum acceptable cosine distance for a reply to be sent.
@@ -72,9 +78,8 @@ class Reply(MessageHandler):
         else:
             return 0.1
 
-    @log_on_start(logging.DEBUG, 'Getting reply to "{self.message.clean_content}"')
-    @log_on_end(logging.INFO, 'Selected reply "{result[0]}" with cosine distance {result[1]}')
-    def _get_reply(self):
+    @log_on_start(DEBUG, 'Getting reply to "{self.message.clean_content}"')
+    def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
 
         with self.client.database_manager.session() as session:
@@ -83,18 +88,21 @@ class Reply(MessageHandler):
                 session,
             )
 
-            filtered_responses = filter_responses(
-                self.client, responses, self.message.channel
-            )
+            shuffle(responses)
 
-            if filtered_responses:
-                reply = random.choice(filtered_responses).content
-                reply = preprocess(self.client, reply)
-                return reply, distance
+            # Select the first (after shuffling) response that we are allowed to use.
+            for response in responses:
+                if can_send_in_channel(self.client, response, self.message.channel):
+                    self._logger.debug(f'Selected reply "{response.content}" with cosine distance {distance}')
+                    text = preprocess(self.client, response.content)
+                    return text, distance
+                else:
+                    self._logger.debug(f'Cannot use reply "{response.content}" due to privacy filter')
 
+        self._logger.debug(f'Found no suitable replies')
         return None, float("inf")
 
-    @async_log_on_start(logging.INFO, 'Sending reply "{reply}"')
+    @async_log_on_start(INFO, 'Sending reply "{reply}"')
     async def _send_reply(self, reply):
         """Send a reply message."""
 

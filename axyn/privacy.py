@@ -1,12 +1,9 @@
-import logging
-
 from discord import (
     DMChannel,
     GroupChannel,
     Member,
     User,
 )
-from logdecorator import log_on_end, log_on_start
 from typing import Sequence, Union
 
 from axyn.database import MessageRevisionRecord
@@ -31,9 +28,9 @@ def _channel_members(channel) -> Sequence[Union[User, Member]]:
     return channel.members
 
 
-def should_send_in_channel(client, message: MessageRevisionRecord, current_channel):
+def can_send_in_channel(client, message: MessageRevisionRecord, current_channel):
     """
-    Return whether a message should be sent to a channel.
+    Return whether a message may be sent to a channel.
 
     This is only true if everyone who can view the current channel can also
     view the channel where the message was originally sent.
@@ -54,14 +51,3 @@ def should_send_in_channel(client, message: MessageRevisionRecord, current_chann
     current_channel_members = _members_to_set(_channel_members(current_channel))
     return current_channel_members.issubset(original_channel_members)
 
-
-@log_on_start(logging.INFO, "Messages before filtering: {messages}")
-@log_on_end(logging.INFO, "Messages after filtering: {result}")
-def filter_responses(client, messages: list[MessageRevisionRecord], current_channel):
-    """Remove any messages from the given list which are not allowed to be sent."""
-
-    return [
-        message
-        for message in messages
-        if should_send_in_channel(client, message, current_channel)
-    ]
