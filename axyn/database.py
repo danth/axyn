@@ -43,7 +43,7 @@ def get_path(file):
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 4
+SCHEMA_VERSION: int = 5
 
 
 class BaseRecord(DeclarativeBase):
@@ -399,11 +399,13 @@ class DatabaseManager:
         if version > SCHEMA_VERSION:
             raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
 
-        if version < 3:
-            self._reset_index(session)
-
         if version < 4:
             session.execute(DDL("ALTER TABLE message ADD COLUMN deleted_at DATETIME"))
+
+        if version < 5:
+            # This only needs to happen once, even if we skipped over multiple
+            # versions that would reset the index.
+            self._reset_index(session)
 
         session.add(SchemaVersionRecord(
           schema_version=SCHEMA_VERSION,

@@ -34,9 +34,9 @@ setup(
     python_requires=">=3.6,<4",
     setup_requires=["setuptools_scm"],
     install_requires=[
-        "spacy >=3,<4",
         "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
+        "fastembed >=0.7,<1",
         "sqlalchemy >=2,<3",
         "logdecorator >=2.2,<3",
     ],

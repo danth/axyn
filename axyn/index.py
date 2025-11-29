@@ -4,10 +4,10 @@ from axyn.history import get_history, get_delays
 from axyn.preprocessor import preprocess
 from discord import Client
 from discord.ext.tasks import loop
+from fastembed import TextEmbedding
 from logging import getLogger
 from ngtpy import create as create_ngt, Index as load_ngt
 from os import path
-from spacy import load as load_spacy
 from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
 from statistics import StatisticsError
@@ -17,11 +17,11 @@ from typing import Optional, Sequence
 class IndexManager:
     def __init__(self, client: Client, directory: str):
         if not path.exists(directory):
-            create_ngt(directory, dimension=300)  # Spacy word vectors are 300D
+            create_ngt(directory, dimension=384)
 
         self._client = client
         self._index = load_ngt(directory)
-        self._model = load_spacy("en_core_web_md", exclude=["ner"])
+        self._model = TextEmbedding()
         self._logger = getLogger(__name__)
 
     def setup_hook(self):
@@ -67,20 +67,8 @@ class IndexManager:
         """Return the vector for the given message content."""
 
         content = preprocess(self._client, content)
-        document = self._model(content, disable=["ner"])
-
-        try:
-            # Excluding punctuation
-            vectors = [
-                token.vector
-                for token in document
-                if token.has_vector and not token.is_punct
-            ]
-            return sum(vectors) / len(vectors)
-
-        except ZeroDivisionError:
-            # Including punctuation
-            return document.vector
+        vectors = self._model.embed([content])
+        return list(vectors)[0]
 
     def _insert(self, vector, batch: dict[bytes, int]) -> int:
         """

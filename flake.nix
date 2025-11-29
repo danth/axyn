@@ -68,20 +68,6 @@
           build-system = [ setuptools ];
         };
 
-        en-core-web-md = buildPythonPackage rec {
-          pname = "en-core-web-md";
-          version = "3.8.0";
-
-          src = pkgs.fetchzip {
-            url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0.tar.gz";
-            hash = "sha256-0+W2x+xUYrHs4e+EibhoRcxXMfC8SnUXVK1Lh/RiIaU=";
-          };
-
-          format = "pyproject";
-          build-system = [ setuptools ];
-          propagatedBuildInputs = [ spacy ];
-        };
-
         axyn = buildPythonApplication rec {
           name = "axyn";
           src = ./.;
@@ -93,10 +79,9 @@
           propagatedBuildInputs = [
             discordhealthcheck
             discordpy
-            en-core-web-md
+            fastembed
             logdecorator
             ngt
-            spacy
             sqlalchemy
           ];
         };
