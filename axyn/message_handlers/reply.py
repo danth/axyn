@@ -29,15 +29,16 @@ class Reply(MessageHandler):
         await self._process_reply()
 
     async def _process_reply(self):
-        """Respond to this message immediately, if distance permits."""
+        """Respond to this message immediately."""
 
         async with self.message.channel.typing():
             reply, distance = self._get_reply()
 
-        acceptable_distance = self._get_distance_threshold()
+        if reply:
+            maximum_distance = self._get_maximum_distance()
 
-        if reply and distance <= acceptable_distance:
-            await self._send_reply(reply)
+            if distance <= maximum_distance:
+                await self._send_reply(reply)
 
     @log_on_end(logging.INFO, "Delaying reply by {result} seconds")
     def _get_reply_delay(self):
@@ -56,19 +57,25 @@ class Reply(MessageHandler):
 
         return max(median * 1.5, 180)
 
-    @log_on_end(logging.INFO, "The distance threshold is {result}")
-    def _get_distance_threshold(self):
-        """Return the maximum acceptible distance for replies to this message."""
+    @log_on_end(logging.INFO, "The maximum acceptable cosine distance is {result}")
+    def _get_maximum_distance(self):
+        """
+        Return the maximum acceptable cosine distance for a reply to be sent.
+
+        This is more lenient when Axyn is addressed directly than when it
+        replies of its own accord.
+        """
 
         if is_direct(self.client, self.message):
-            return float("inf")
+            # The maximum possible: so always reply.
+            return 2
         else:
-            return 1.5
+            return 0.1
 
     @log_on_start(logging.DEBUG, 'Getting reply to "{self.message.clean_content}"')
-    @log_on_end(logging.INFO, 'Selected reply "{result[0]}" at distance {result[1]}')
+    @log_on_end(logging.INFO, 'Selected reply "{result[0]}" with cosine distance {result[1]}')
     def _get_reply(self):
-        """Return the chosen reply, and its distance, for this message."""
+        """Return a chosen reply and its cosine distance."""
 
         with self.client.database_manager.session() as session:
             responses, distance = self.client.index_manager.get_responses(

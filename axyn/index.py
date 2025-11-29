@@ -17,7 +17,11 @@ from typing import Optional, Sequence
 class IndexManager:
     def __init__(self, client: Client, directory: str):
         if not path.exists(directory):
-            create_ngt(directory, dimension=384)
+            create_ngt(
+                directory,
+                dimension=384,
+                distance_type="Cosine",
+            )
 
         self._client = client
         self._index = load_ngt(directory)
@@ -35,9 +39,10 @@ class IndexManager:
         """
         Get a selection of possible responses to the given message content.
 
-        Also returns a distance metric which estimates how confident the
-        responses are. Better responses will have a lower distance, but the
-        exact value is meaningless.
+        Also returns the cosine distance between the provided prompt and the
+        original prompt for these responses. This is a useful metric to decide
+        whether the responses are relevant or not. It always falls in the range
+        ``[0, 2]``, where zero is the most relevant.
         """
 
         vector = self._vector(prompt)
