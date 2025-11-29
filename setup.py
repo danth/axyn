@@ -38,7 +38,6 @@ setup(
         "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
         "sqlalchemy >=2,<3",
-        "numpy >=2,<3",
         "logdecorator >=2.2,<3",
     ],
     entry_points={

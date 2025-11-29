@@ -96,7 +96,6 @@
             en-core-web-md
             logdecorator
             ngt
-            numpy
             spacy
             sqlalchemy
           ];

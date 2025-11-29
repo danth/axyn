@@ -1,13 +1,14 @@
 import asyncio
 import logging
 import random
+from statistics import StatisticsError
 
 from logdecorator import log_on_end
 from logdecorator.asyncio import async_log_on_end, async_log_on_start
 
-from axyn.database import MessageRevisionRecord
+from axyn.database import ChannelRecord, MessageRevisionRecord
 from axyn.filters import reason_not_to_reply, is_direct
-from axyn.interval import quantile_interval
+from axyn.history import get_history, get_delays
 from axyn.message_handlers import MessageHandler
 from axyn.preprocessor import preprocess
 from axyn.privacy import filter_responses
@@ -17,7 +18,7 @@ class Reply(MessageHandler):
     async def handle(self):
         """Respond to this message, if allowed."""
 
-        reason = reason_not_to_reply(self.client, self.message)
+        reason = reason_not_to_reply(self.message)
         if reason:
             return
 
@@ -45,11 +46,15 @@ class Reply(MessageHandler):
         if is_direct(self.client, self.message):
             return 0
 
-        interval = await quantile_interval(
-            self.client, self.message.channel, quantile=0.5, default=60
-        )
+        channel = ChannelRecord.from_channel(self.message.channel)
 
-        return max(interval * 1.5, 180)
+        with self.client.database_manager.session() as session:
+            try:
+                _, median, _ = get_delays(get_history(session, channel))
+            except StatisticsError:
+                median = 60
+
+        return max(median * 1.5, 180)
 
     @log_on_end(logging.INFO, "The distance threshold is {result}")
     def _get_distance_threshold(self):

@@ -1,0 +1,76 @@
+from axyn.database import ChannelRecord, MessageRecord
+from axyn.filters import is_valid_prompt
+from datetime import datetime
+from logging import getLogger
+from statistics import quantiles
+from typing import Sequence, Optional
+from sqlalchemy import select, desc
+from sqlalchemy.orm import Session
+
+
+_logger = getLogger(__name__)
+
+
+def get_history(
+    session: Session,
+    channel: ChannelRecord,
+    time: Optional[datetime] = None
+) -> Sequence[MessageRecord]:
+    """
+    Queries a chunk of channel history from our database.
+
+    If a time is provided, the history will be up to but not including that
+    time. Otherwise, it will be the most recent history.
+
+    The number of messages returned is unspecified.
+    """
+
+    if time is None:
+        time = datetime.now()
+
+    return (
+        session
+        .execute(
+            select(MessageRecord)
+            .where(MessageRecord.channel == channel)
+            .where(MessageRecord.created_at < time)
+            .order_by(desc(MessageRecord.created_at))
+            .limit(100)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def get_delays(history: Sequence[MessageRecord]) -> tuple[float, float, float]:
+    """
+    Given a contiguous chunk of channel history, analyse the delays.
+
+    Raises ``StatisticsError`` if there was not enough information in the
+    provided list to get a result.
+    """
+
+    # Group messages into consecutive pairs, and for valid pairs, calculate the
+    # time in seconds between the messages being sent.
+    delays = []
+
+    for current, prompt in zip(history, history[1:]):
+        if not is_valid_prompt(current, prompt):
+            continue
+
+        # In addition to the usual checks, also skip over bots since they
+        # usually reply immediately, which skews the results.
+        if not current.author.human:
+            continue
+
+        delay = (current.created_at - prompt.created_at).total_seconds()
+        delays.append(delay)
+
+    _logger.debug(f"Got {len(delays)} useful pairs from {len(history)} messages")
+
+    lower, median, upper = quantiles(delays)
+
+    _logger.debug(f"Quartiles are {lower}, {median}, {upper}")
+
+    return lower, median, upper
+

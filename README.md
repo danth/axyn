@@ -26,8 +26,8 @@ DISCORD_TOKEN=… axyn
 ### Required Permissions
 
 - Send messages
+- Send messages in threads
 - Embed links
-- Read message history
 - Manage slash commands
 
 ### Chat
