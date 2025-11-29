@@ -10,6 +10,7 @@ from discord import (
 )
 import discordhealthcheck
 from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 
 from axyn.consent import ConsentManager
 from axyn.database import (
@@ -75,12 +76,18 @@ class AxynClient(discord.Client):
         message = payload.message
 
         if not self.consent_manager.has_consented(message.author):
+            self.logger.info(f"Not storing new revision of {message.id} because the author has not given consent")
             return
 
-        self.logger.info(f"Storing new revision of {message.id}")
-
-        with self.database_manager.session() as session:
-            session.merge(MessageRevisionRecord.from_message(message))
+        try:
+            with self.database_manager.session() as session:
+                    session.merge(MessageRevisionRecord.from_message(message))
+        except IntegrityError:
+            # Happens when Discord resolves a link into an embed, for example,
+            # because that also counts as an update.
+            self.logger.info(f"Not storing new revision of {message.id} because the content has not changed")
+        else:
+            self.logger.info(f"Storing new revision of {message.id}")
 
     async def on_raw_message_delete(self, payload: RawMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_id} as deleted")
