@@ -1,19 +1,9 @@
 import discord
 from logging import getLogger
-import re
 from axyn.database import MessageRecord
 
 
 _logger = getLogger(__name__)
-
-
-def is_command(text):
-    """Check if the given text appears to be a command."""
-
-    if text.startswith("pls "):
-        return True
-
-    return re.match(r"^\w{0,3}[^0-9a-zA-Z\s\'](?=\w)", text) is not None
 
 
 def is_direct(client, message):
@@ -42,11 +32,6 @@ def is_valid(message: MessageRecord) -> bool:
     if not message.revisions:
         _logger.debug(f"{message.message_id} is not valid because no revisions were saved")
         return False
-
-    for revision in message.revisions:
-        if is_command(revision.content):
-            _logger.debug(f"{message.message_id} is not valid because a revision looks like a command")
-            return False
 
     return True
 
@@ -106,10 +91,4 @@ def reason_not_to_reply(message):
 
     if message.author.bot or message.author.system:
         return "this message is authored by a bot"
-
-    if (
-        message.channel.type != discord.ChannelType.private and
-        is_command(message.content)
-    ):
-        return "this message looks like a bot command"
 

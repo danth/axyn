@@ -43,7 +43,7 @@ def get_path(file):
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 6
+SCHEMA_VERSION: int = 7
 
 
 class BaseRecord(DeclarativeBase):
@@ -402,7 +402,7 @@ class DatabaseManager:
         if version < 4:
             session.execute(DDL("ALTER TABLE message ADD COLUMN deleted_at DATETIME"))
 
-        if version < 6:
+        if version < 7:
             # This only needs to happen once, even if we skipped over multiple
             # versions that would reset the index.
             self._reset_index(session)
