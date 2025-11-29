@@ -28,6 +28,7 @@ from sqlalchemy.orm import (
     relationship,
     sessionmaker,
 )
+from sqlalchemy.schema import DDL
 from typing import Optional
 
 
@@ -42,7 +43,7 @@ def get_path(file):
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 3
+SCHEMA_VERSION: int = 4
 
 
 class BaseRecord(DeclarativeBase):
@@ -145,6 +146,7 @@ class MessageRecord(BaseRecord):
     channel_id: Mapped[int] = mapped_column(ForeignKey("channel.channel_id"))
     reference_id: Mapped[Optional[int]] = mapped_column(ForeignKey("message.message_id"))
     created_at: Mapped[datetime]
+    deleted_at: Mapped[Optional[datetime]]
 
     author: Mapped[UserRecord] = relationship(back_populates="messages")
     channel: Mapped[ChannelRecord] = relationship(back_populates="messages")
@@ -173,7 +175,8 @@ class MessageRecord(BaseRecord):
             author=UserRecord.from_user(message.author),
             channel=ChannelRecord.from_channel(message.channel),
             reference_id=reference_id,
-            created_at=message.created_at
+            created_at=message.created_at,
+            deleted_at=None
         )
 
 
@@ -383,22 +386,33 @@ class DatabaseManager:
         """
         Migrate an existing database starting from the given version.
 
-        Throws an axception if the current version is less than zero or greated
+        Throws an exception if the current version is less than zero or greater
         than the current version.
         """
+
+        if version == SCHEMA_VERSION:
+            return
 
         if version < 0:
             raise Exception(f"database schema version {version} is not valid")
 
-        if version < 3:
-            self._reset_index(session, 3)
-
         if version > SCHEMA_VERSION:
             raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
 
-    def _reset_index(self, session: Session, version: int):
+        if version < 3:
+            self._reset_index(session)
+
+        if version < 4:
+            session.execute(DDL("ALTER TABLE message ADD COLUMN deleted_at DATETIME"))
+
+        session.add(SchemaVersionRecord(
+          schema_version=SCHEMA_VERSION,
+          applied_at=datetime.now(),
+        ))
+
+    def _reset_index(self, session: Session):
         """
-        Apply the provided schema version by resetting the index.
+        Reset the index.
 
         This clears the index table in the database, and also removes the
         corresponding file on disk.
@@ -410,9 +424,4 @@ class DatabaseManager:
         session.connection().execute(delete(IndexRecord))
 
         rmtree(get_path("index"))
-
-        session.add(SchemaVersionRecord(
-          schema_version=version,
-          applied_at=datetime.now(),
-        ))
 

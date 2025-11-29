@@ -1,11 +1,23 @@
 import asyncio
+from datetime import datetime
 import logging
 
 import discord
+from discord import (
+    RawMessageUpdateEvent,
+    RawMessageDeleteEvent,
+    RawBulkMessageDeleteEvent,
+)
 import discordhealthcheck
+from sqlalchemy import update
 
 from axyn.consent import ConsentManager
-from axyn.database import get_path, DatabaseManager
+from axyn.database import (
+    get_path,
+    DatabaseManager,
+    MessageRecord,
+    MessageRevisionRecord,
+)
 from axyn.index import IndexManager
 from axyn.message_handlers.consent import Consent
 from axyn.message_handlers.reply import Reply
@@ -58,4 +70,35 @@ class AxynClient(discord.Client):
         )
         asyncio.create_task(Store(self, message).handle())
         asyncio.create_task(Consent(self, message).handle())
+
+    async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
+        message = payload.message
+
+        if not self.consent_manager.has_consented(message.author):
+            return
+
+        self.logger.info(f"Storing new revision of {message.id}")
+
+        with self.database_manager.session() as session:
+            session.merge(MessageRevisionRecord.from_message(message))
+
+    async def on_raw_message_delete(self, payload: RawMessageDeleteEvent):
+        self.logger.info(f"Marking {payload.message_id} as deleted")
+
+        with self.database_manager.session() as session:
+            session.execute(
+                update(MessageRecord)
+                .where(MessageRecord.message_id == payload.message_id)
+                .values(deleted_at=datetime.now())
+            )
+
+    async def on_raw_bulk_message_delete(self, payload: RawBulkMessageDeleteEvent):
+        self.logger.info(f"Marking {payload.message_ids} as deleted")
+
+        with self.database_manager.session() as session:
+            session.execute(
+                update(MessageRecord)
+                .where(MessageRecord.message_id.in_(payload.message_ids))
+                .values(deleted_at=datetime.now())
+            )
 

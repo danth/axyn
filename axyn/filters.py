@@ -82,6 +82,13 @@ def is_valid_prompt(current: MessageRecord, prompt: MessageRecord) -> bool:
         _logger.debug(f"{current.message_id} is not valid because {prompt.message_id} has the same author")
         return False
 
+    if prompt.deleted_at is not None:
+        # If the prompt was deleted before the response was created, we can't
+        # be sure whether they are replying to this or the message before.
+        if prompt.deleted_at < current.created_at:
+            _logger.debug(f"{current.message_id} is not valid because {prompt.message_id} was deleted prior")
+            return False
+
     return is_valid(prompt)
 
 

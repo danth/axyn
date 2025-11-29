@@ -124,9 +124,9 @@ class ConsentManager:
                 )
             )
 
-    def has_consented(self, user: User) -> bool:
+    def has_consented(self, user: Union[User, Member]) -> bool:
         """
-        Return whether the given ``User`` has allowed their messages to be learned.
+        Return whether the given user has allowed their messages to be learned.
 
         This is always ``True`` for bots.
         """
