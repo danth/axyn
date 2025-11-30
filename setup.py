@@ -39,6 +39,11 @@ setup(
         "fastembed >=0.7,<1",
         "sqlalchemy[aiosqlite] >=2,<3",
     ],
+    extras_require={
+        "build": [
+            "build >=1,<2",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "axyn=axyn.__main__:launch",
