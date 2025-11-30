@@ -80,6 +80,7 @@
 
         devShells.default = pkgs.mkShell {
           inputsFrom = [ axyn ];
+          packages = [ pkgs.pyright ];
         };
       }));
 }
