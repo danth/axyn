@@ -10,7 +10,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as readme:
 
 setup(
     name="axyn",
-    version="8.7.4",
+    version="8.7.5",
     description="A Discord chatbot using traditional algorithms",
     long_description=long_description,
     long_description_content_type="text/markdown",
