@@ -9,7 +9,7 @@ from logging import getLogger
 from ngtpy import create as create_ngt, Index as load_ngt
 from os import path
 from sqlalchemy import select, desc
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from statistics import StatisticsError
 from typing import Optional, Sequence
 
@@ -28,13 +28,13 @@ class IndexManager:
         self._model = TextEmbedding()
         self._logger = getLogger(__name__)
 
-    def setup_hook(self):
+    async def setup_hook(self):
         self._update_index.start()
 
-    def get_responses(
+    async def get_responses(
         self,
         prompt: str,
-        session: Session
+        session: AsyncSession
     ) -> tuple[Sequence[MessageRevisionRecord], float]:
         """
         Get a selection of possible responses to the given message content.
@@ -55,16 +55,12 @@ class IndexManager:
             # No results were found; this usually means the index was empty.
             return [], float("inf")
 
-        revisions = (
-            session
-            .execute(
-                select(MessageRevisionRecord)
-                .join(IndexRecord, IndexRecord.message_id == MessageRevisionRecord.message_id)
-                .where(IndexRecord.index_id == index_id)
-            )
-            .scalars()
-            .all()
+        result = await session.execute(
+            select(MessageRevisionRecord)
+            .join(IndexRecord, IndexRecord.message_id == MessageRevisionRecord.message_id)
+            .where(IndexRecord.index_id == index_id)
         )
+        revisions = result.scalars().all()
 
         return revisions, distance
 
@@ -114,22 +110,19 @@ class IndexManager:
 
         self._logger.info("Updating index")
 
-        with self._client.database_manager.session() as session:
-            messages = (
-                session.execute(
-                    select(MessageRecord)
-                    .where(MessageRecord.index == None)
-                )
-                .scalars()
-                .all()
+        async with self._client.database_manager.session() as session:
+            result = await session.execute(
+                select(MessageRecord)
+                .where(MessageRecord.index == None)
             )
+            messages = result.scalars().all()
 
             batch = {}
 
             for message in messages:
                 self._logger.debug(f"Checking {message.message_id}")
 
-                prompt = self._get_prompt_revision(session, message)
+                prompt = await self._get_prompt_revision(session, message)
 
                 if prompt is None:
                     # Mark the message as processed, but not added to the index.
@@ -143,9 +136,9 @@ class IndexManager:
             self._index.build_index()
             self._index.save()
 
-    def _get_prompt_message(
+    async def _get_prompt_message(
         self,
-        session: Session,
+        session: AsyncSession,
         current_message: MessageRecord
     ) -> Optional[MessageRecord]:
         """
@@ -156,18 +149,22 @@ class IndexManager:
         indexing low quality data. Invalid messages will result in ``None``.
         """
 
-        if not is_valid_response(current_message):
+        if not await is_valid_response(session, current_message):
             return None
 
         if current_message.reference is not None:
-            if is_valid_prompt(current_message, current_message.reference):
+            if await is_valid_prompt(
+                session,
+                current_message,
+                current_message.reference,
+            ):
                 return current_message.reference
             else:
                 return None
 
-        history = get_history(
+        history = await get_history(
             session,
-            current_message.channel,
+            current_message.channel_id,
             current_message.created_at,
         )
 
@@ -177,11 +174,11 @@ class IndexManager:
             self._logger.debug(f"{current_message.message_id} is not valid because no previous messages were found")
             return None
 
-        if not is_valid_prompt(current_message, previous_message):
+        if not await is_valid_prompt(session, current_message, previous_message):
             return None
 
         try:
-            _, _, upper_quartile = get_delays(history)
+            _, _, upper_quartile = await get_delays(session, history)
         except StatisticsError:
             self._logger.debug(f"{current_message.message_id} is not valid because not enough previous messages were found")
             return None
@@ -197,9 +194,9 @@ class IndexManager:
 
         return previous_message
 
-    def _get_prompt_revision(
+    async def _get_prompt_revision(
         self,
-        session: Session,
+        session: AsyncSession,
         current_message: MessageRecord
     ) -> Optional[MessageRevisionRecord]:
         """
@@ -210,21 +207,18 @@ class IndexManager:
         sent.
         """
 
-        prompt_message = self._get_prompt_message(session, current_message)
+        prompt_message = await self._get_prompt_message(session, current_message)
 
         if prompt_message is None:
             return None
 
         # Find the most recent edit which existed before the reply was sent.
-        return (
-            session
-            .execute(
-                select(MessageRevisionRecord)
-                .where(MessageRevisionRecord.message == prompt_message)
-                .where(MessageRevisionRecord.edited_at < current_message.created_at)
-                .order_by(desc(MessageRevisionRecord.edited_at))
-                .limit(1)
-            )
-            .scalar()
+        result = await session.execute(
+            select(MessageRevisionRecord)
+            .where(MessageRevisionRecord.message == prompt_message)
+            .where(MessageRevisionRecord.edited_at < current_message.created_at)
+            .order_by(desc(MessageRevisionRecord.edited_at))
+            .limit(1)
         )
+        return result.scalar()
 

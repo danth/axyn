@@ -4,15 +4,15 @@ from logging import getLogger
 from statistics import quantiles
 from typing import Sequence, Optional
 from sqlalchemy import select, desc
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 _logger = getLogger(__name__)
 
 
-def get_history(
-    session: Session,
-    channel: ChannelRecord,
+async def get_history(
+    session: AsyncSession,
+    channel_id: int,
     time: Optional[datetime] = None
 ) -> Sequence[MessageRecord]:
     """
@@ -27,21 +27,17 @@ def get_history(
     if time is None:
         time = datetime.now()
 
-    return (
-        session
-        .execute(
-            select(MessageRecord)
-            .where(MessageRecord.channel == channel)
-            .where(MessageRecord.created_at < time)
-            .order_by(desc(MessageRecord.created_at))
-            .limit(100)
-        )
-        .scalars()
-        .all()
+    result = await session.execute(
+        select(MessageRecord)
+        .where(MessageRecord.channel_id == channel_id)
+        .where(MessageRecord.created_at < time)
+        .order_by(desc(MessageRecord.created_at))
+        .limit(100)
     )
+    return result.scalars().all()
 
 
-def get_delays(history: Sequence[MessageRecord]) -> tuple[float, float, float]:
+async def get_delays(session: AsyncSession, history: Sequence[MessageRecord]) -> tuple[float, float, float]:
     """
     Given a contiguous chunk of channel history, analyse the delays.
 
@@ -54,10 +50,11 @@ def get_delays(history: Sequence[MessageRecord]) -> tuple[float, float, float]:
     delays = []
 
     for current, prompt in zip(history, history[1:]):
-        if current.author == prompt.author:
+        if current.author_id == prompt.author_id:
             continue
 
         # Bots usually reply immediately, which skews the results.
+        await session.refresh(current, ["author"])
         if not current.author.human:
             continue
 

@@ -17,20 +17,20 @@ class Store(MessageHandler):
             self._logger.info(f"Not storing {self.message.id} because it is ephemeral")
             return
 
-        if self.client.consent_manager.has_consented(self.message.author):
-            self._store_full()
+        if await self.client.consent_manager.has_consented(self.message.author):
+            await self._store_full()
         else:
-            self._store_redacted()
+            await self._store_redacted()
 
     @log_on_start(INFO, 'Storing full version of {self.message.id}')
-    def _store_full(self):
+    async def _store_full(self):
         """Store this message in full."""
 
-        with self.client.database_manager.session() as session:
-            session.merge(MessageRevisionRecord.from_message(self.message))
+        async with self.client.database_manager.session() as session:
+            await session.merge(MessageRevisionRecord.from_message(self.message))
 
     @log_on_start(INFO, 'Storing redacted version of {self.message.id}')
-    def _store_redacted(self):
+    async def _store_redacted(self):
         """
         Store a redacted version of this message.
 
@@ -43,6 +43,6 @@ class Store(MessageHandler):
         delay between messages.
         """
 
-        with self.client.database_manager.session() as session:
-            session.merge(MessageRecord.from_message(self.message))
+        async with self.client.database_manager.session() as session:
+            await session.merge(MessageRecord.from_message(self.message))
 

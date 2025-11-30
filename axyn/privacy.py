@@ -2,7 +2,7 @@ from discord import Member, User
 from typing import Sequence, Union
 
 from axyn.channel import channel_members
-from axyn.database import MessageRevisionRecord
+from axyn.database import MessageRecord
 
 
 def _members_to_set(users: Sequence[Union[User, Member]]) -> set[int]:
@@ -15,7 +15,7 @@ def _members_to_set(users: Sequence[Union[User, Member]]) -> set[int]:
     return set(user.id for user in users if not (user.bot or user.system))
 
 
-def can_send_in_channel(client, message: MessageRevisionRecord, current_channel):
+def can_send_in_channel(client, message: MessageRecord, current_channel):
     """
     Return whether a message may be sent to a channel.
 
@@ -23,7 +23,7 @@ def can_send_in_channel(client, message: MessageRevisionRecord, current_channel)
     view the channel where the message was originally sent.
     """
 
-    original_channel = client.get_channel(message.message.channel_id)
+    original_channel = client.get_channel(message.channel_id)
 
     if original_channel is None:
         # We are unable to fetch the member list for the original channel

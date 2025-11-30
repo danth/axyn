@@ -39,13 +39,15 @@ class AxynClient(discord.Client):
 
         self.command_tree = discord.app_commands.CommandTree(self)
 
-        self.database_manager = DatabaseManager()
-        self.consent_manager = ConsentManager(self, self.database_manager)
-        self.index_manager = IndexManager(self, get_path("index"))
-
     async def setup_hook(self):
-        self.consent_manager.setup_hook()
-        self.index_manager.setup_hook()
+        self.database_manager = DatabaseManager()
+        await self.database_manager.setup_hook()
+
+        self.consent_manager = ConsentManager(self, self.database_manager)
+        await self.consent_manager.setup_hook()
+
+        self.index_manager = IndexManager(self, get_path("index"))
+        await self.index_manager.setup_hook()
 
         self.logger.info("Syncing command definitions")
         asyncio.create_task(self.command_tree.sync())
@@ -80,8 +82,8 @@ class AxynClient(discord.Client):
             return
 
         try:
-            with self.database_manager.session() as session:
-                    session.merge(MessageRevisionRecord.from_message(message))
+            async with self.database_manager.session() as session:
+                    await session.merge(MessageRevisionRecord.from_message(message))
         except IntegrityError:
             # Happens when Discord resolves a link into an embed, for example,
             # because that also counts as an update.
@@ -92,8 +94,8 @@ class AxynClient(discord.Client):
     async def on_raw_message_delete(self, payload: RawMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_id} as deleted")
 
-        with self.database_manager.session() as session:
-            session.execute(
+        async with self.database_manager.session() as session:
+            await session.execute(
                 update(MessageRecord)
                 .where(MessageRecord.message_id == payload.message_id)
                 .values(deleted_at=datetime.now())
@@ -102,8 +104,8 @@ class AxynClient(discord.Client):
     async def on_raw_bulk_message_delete(self, payload: RawBulkMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_ids} as deleted")
 
-        with self.database_manager.session() as session:
-            session.execute(
+        async with self.database_manager.session() as session:
+            await session.execute(
                 update(MessageRecord)
                 .where(MessageRecord.message_id.in_(payload.message_ids))
                 .values(deleted_at=datetime.now())

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from datetime import datetime
 from discord import (
     Guild,
@@ -14,19 +14,21 @@ from shutil import rmtree
 from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
-    create_engine,
     delete,
     desc,
     select,
 )
 from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    Session,
     mapped_column,
     relationship,
-    sessionmaker,
 )
 from sqlalchemy.schema import DDL
 from typing import Optional
@@ -334,55 +336,52 @@ class DatabaseManager:
     """Holds a connection to the database and controls database migrations."""
 
     def __init__(self):
-        uri = "sqlite:///" + get_path("database.sqlite3")
-        engine = create_engine(uri)
-        self._session_maker = sessionmaker(bind=engine)
-        self._prepare()
+        uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
+        engine = create_async_engine(uri)
+        self._session_maker = async_sessionmaker(bind=engine)
 
-    @contextmanager
-    def session(self):
+    @asynccontextmanager
+    async def session(self):
         session = self._session_maker()
         session.begin()
 
         try:
             yield session
-            session.commit()
+            await session.commit()
         except:
-            session.rollback()
+            await session.rollback()
             raise
         finally:
-            session.close()
+            await session.close()
 
-    def _prepare(self):
+    async def setup_hook(self):
         """Ensure the database is following the current schema."""
 
-        with self.session() as session:
+        async with self.session() as session:
             try:
-                version = (
-                    session
-                    .execute(
-                        select(SchemaVersionRecord.schema_version)
-                        .order_by(desc(SchemaVersionRecord.applied_at))
-                        .limit(1)
-                    )
-                    .scalar_one()
+                result = await session.execute(
+                    select(SchemaVersionRecord.schema_version)
+                    .order_by(desc(SchemaVersionRecord.applied_at))
+                    .limit(1)
                 )
+                version = result.scalar_one()
             except (OperationalError, NoResultFound):
-                self._create_new(session)
+                await self._create_new(session)
             else:
-                self._migrate_existing(session, version)
+                await self._migrate_existing(session, version)
 
-    def _create_new(self, session: Session):
+    async def _create_new(self, session: AsyncSession):
         """Create a new database from a blank slate."""
 
-        BaseRecord.metadata.create_all(session.connection())
+        connection = await session.connection()
+        await connection.run_sync(BaseRecord.metadata.create_all)
 
         session.add(SchemaVersionRecord(
             schema_version=SCHEMA_VERSION,
             applied_at=datetime.now(),
         ))
 
-    def _migrate_existing(self, session: Session, version: int):
+    async def _migrate_existing(self, session: AsyncSession, version: int):
         """
         Migrate an existing database starting from the given version.
 
@@ -400,19 +399,19 @@ class DatabaseManager:
             raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
 
         if version < 4:
-            session.execute(DDL("ALTER TABLE message ADD COLUMN deleted_at DATETIME"))
+            await session.execute(DDL("ALTER TABLE message ADD COLUMN deleted_at DATETIME"))
 
         if version < 7:
             # This only needs to happen once, even if we skipped over multiple
             # versions that would reset the index.
-            self._reset_index(session)
+            await self._reset_index(session)
 
         session.add(SchemaVersionRecord(
           schema_version=SCHEMA_VERSION,
           applied_at=datetime.now(),
         ))
 
-    def _reset_index(self, session: Session):
+    async def _reset_index(self, session: AsyncSession):
         """
         Reset the index.
 
@@ -423,7 +422,7 @@ class DatabaseManager:
         causing undefined behaviour.
         """
 
-        session.connection().execute(delete(IndexRecord))
+        await session.execute(delete(IndexRecord))
 
         rmtree(get_path("index"))
 

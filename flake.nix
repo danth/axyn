@@ -83,7 +83,7 @@
             logdecorator
             ngt
             sqlalchemy
-          ];
+          ] ++ sqlalchemy.optional-dependencies.aiosqlite;
         };
 
       in {

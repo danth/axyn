@@ -5,7 +5,7 @@ from statistics import StatisticsError
 from typing import Optional
 
 from logdecorator import log_on_start, log_on_end
-from logdecorator.asyncio import async_log_on_start
+from logdecorator.asyncio import async_log_on_start, async_log_on_end
 
 from axyn.channel import channel_members
 from axyn.database import ChannelRecord, MessageRevisionRecord
@@ -34,7 +34,7 @@ class Reply(MessageHandler):
             self._logger.debug("Not replying because the probability check failed")
             return
 
-        delay = self._get_reply_delay()
+        delay = await self._get_reply_delay()
         if delay > 0:
             await asyncio.sleep(delay)
 
@@ -44,7 +44,7 @@ class Reply(MessageHandler):
         """Respond to this message immediately."""
 
         async with self.message.channel.typing():
-            reply, distance = self._get_reply()
+            reply, distance = await self._get_reply()
 
         if reply:
             maximum_distance = self._get_maximum_distance()
@@ -62,18 +62,18 @@ class Reply(MessageHandler):
         member_count = len(channel_members(self.message.channel))
         return 1 / (member_count - 1)
 
-    @log_on_end(DEBUG, "Will reply in {result} seconds")
-    def _get_reply_delay(self) -> float:
+    @async_log_on_end(DEBUG, "Will reply in {result} seconds")
+    async def _get_reply_delay(self) -> float:
         """Return the number of seconds to wait before attempting a reply."""
 
         if is_direct(self.client, self.message):
             return 0
 
-        channel = ChannelRecord.from_channel(self.message.channel)
+        async with self.client.database_manager.session() as session:
+            history = await get_history(session, self.message.channel.id)
 
-        with self.client.database_manager.session() as session:
             try:
-                _, median, _ = get_delays(get_history(session, channel))
+                _, median, _ = await get_delays(session, history)
             except StatisticsError:
                 median = 60
 
@@ -90,11 +90,11 @@ class Reply(MessageHandler):
         return 0.1
 
     @log_on_start(DEBUG, 'Getting reply to "{self.message.clean_content}"')
-    def _get_reply(self) -> tuple[Optional[str], float]:
+    async def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
 
-        with self.client.database_manager.session() as session:
-            responses, distance = self.client.index_manager.get_responses(
+        async with self.client.database_manager.session() as session:
+            responses, distance = await self.client.index_manager.get_responses(
                 self.message.content,
                 session,
             )
@@ -103,7 +103,9 @@ class Reply(MessageHandler):
 
             # Select the first (after shuffling) response that we are allowed to use.
             for response in responses:
-                if can_send_in_channel(self.client, response, self.message.channel):
+                await session.refresh(response, ["message"])
+
+                if can_send_in_channel(self.client, response.message, self.message.channel):
                     self._logger.debug(f'Selected reply "{response.content}" with cosine distance {distance}')
                     text = preprocess(self.client, response.content)
                     return text, distance
