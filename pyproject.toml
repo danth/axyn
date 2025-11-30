@@ -3,6 +3,10 @@ typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 
 [tool.semantic_release]
-upload_to_pypi = false
 commit_parser = "conventional"
+commit_message = "build: release v{version}"
+version_variables = [
+	"setup.py:version",
+	"flake.nix:axynVersion",
+]
 

@@ -55,13 +55,16 @@
           propagatedBuildInputs = [ discordpy ];
         };
 
+        # In a uniquely named variable for Python Semantic Release
+        axynVersion = "8.7.1";
+
         axyn = buildPythonApplication rec {
-          name = "axyn";
+          pname = "axyn";
+          version = axynVersion;
           src = ./.;
 
           format = "pyproject";
-          build-system = [ setuptools setuptools-scm ];
-          SETUPTOOLS_SCM_PRETEND_VERSION = "0.0.0";
+          build-system = [ setuptools ];
 
           propagatedBuildInputs = [
             discordhealthcheck

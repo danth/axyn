@@ -10,7 +10,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as readme:
 
 setup(
     name="axyn",
-    use_scm_version=True,
+    version="8.7.1",
     description="A Discord chatbot using traditional algorithms",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -32,7 +32,6 @@ setup(
     },
     packages=find_packages(),
     python_requires=">=3.6,<4",
-    setup_requires=["setuptools_scm"],
     install_requires=[
         "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
