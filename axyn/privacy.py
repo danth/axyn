@@ -1,11 +1,7 @@
-from discord import (
-    DMChannel,
-    GroupChannel,
-    Member,
-    User,
-)
+from discord import Member, User
 from typing import Sequence, Union
 
+from axyn.channel import channel_members
 from axyn.database import MessageRevisionRecord
 
 
@@ -17,15 +13,6 @@ def _members_to_set(users: Sequence[Union[User, Member]]) -> set[int]:
     """
 
     return set(user.id for user in users if not (user.bot or user.system))
-
-
-def _channel_members(channel) -> Sequence[Union[User, Member]]:
-    """List everyone who can view a channel."""
-
-    if isinstance(channel, DMChannel) or isinstance(channel, GroupChannel):
-        return channel.recipients
-
-    return channel.members
 
 
 def can_send_in_channel(client, message: MessageRevisionRecord, current_channel):
@@ -47,7 +34,7 @@ def can_send_in_channel(client, message: MessageRevisionRecord, current_channel)
         return True
 
     # All members of the current channel must be members of the original channel
-    original_channel_members = _members_to_set(_channel_members(original_channel))
-    current_channel_members = _members_to_set(_channel_members(current_channel))
+    original_channel_members = _members_to_set(channel_members(original_channel))
+    current_channel_members = _members_to_set(channel_members(current_channel))
     return current_channel_members.issubset(original_channel_members)
 

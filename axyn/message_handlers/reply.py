@@ -1,12 +1,13 @@
 import asyncio
 from logging import INFO, DEBUG, getLogger
-from random import shuffle
+from random import random, shuffle
 from statistics import StatisticsError
 from typing import Optional
 
 from logdecorator import log_on_start, log_on_end
 from logdecorator.asyncio import async_log_on_start
 
+from axyn.channel import channel_members
 from axyn.database import ChannelRecord, MessageRevisionRecord
 from axyn.filters import reason_not_to_reply, is_direct
 from axyn.history import get_history, get_delays
@@ -26,6 +27,11 @@ class Reply(MessageHandler):
 
         reason = reason_not_to_reply(self.message)
         if reason:
+            self._logger.debug(f"Not replying because {reason}")
+            return
+
+        if random() > self._get_reply_probability():
+            self._logger.debug("Not replying because the probability check failed")
             return
 
         delay = self._get_reply_delay()
@@ -46,9 +52,19 @@ class Reply(MessageHandler):
             if distance <= maximum_distance:
                 await self._send_reply(reply)
 
-    @log_on_end(INFO, "Delaying reply by {result} seconds")
-    def _get_reply_delay(self):
-        """Return number of seconds to wait before replying to this message."""
+    @log_on_end(DEBUG, "Will reply with probability {result}")
+    def _get_reply_probability(self) -> float:
+        """Return the probability of attempting a reply."""
+
+        if is_direct(self.client, self.message):
+            return 1
+
+        member_count = len(channel_members(self.message.channel))
+        return 1 / (member_count - 1)
+
+    @log_on_end(DEBUG, "Will reply in {result} seconds")
+    def _get_reply_delay(self) -> float:
+        """Return the number of seconds to wait before attempting a reply."""
 
         if is_direct(self.client, self.message):
             return 0
@@ -63,20 +79,15 @@ class Reply(MessageHandler):
 
         return max(median * 1.5, 180)
 
-    @log_on_end(INFO, "The maximum acceptable cosine distance is {result}")
-    def _get_maximum_distance(self):
-        """
-        Return the maximum acceptable cosine distance for a reply to be sent.
-
-        This is more lenient when Axyn is addressed directly than when it
-        replies of its own accord.
-        """
+    @log_on_end(DEBUG, "Will reply if cosine distance is below {result}")
+    def _get_maximum_distance(self) -> float:
+        """Return the maximum acceptable cosine distance for a reply to be sent."""
 
         if is_direct(self.client, self.message):
             # The maximum possible: so always reply.
             return 2
-        else:
-            return 0.1
+
+        return 0.1
 
     @log_on_start(DEBUG, 'Getting reply to "{self.message.clean_content}"')
     def _get_reply(self) -> tuple[Optional[str], float]:
