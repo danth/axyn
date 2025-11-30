@@ -77,7 +77,7 @@ class Reply(MessageHandler):
             except StatisticsError:
                 median = 60
 
-        return max(median * 1.5, 180)
+        return median * 1.5
 
     @log_on_end(DEBUG, "Will reply if cosine distance is below {result}")
     def _get_maximum_distance(self) -> float:
