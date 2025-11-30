@@ -156,13 +156,16 @@ class IndexManager:
         if not await is_valid_response(session, current_message):
             return None
 
-        if current_message.reference is not None:
-            if await is_valid_prompt(
-                session,
-                current_message,
-                current_message.reference,
-            ):
-                return current_message.reference
+
+        if current_message.reference_id is not None:
+            result = await session.execute(
+                select(MessageRecord)
+                .where(MessageRecord.message_id == current_message.reference_id)
+            )
+            reference = result.scalar_one()
+
+            if await is_valid_prompt(session, current_message, reference):
+                return reference
             else:
                 return None
 
