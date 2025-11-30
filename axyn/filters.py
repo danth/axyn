@@ -1,5 +1,5 @@
 from __future__ import annotations
-import discord
+from discord import ChannelType, MessageType, Message
 from logging import getLogger
 from typing import TYPE_CHECKING
 
@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from axyn.client import AxynClient
     from axyn.database import MessageRecord
-    from discord import Message
     from sqlalchemy.ext.asyncio import AsyncSession
     from typing import Optional
 
@@ -20,7 +19,7 @@ def is_direct(client: AxynClient, message: Message) -> bool:
 
     axyn = client.axyn()
 
-    if message.channel.type == discord.ChannelType.private:
+    if message.channel.type == ChannelType.private:
         return True
 
     if axyn.mentioned_in(message):
@@ -100,8 +99,8 @@ def reason_not_to_reply(message: Message) -> Optional[str]:
     """If the given message shouldn't be replied to, return a reason why."""
 
     if (
-        message.type != discord.MessageType.default and
-        message.type != discord.MessageType.reply
+        message.type != MessageType.default and
+        message.type != MessageType.reply
     ):
         return "this is not a regular message"
 
