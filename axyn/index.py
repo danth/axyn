@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from axyn.client import AxynClient
     from numpy import dtype, float32, ndarray
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Optional, Sequence
+    from typing import Optional, AsyncGenerator, Sequence
 
     Vector = ndarray[tuple[384], dtype[float32]]
 
@@ -39,38 +39,33 @@ class IndexManager:
     async def setup_hook(self):
         self._update_index.start()
 
-    async def get_responses(
+    async def get_response_groups(
         self,
         prompt: str,
         session: AsyncSession
-    ) -> tuple[Sequence[MessageRevisionRecord], float]:
+    ) -> AsyncGenerator[tuple[Sequence[MessageRevisionRecord], float]]:
         """
         Get a selection of possible responses to the given message content.
 
-        Also returns the cosine distance between the provided prompt and the
-        original prompt for these responses. This is a useful metric to decide
-        whether the responses are relevant or not. It always falls in the range
-        ``[0, 2]``, where zero is the most relevant.
+        Responses are grouped by the cosine distance between their original
+        prompt and the current prompt. This is a useful metric to decide
+        whether the response is relevant or not. It always falls in the range
+        ``[0, 2]``, where zero is the most relevant. The generator produces
+        response groups in ascending order.
         """
 
         vector = self._vector(prompt)
+        results = self._index.search(vector, size=100)
 
-        results = self._index.search(vector, size=1)
+        for index_id, distance in results:
+            result = await session.execute(
+                select(MessageRevisionRecord)
+                .join(IndexRecord, IndexRecord.message_id == MessageRevisionRecord.message_id)
+                .where(IndexRecord.index_id == index_id)
+            )
+            revisions = result.scalars().all()
 
-        try:
-            index_id, distance = results[0]
-        except IndexError:
-            # No results were found; this usually means the index was empty.
-            return [], float("inf")
-
-        result = await session.execute(
-            select(MessageRevisionRecord)
-            .join(IndexRecord, IndexRecord.message_id == MessageRevisionRecord.message_id)
-            .where(IndexRecord.index_id == index_id)
-        )
-        revisions = result.scalars().all()
-
-        return revisions, distance
+            yield revisions, distance
 
     def _vector(self, content: str) -> Vector:
         """Return the vector for the given message content."""

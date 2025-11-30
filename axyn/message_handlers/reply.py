@@ -103,26 +103,29 @@ class Reply(MessageHandler):
         """Return a chosen reply and its cosine distance."""
 
         async with self.client.database_manager.session() as session:
-            responses, distance = await self.client.index_manager.get_responses(
+            groups = self.client.index_manager.get_response_groups(
                 self.message.content,
                 session,
             )
 
-            responses = list(responses)
-            shuffle(responses)
+            async for responses, distance in groups:
+                self._logger.debug(f"Processing response group with cosine distance {distance}")
 
-            # Select the first (after shuffling) response that we are allowed to use.
-            for response in responses:
-                await session.refresh(response, ["message"])
+                responses = list(responses)
+                shuffle(responses)
 
-                if can_send_in_channel(self.client, response.message, self._channel):
-                    self._logger.debug(f'Selected reply "{response.content}" with cosine distance {distance}')
-                    text = preprocess(self.client, response.content)
-                    return text, distance
-                else:
-                    self._logger.debug(f'Cannot use reply "{response.content}" due to privacy filter')
+                # Select the first (after shuffling) response that we are allowed to use.
+                for response in responses:
+                    await session.refresh(response, ["message"])
 
-        self._logger.debug(f'Found no suitable replies')
+                    if can_send_in_channel(self.client, response.message, self._channel):
+                        self._logger.debug(f'Selected reply "{response.content}"')
+                        text = preprocess(self.client, response.content)
+                        return text, distance
+                    else:
+                        self._logger.debug(f'Cannot use reply "{response.content}" due to privacy filter')
+
+        self._logger.debug(f'Found no suitable responses')
         return None, float("inf")
 
     async def _send_reply(self, reply: str):
