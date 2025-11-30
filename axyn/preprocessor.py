@@ -1,18 +1,27 @@
-import logging
+from __future__ import annotations
+from logging import getLogger
+from typing import TYPE_CHECKING
 
-from logdecorator import log_on_end
+
+if TYPE_CHECKING:
+    from axyn.client import AxynClient
 
 
-@log_on_end(logging.DEBUG, 'Preprocessed "{content}" to "{result}"')
-def preprocess(client, content: str):
+_logger = getLogger(__name__)
+
+
+def preprocess(client: AxynClient, content: str) -> str:
     """Return a cleaned-up version of the given message contents."""
 
     # Strip off leading @Axyn if it exists
-    axyn = client.user.mention
+    axyn = client.axyn().mention
     if content.startswith(axyn):
         content = content[len(axyn) :]
 
     # Remove leading/trailing whitespace
     content = content.strip()
 
+    _logger.debug(f'Preprocessed to "{content}"')
+
     return content
+

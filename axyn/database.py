@@ -1,13 +1,7 @@
 from __future__ import annotations
+from axyn.types import is_supported_channel_type
 from contextlib import asynccontextmanager
 from datetime import datetime
-from discord import (
-    Guild,
-    Interaction,
-    Message,
-    Member,
-    User
-)
 from enum import Enum
 import os
 from shutil import rmtree
@@ -19,11 +13,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.exc import NoResultFound, OperationalError
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -31,10 +21,17 @@ from sqlalchemy.orm import (
     relationship,
 )
 from sqlalchemy.schema import DDL
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 
-def get_path(file):
+if TYPE_CHECKING:
+    from axyn.types import UserUnion
+    from discord import Guild, Interaction, Message
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from typing import Any
+
+
+def get_path(file: str) -> str:
     """Return the path of the given file within Axyn's data directory."""
 
     # Find path of data directory
@@ -79,7 +76,9 @@ class UserRecord(BaseRecord):
     interactions: Mapped[list[InteractionRecord]] = relationship(back_populates="user")
 
     @staticmethod
-    def from_user(user: User | Member) -> UserRecord:
+    def from_user(user: UserUnion) -> UserRecord:
+        """Create a ``UserRecord`` from the provided ``User``."""
+
         return UserRecord(
             user_id=user.id,
             human=not (user.bot or user.system)
@@ -103,7 +102,16 @@ class ChannelRecord(BaseRecord):
     interactions: Mapped[list[InteractionRecord]] = relationship(back_populates="channel")
 
     @staticmethod
-    def from_channel(channel) -> ChannelRecord:
+    def from_channel(channel: Any) -> ChannelRecord:
+        """
+        Create a ``ChannelRecord`` from the provided channel.
+
+        Raises an exception if the channel is of an unsupported type.
+        """
+
+        if not is_supported_channel_type(channel):
+            raise TypeError(f"unsupported channel type: {type(channel)}")
+
         if channel.guild is None:
             guild = None
         else:
@@ -127,6 +135,8 @@ class GuildRecord(BaseRecord):
 
     @staticmethod
     def from_guild(guild: Guild) -> GuildRecord:
+        """Create a ``GuildRecord`` from the provided ``Guild``."""
+
         return GuildRecord(guild_id=guild.id)
 
 
@@ -152,7 +162,7 @@ class MessageRecord(BaseRecord):
 
     author: Mapped[UserRecord] = relationship(back_populates="messages")
     channel: Mapped[ChannelRecord] = relationship(back_populates="messages")
-    reference: Mapped[MessageRecord] = relationship(
+    reference: Mapped[Optional[MessageRecord]] = relationship(
         back_populates="references",
         # Because this relationship is self-referential, we need to tell
         # SQLAlchemy which way round it is.
@@ -167,6 +177,16 @@ class MessageRecord(BaseRecord):
 
     @staticmethod
     def from_message(message: Message) -> MessageRecord:
+        """
+        Create a ``MessageRecord`` from the provided ``Message``.
+
+        Raises an exception if the message is from a channel of an unsupported
+        type.
+        """
+
+        if not is_supported_channel_type(message.channel):
+            raise Exception(f"unsupported channel type: {type(message.channel)}")
+
         if message.reference is None:
             reference_id = None
         else:
@@ -202,6 +222,13 @@ class MessageRevisionRecord(BaseRecord):
 
     @staticmethod
     def from_message(message: Message) -> MessageRevisionRecord:
+        """
+        Create a ``MessageRevisionRecord`` from the provided ``Message``.
+
+        Raises an exception if the message is from a channel of an unsupported
+        type.
+        """
+
         if message.edited_at is None:
             edited_at = message.created_at
         else:
@@ -264,6 +291,13 @@ class InteractionRecord(BaseRecord):
 
     @staticmethod
     def from_interaction(interaction: Interaction) -> InteractionRecord:
+        """
+        Create an ``InteractionRecord`` from the provided ``Interaction``.
+
+        Raises an exception if the interaction happened in a channel of an
+        unsupported type.
+        """
+
         if interaction.message is None:
             message = None
         else:
@@ -308,6 +342,13 @@ class ConsentPromptRecord(BaseRecord):
 
     @staticmethod
     def from_message(message: Message) -> ConsentPromptRecord:
+        """
+        Create a ``ConsentPromptRecord`` from the provided ``Message``.
+
+        Raises an exception if the message is from a channel of an unsupported
+        type.
+        """
+
         return ConsentPromptRecord(
             message=MessageRecord.from_message(message)
         )

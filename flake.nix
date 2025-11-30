@@ -55,19 +55,6 @@
           propagatedBuildInputs = [ discordpy ];
         };
 
-        logdecorator = buildPythonPackage rec {
-          pname = "logdecorator";
-          version = "2.2";
-
-          src = fetchPypi {
-            inherit pname version;
-            sha256 = "jm0SWc9hW30nIHOacaO2Lbz68i2QI4K31BrIcvSh1tk=";
-          };
-
-          format = "pyproject";
-          build-system = [ setuptools ];
-        };
-
         axyn = buildPythonApplication rec {
           name = "axyn";
           src = ./.;
@@ -80,7 +67,6 @@
             discordhealthcheck
             discordpy
             fastembed
-            logdecorator
             ngt
             sqlalchemy
           ] ++ sqlalchemy.optional-dependencies.aiosqlite;

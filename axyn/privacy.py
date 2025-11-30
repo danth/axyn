@@ -1,11 +1,18 @@
-from discord import Member, User
-from typing import Sequence, Union
-
+from __future__ import annotations
 from axyn.channel import channel_members
 from axyn.database import MessageRecord
+from axyn.types import is_supported_channel_type
+from typing import TYPE_CHECKING
 
 
-def _members_to_set(users: Sequence[Union[User, Member]]) -> set[int]:
+if TYPE_CHECKING:
+    from axyn.client import AxynClient
+    from axyn.types import ChannelUnion, UserUnion
+    from typing import Sequence
+
+
+
+def _members_to_set(users: Sequence[UserUnion]) -> set[int]:
     """
     Convert a list of members to a set of their IDs.
 
@@ -15,7 +22,7 @@ def _members_to_set(users: Sequence[Union[User, Member]]) -> set[int]:
     return set(user.id for user in users if not (user.bot or user.system))
 
 
-def can_send_in_channel(client, message: MessageRecord, current_channel):
+def can_send_in_channel(client: AxynClient, message: MessageRecord, current_channel: ChannelUnion):
     """
     Return whether a message may be sent to a channel.
 
@@ -25,9 +32,9 @@ def can_send_in_channel(client, message: MessageRecord, current_channel):
 
     original_channel = client.get_channel(message.channel_id)
 
-    if original_channel is None:
-        # We are unable to fetch the member list for the original channel
-        # It was deleted or Axyn was removed
+    if not is_supported_channel_type(original_channel):
+        # The original channel was deleted, became inaccessible, or a message
+        # from an unsupported channel type somehow got added to our database.
         return False
 
     if current_channel == original_channel:

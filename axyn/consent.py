@@ -1,27 +1,33 @@
+from __future__ import annotations
 from axyn.database import (
     ConsentResponse,
     ConsentPromptRecord,
     ConsentResponseRecord,
     InteractionRecord,
     MessageRecord,
-    DatabaseManager,
 )
-from discord import ButtonStyle, Interaction, Member, Message, User
+from discord import ButtonStyle, Member
 from discord.errors import Forbidden
-from discord.ui import View, Button, button
-from logdecorator.asyncio import (
-    async_log_on_end,
-    async_log_on_error,
-    async_log_on_start,
-)
-import logging
+from discord.ui import View, button
+from logging import getLogger
 from sqlalchemy import select, desc, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Union, cast
+from typing import TYPE_CHECKING, cast
+
+
+if TYPE_CHECKING:
+    from axyn.client import AxynClient
+    from axyn.database import DatabaseManager
+    from axyn.types import UserUnion
+    from discord import Interaction, Message
+    from discord.ui import Button
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+
+_logger = getLogger(__name__)
 
 
 class ConsentManager:
-    def __init__(self, client, database: DatabaseManager):
+    def __init__(self, client: AxynClient, database: DatabaseManager):
         self.client = client
         self._database = database
 
@@ -29,9 +35,10 @@ class ConsentManager:
         self.client.add_view(ConsentMenu())
 
         @self.client.command_tree.command()
-        @async_log_on_start(logging.INFO, "{interaction.user.id} requested a consent menu")
-        async def consent(interaction: Interaction):
+        async def consent(interaction: Interaction): # pyright: ignore[reportUnusedFunction]
             """Change whether Axyn learns from your messages."""
+
+            _logger.info(f"User {interaction.user.id} requested a consent menu")
 
             response = await interaction.response.send_message(
                 "May I take quotes from you?",
@@ -46,7 +53,7 @@ class ConsentManager:
                     message=MessageRecord.from_message(message)
                 ))
 
-    async def _should_send_introduction(self, session: AsyncSession, user: Union[User, Member]) -> bool:
+    async def _should_send_introduction(self, session: AsyncSession, user: UserUnion) -> bool:
         """Return whether a consent prompt should be sent to the given user."""
 
         if user.bot or user.system:
@@ -64,14 +71,7 @@ class ConsentManager:
 
         return count == 0
 
-    @async_log_on_start(logging.INFO, "Sending an introduction to {user.id}")
-    @async_log_on_error(
-        logging.WARNING,
-        "Insufficient permissions to DM {member.id}",
-        on_exceptions=Forbidden,
-    )
-    @async_log_on_end(logging.INFO, "Sent an introduction to {user.id}")
-    async def _send_introduction(self, session: AsyncSession, user: Union[User, Member]):
+    async def _send_introduction(self, session: AsyncSession, user: UserUnion):
         """Send a consent prompt to the given user."""
 
         introduction = (
@@ -93,14 +93,17 @@ class ConsentManager:
             "original channel.\n"
         )
 
-        message = await user.send(
-            introduction,
-            view=ConsentMenu()
-        )
+        try:
+            message = await user.send(introduction, view=ConsentMenu())
+        except Forbidden:
+            _logger.warning(f"Not allowed to send an introduction message to user {user.id}")
+            return
+        else:
+            _logger.info(f"Sent an introduction message to user {user.id}")
 
         await session.merge(ConsentPromptRecord.from_message(message))
 
-    async def send_introduction(self, session: AsyncSession, user: Union[User, Member]):
+    async def send_introduction(self, session: AsyncSession, user: UserUnion):
         """
         Send a consent prompt to the given user if they haven't met Axyn
         before.
@@ -109,11 +112,10 @@ class ConsentManager:
         if await self._should_send_introduction(session, user):
             await self._send_introduction(session, user)
 
-    @async_log_on_end(
-        logging.INFO, "User {interaction.user.id} changed their consent setting to {response}"
-    )
-    async def _set_response(self, interaction: Interaction, response: ConsentResponse):
+    async def set_response(self, interaction: Interaction, response: ConsentResponse):
         """Store a new ``ConsentResponse`` resulting from the given ``Interaction``."""
+
+        _logger.info("User {interaction.user.id} changed their consent setting to {response}")
 
         async with self._database.session() as session:
             await session.merge(
@@ -123,7 +125,7 @@ class ConsentManager:
                 )
             )
 
-    async def has_consented(self, user: Union[User, Member]) -> bool:
+    async def has_consented(self, user: UserUnion) -> bool:
         """
         Return whether the given user has allowed their messages to be learned.
 
@@ -159,8 +161,10 @@ class ConsentMenu(View):
         custom_id="consent:yes",
         style=ButtonStyle.primary
     )
-    async def yes(self, interaction: Interaction, button: Button):
-        await interaction.client.consent_manager._set_response(interaction, ConsentResponse.YES)
+    async def yes(self, interaction: Interaction, button: Button[View]):
+        client = cast("AxynClient", interaction.client)
+
+        await client.consent_manager.set_response(interaction, ConsentResponse.YES)
 
         await interaction.response.send_message(
             content="Thank you! I've turned on learning for your messages.",
@@ -172,8 +176,10 @@ class ConsentMenu(View):
         custom_id="consent:no",
         style=ButtonStyle.secondary
     )
-    async def no(self, interaction: Interaction, button: Button):
-        await interaction.client.consent_manager._set_response(interaction, ConsentResponse.NO)
+    async def no(self, interaction: Interaction, button: Button[View]):
+        client = cast("AxynClient", interaction.client)
+
+        await client.consent_manager.set_response(interaction, ConsentResponse.NO)
 
         await interaction.response.send_message(
             content=(

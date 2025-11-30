@@ -1,7 +1,6 @@
+from axyn.client import AxynClient
 import logging
 import os
-
-from axyn.client import AxynClient
 
 
 def launch():

@@ -1,13 +1,14 @@
-from discord import (
-    DMChannel,
-    GroupChannel,
-    Member,
-    User,
-)
-from typing import Sequence, Union
+from __future__ import annotations
+from discord import DMChannel, GroupChannel
+from typing import TYPE_CHECKING
 
 
-def channel_members(channel) -> Sequence[Union[User, Member]]:
+if TYPE_CHECKING:
+    from axyn.types import ChannelUnion, UserUnion
+    from typing import Sequence
+
+
+def channel_members(channel: ChannelUnion) -> Sequence[UserUnion]:
     """List everyone who can view a channel."""
 
     if isinstance(channel, DMChannel) or isinstance(channel, GroupChannel):

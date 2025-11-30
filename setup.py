@@ -38,7 +38,6 @@ setup(
         "discordhealthcheck >=0.0.7,<1",
         "fastembed >=0.7,<1",
         "sqlalchemy[aiosqlite] >=2,<3",
-        "logdecorator >=2.2,<3",
     ],
     entry_points={
         "console_scripts": [

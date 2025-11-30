@@ -1,26 +1,40 @@
+from __future__ import annotations
 import discord
 from logging import getLogger
-from axyn.database import MessageRecord, MessageRevisionRecord, UserRecord
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from axyn.client import AxynClient
+    from axyn.database import MessageRecord
+    from discord import Message
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from typing import Optional
 
 
 _logger = getLogger(__name__)
 
 
-def is_direct(client, message):
+def is_direct(client: AxynClient, message: Message) -> bool:
     """Return whether the given message is directly talking to Axyn."""
 
-    return (
-        message.channel.type == discord.ChannelType.private
-        or client.user.mentioned_in(message)
-        or (
-            message.reference
-            and message.reference.resolved
-            and message.reference.resolved.author == client.user
-        )
-        or "axyn" in message.channel.name
-    )
+    axyn = client.axyn()
+
+    if message.channel.type == discord.ChannelType.private:
+        return True
+
+    if axyn.mentioned_in(message):
+        return True
+
+    if message.reference is not None:
+        if isinstance(message.reference.resolved, Message):
+            if message.reference.resolved.author == axyn:
+                return True
+
+    if "axyn" in getattr(message.channel, "name", ""):
+        return True
+
+    return False
 
 
 async def is_valid(session: AsyncSession, message: MessageRecord) -> bool:
@@ -82,7 +96,7 @@ async def is_valid_prompt(session: AsyncSession, current: MessageRecord, prompt:
     return await is_valid(session, prompt)
 
 
-def reason_not_to_reply(message):
+def reason_not_to_reply(message: Message) -> Optional[str]:
     """If the given message shouldn't be replied to, return a reason why."""
 
     if (

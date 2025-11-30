@@ -16,3 +16,10 @@ with these types:
 Scopes are optional and have no predefined choices, but can be used to provide
 context for the commit title.
 
+## Type Hints
+
+All code should use appropriate type hints. Names that are only used for type
+checking should be imported inside an `if TYPE_CHECKING:` block, with
+`from __future__ import annotations` outside the block to prevent errors at
+runtime.
+

@@ -1,10 +1,15 @@
-from axyn.database import ChannelRecord, MessageRecord
+from __future__ import annotations
+from axyn.database import MessageRecord
 from datetime import datetime
 from logging import getLogger
 from statistics import quantiles
-from typing import Sequence, Optional
 from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from typing import Sequence, Optional
 
 
 _logger = getLogger(__name__)
@@ -47,7 +52,7 @@ async def get_delays(session: AsyncSession, history: Sequence[MessageRecord]) ->
 
     # Group messages into consecutive pairs, and for valid pairs, calculate the
     # time in seconds between the messages being sent.
-    delays = []
+    delays: list[float] = []
 
     for current, prompt in zip(history, history[1:]):
         if current.author_id == prompt.author_id:

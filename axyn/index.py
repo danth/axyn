@@ -1,21 +1,29 @@
+from __future__ import annotations
 from axyn.database import IndexRecord, MessageRecord, MessageRevisionRecord
 from axyn.filters import is_valid_prompt, is_valid_response
 from axyn.history import get_history, get_delays
 from axyn.preprocessor import preprocess
-from discord import Client
 from discord.ext.tasks import loop
 from fastembed import TextEmbedding
 from logging import getLogger
-from ngtpy import create as create_ngt, Index as load_ngt
+from ngtpy import create as create_ngt, Index
 from os import path
 from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
 from statistics import StatisticsError
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, cast
+
+
+if TYPE_CHECKING:
+    from axyn.client import AxynClient
+    from numpy import dtype, float32, ndarray
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from typing import Optional, Sequence
+
+    Vector = ndarray[tuple[384], dtype[float32]]
 
 
 class IndexManager:
-    def __init__(self, client: Client, directory: str):
+    def __init__(self, client: AxynClient, directory: str):
         if not path.exists(directory):
             create_ngt(
                 directory,
@@ -24,7 +32,7 @@ class IndexManager:
             )
 
         self._client = client
-        self._index = load_ngt(directory)
+        self._index = Index(directory)
         self._model = TextEmbedding()
         self._logger = getLogger(__name__)
 
@@ -47,7 +55,7 @@ class IndexManager:
 
         vector = self._vector(prompt)
 
-        results = self._index.search(vector, 1)
+        results = self._index.search(vector, size=1)
 
         try:
             index_id, distance = results[0]
@@ -64,14 +72,15 @@ class IndexManager:
 
         return revisions, distance
 
-    def _vector(self, content: str):
+    def _vector(self, content: str) -> Vector:
         """Return the vector for the given message content."""
 
         content = preprocess(self._client, content)
         vectors = self._model.embed([content])
-        return list(vectors)[0]
+        vector = list(vectors)[0]
+        return cast("Vector", vector)
 
-    def _insert(self, vector, batch: dict[bytes, int]) -> int:
+    def _insert(self, vector: Vector, batch: dict[bytes, int]) -> int:
         """
         Insert a vector into the index.
 
@@ -93,7 +102,7 @@ class IndexManager:
             pass
 
         # Query the index for this vector
-        result = self._index.search(vector, 1)
+        result = self._index.search(vector, size=1)
 
         if result and result[0][1] == 0:
             # This vector already exists, return its id
@@ -117,7 +126,7 @@ class IndexManager:
             )
             messages = result.scalars().all()
 
-            batch = {}
+            batch: dict[bytes, int] = {}
 
             for message in messages:
                 self._logger.debug(f"Checking {message.message_id}")
