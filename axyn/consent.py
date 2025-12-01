@@ -48,9 +48,7 @@ class ConsentManager:
             message = cast("Message", response.resource)
 
             async with self._database.session() as session:
-                await session.merge(ConsentPromptRecord(
-                    message=MessageRecord.from_message(message)
-                ))
+                session.add(ConsentPromptRecord(message_id=message.id))
 
     async def _should_send_introduction(self, session: AsyncSession, user: UserUnion) -> bool:
         """Return whether a consent prompt should be sent to the given user."""
@@ -97,7 +95,7 @@ class ConsentManager:
         else:
             _logger.info(f"Sent an introduction message to user {user.id}")
 
-        await session.merge(ConsentPromptRecord.from_message(message))
+        session.add(ConsentPromptRecord(message_id=message.id))
 
     async def send_introduction(self, session: AsyncSession, user: UserUnion):
         """
@@ -114,12 +112,11 @@ class ConsentManager:
         _logger.info(f"User {interaction.user.id} changed their consent setting to {response}")
 
         async with self._database.session() as session:
-            await session.merge(
-                ConsentResponseRecord(
-                    interaction=InteractionRecord.from_interaction(interaction),
-                    response=response
-                )
-            )
+            session.add(InteractionRecord.from_interaction(interaction))
+            session.add(ConsentResponseRecord(
+                interaction_id=interaction.id,
+                response=response
+            ))
 
     async def get_response(self, user: UserUnion) -> ConsentResponse:
         """

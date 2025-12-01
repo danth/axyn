@@ -88,11 +88,14 @@ class AxynClient(Client):
             )
             self.reply_tasks[message.channel.id].cancel()
 
-        self.reply_tasks[message.channel.id] = create_task(
-            Reply(self, message).handle()
-        )
-        create_task(Store(self, message).handle())
+        # This must finish before the other tasks start, because they assume the
+        # message is already in our database.
+        await Store(self, message).handle()
+
         create_task(Consent(self, message).handle())
+
+        reply = create_task(Reply(self, message).handle())
+        self.reply_tasks[message.channel.id] = reply
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
         message = payload.message
@@ -104,11 +107,14 @@ class AxynClient(Client):
 
         try:
             async with self.database_manager.session() as session:
-                    await session.merge(MessageRevisionRecord.from_message(message))
+                session.add(MessageRevisionRecord.from_message(message))
         except IntegrityError:
-            # Happens when Discord resolves a link into an embed, for example,
-            # because that also counts as an update.
-            self.logger.info(f"Not storing new revision of {message.id} because the content has not changed")
+            # The unique constraint fails when Discord resolves a link into an
+            # embed, for example, because that counts as an update but doesn't
+            # affect the content.
+            # The foreign key constraint fails if we didn't see the original
+            # version of the message.
+            self.logger.info(f"New revision of {message.id} rejected by database constraints")
         else:
             self.logger.info(f"Storing new revision of {message.id}")
 

@@ -1,5 +1,12 @@
 from __future__ import annotations
-from axyn.database import ConsentResponse, MessageRecord, MessageRevisionRecord
+from axyn.database import (
+    ChannelRecord,
+    ConsentResponse,
+    GuildRecord,
+    MessageRecord,
+    MessageRevisionRecord,
+    UserRecord,
+)
 from axyn.message_handlers import MessageHandler
 from logging import getLogger
 from typing import TYPE_CHECKING
@@ -36,7 +43,13 @@ class Store(MessageHandler):
         self._logger.info(f"Storing full version of {self.message.id}")
 
         async with self.client.database_manager.session() as session:
-            await session.merge(MessageRevisionRecord.from_message(self.message))
+            if self.message.channel.guild is not None:
+                await session.merge(GuildRecord.from_guild(self.message.channel.guild))
+            await session.merge(ChannelRecord.from_channel(self.message.channel))
+            await session.merge(UserRecord.from_user(self.message.author))
+
+            session.add(MessageRecord.from_message(self.message))
+            session.add(MessageRevisionRecord.from_message(self.message))
 
     async def _store_redacted(self):
         """
@@ -54,5 +67,10 @@ class Store(MessageHandler):
         self._logger.info(f"Storing redacted version of {self.message.id}")
 
         async with self.client.database_manager.session() as session:
-            await session.merge(MessageRecord.from_message(self.message))
+            if self.message.channel.guild is not None:
+                await session.merge(GuildRecord.from_guild(self.message.channel.guild))
+            await session.merge(ChannelRecord.from_channel(self.message.channel))
+            await session.merge(UserRecord.from_user(self.message.author))
+
+            session.add(MessageRecord.from_message(self.message))
 

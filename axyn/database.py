@@ -119,11 +119,11 @@ class ChannelRecord(BaseRecord):
             raise TypeError(f"unsupported channel type: {type(channel)}")
 
         if channel.guild is None:
-            guild = None
+            guild_id = None
         else:
-            guild = GuildRecord.from_guild(channel.guild)
+            guild_id = channel.guild.id
 
-        return ChannelRecord(channel_id=channel.id, guild=guild)
+        return ChannelRecord(channel_id=channel.id, guild_id=guild_id)
 
 
 class GuildRecord(BaseRecord):
@@ -200,8 +200,8 @@ class MessageRecord(BaseRecord):
 
         return MessageRecord(
             message_id=message.id,
-            author=UserRecord.from_user(message.author),
-            channel=ChannelRecord.from_channel(message.channel),
+            author_id=message.author.id,
+            channel_id=message.channel.id,
             reference_id=reference_id,
             created_at=message.created_at,
             deleted_at=None
@@ -241,7 +241,7 @@ class MessageRevisionRecord(BaseRecord):
             edited_at = message.edited_at
 
         return MessageRevisionRecord(
-            message=MessageRecord.from_message(message),
+            message_id=message.id,
             edited_at=edited_at,
             content=message.content
         )
@@ -297,34 +297,29 @@ class InteractionRecord(BaseRecord):
 
     @staticmethod
     def from_interaction(interaction: Interaction) -> InteractionRecord:
-        """
-        Create an ``InteractionRecord`` from the provided ``Interaction``.
-
-        Raises an exception if the interaction happened in a channel of an
-        unsupported type.
-        """
+        """Create an ``InteractionRecord`` from the provided ``Interaction``."""
 
         if interaction.message is None:
-            message = None
+            message_id = None
         else:
-            message = MessageRecord.from_message(interaction.message)
+            message_id = interaction.message.id
 
         if interaction.channel is None:
-            channel = None
+            channel_id = None
         else:
-            channel = ChannelRecord.from_channel(interaction.channel)
+            channel_id = interaction.channel.id
 
         if interaction.guild is None:
-            guild = None
+            guild_id = None
         else:
-            guild = GuildRecord.from_guild(interaction.guild)
+            guild_id = interaction.guild.id
 
         return InteractionRecord(
             interaction_id=interaction.id,
-            user=UserRecord.from_user(interaction.user),
-            message=message,
-            channel=channel,
-            guild=guild,
+            user_id=interaction.user.id,
+            message_id=message_id,
+            channel_id=channel_id,
+            guild_id=guild_id,
             created_at=interaction.created_at
         )
 
@@ -346,19 +341,6 @@ class ConsentPromptRecord(BaseRecord):
     )
 
     message: Mapped[MessageRecord] = relationship(back_populates="consent_prompt")
-
-    @staticmethod
-    def from_message(message: Message) -> ConsentPromptRecord:
-        """
-        Create a ``ConsentPromptRecord`` from the provided ``Message``.
-
-        Raises an exception if the message is from a channel of an unsupported
-        type.
-        """
-
-        return ConsentPromptRecord(
-            message=MessageRecord.from_message(message)
-        )
 
 
 class ConsentResponseRecord(BaseRecord):
