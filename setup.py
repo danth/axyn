@@ -33,6 +33,7 @@ setup(
     packages=find_packages(),
     python_requires=">=3.6,<4",
     install_requires=[
+        "alembic >=1,<2",
         "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
         "fastembed >=0.7,<1",

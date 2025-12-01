@@ -1,4 +1,6 @@
 from __future__ import annotations
+from alembic.operations import Operations
+from alembic.runtime.migration import MigrationContext
 from axyn.types import is_supported_channel_type
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -6,6 +8,8 @@ from enum import Enum
 import os
 from shutil import rmtree
 from sqlalchemy import (
+    Column,
+    DateTime,
     ForeignKey,
     UniqueConstraint,
     delete,
@@ -20,13 +24,13 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.schema import DDL
 from typing import TYPE_CHECKING, Optional
 
 
 if TYPE_CHECKING:
     from axyn.types import UserUnion
     from discord import Guild, Interaction, Message
+    from sqlalchemy import Connection
     from sqlalchemy.ext.asyncio import AsyncSession
     from typing import Any
 
@@ -409,7 +413,7 @@ class DatabaseManager:
             except (OperationalError, NoResultFound):
                 await self._create_new(session)
             else:
-                await self._migrate_existing(session, version)
+                await self._migrate(session, version)
 
     async def _create_new(self, session: AsyncSession):
         """Create a new database from a blank slate."""
@@ -422,7 +426,7 @@ class DatabaseManager:
             applied_at=datetime.now(),
         ))
 
-    async def _migrate_existing(self, session: AsyncSession, version: int):
+    async def _migrate(self, session: AsyncSession, version: int):
         """
         Migrate an existing database starting from the given version.
 
@@ -439,20 +443,34 @@ class DatabaseManager:
         if version > SCHEMA_VERSION:
             raise Exception(f"database schema version {version} is not supported ({SCHEMA_VERSION} is the newest supported)")
 
-        if version < 4:
-            await session.execute(DDL("ALTER TABLE message ADD COLUMN deleted_at DATETIME"))
-
-        if version < 7:
-            # This only needs to happen once, even if we skipped over multiple
-            # versions that would reset the index.
-            await self._reset_index(session)
+        connection = await session.connection()
+        await connection.run_sync(self._migrate_operations, version)
 
         session.add(SchemaVersionRecord(
           schema_version=SCHEMA_VERSION,
           applied_at=datetime.now(),
         ))
 
-    async def _reset_index(self, session: AsyncSession):
+    def _migrate_operations(self, connection: Connection, version: int):
+        """Migrate an existing database starting from the given version."""
+
+        context = MigrationContext.configure(connection)
+        operations = Operations(context)
+
+        if version < 4:
+            with operations.batch_alter_table("message") as batch:
+                batch.add_column(Column(
+                    "deleted_at",
+                    DateTime(),
+                    nullable=True,
+                ))
+
+        if version < 7:
+            # This only needs to happen once, even if we skipped over multiple
+            # versions that would reset the index.
+            self._reset_index(operations)
+
+    def _reset_index(self, operations: Operations):
         """
         Reset the index.
 
@@ -463,7 +481,7 @@ class DatabaseManager:
         causing undefined behaviour.
         """
 
-        await session.execute(delete(IndexRecord))
+        operations.execute(delete(IndexRecord))
 
         rmtree(get_path("index"))
 

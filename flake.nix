@@ -67,6 +67,7 @@
           build-system = [ setuptools ];
 
           propagatedBuildInputs = [
+            alembic
             discordhealthcheck
             discordpy
             fastembed
