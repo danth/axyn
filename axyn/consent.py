@@ -6,9 +6,9 @@ from axyn.database import (
     InteractionRecord,
     MessageRecord,
 )
-from discord import ButtonStyle, Member
+from discord import Member, SelectOption
 from discord.errors import Forbidden
-from discord.ui import View, button
+from discord.ui import Select, View
 from logging import getLogger
 from sqlalchemy import select, desc, func
 from typing import TYPE_CHECKING, cast
@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from axyn.database import DatabaseManager
     from axyn.types import UserUnion
     from discord import Interaction, Message
-    from discord.ui import Button
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -46,7 +45,7 @@ class ConsentManager:
                 view=ConsentMenu()
             )
 
-            message = cast(Message, response.resource)
+            message = cast("Message", response.resource)
 
             async with self._database.session() as session:
                 await session.merge(ConsentPromptRecord(
@@ -74,23 +73,20 @@ class ConsentManager:
     async def _send_introduction(self, session: AsyncSession, user: UserUnion):
         """Send a consent prompt to the given user."""
 
-        introduction = (
-            f"**Hello {user.display_name} :wave:**\n"
-            "You just messaged me"
-        )
+        introduction = f"**Hello {user.display_name} :wave:**\n"
 
         if isinstance(user, Member):
-            introduction += f" in **{user.guild}**"
+            introduction += (
+                f"You just messaged me in **{user.guild}**, and it seems like "
+                "it's the first time we've met. "
+            )
+        else:
+            introduction += "It seems like it's the first time we've met. "
 
         introduction += (
-            ", and it seems like it's the first time we've met. "
             "I'm a retro chatbot that tries to hold a conversation using only "
             "messages I've seen in the past. "
-            "May I take quotes from you for this purpose?\n"
-            "- Any message I can see might be learned, even if you're talking "
-            "to someone else.\n"
-            "- Quotes will only be shared with people who can see the "
-            "original channel.\n"
+            "May I take quotes from you for this purpose?"
         )
 
         try:
@@ -115,7 +111,7 @@ class ConsentManager:
     async def set_response(self, interaction: Interaction, response: ConsentResponse):
         """Store a new ``ConsentResponse`` resulting from the given ``Interaction``."""
 
-        _logger.info("User {interaction.user.id} changed their consent setting to {response}")
+        _logger.info(f"User {interaction.user.id} changed their consent setting to {response}")
 
         async with self._database.session() as session:
             await session.merge(
@@ -125,68 +121,80 @@ class ConsentManager:
                 )
             )
 
-    async def has_consented(self, user: UserUnion) -> bool:
+    async def get_response(self, user: UserUnion) -> ConsentResponse:
         """
         Return whether the given user has allowed their messages to be learned.
 
-        This is always ``True`` for bots.
+        This is always ``ConsentResponse.WITHOUT_PRIVACY`` for bots.
         """
 
         if user.bot or user.system:
-            return True
+            return ConsentResponse.WITHOUT_PRIVACY
 
         async with self._database.session() as session:
             result = await session.execute(
-                select(ConsentResponseRecord)
-                .select_from(InteractionRecord)
-                .join(ConsentResponseRecord.interaction)
+                select(ConsentResponseRecord.response)
+                .join(InteractionRecord)
                 .where(InteractionRecord.user_id == user.id)
                 .order_by(desc(InteractionRecord.created_at))
                 .limit(1)
             )
-            response_record = result.scalar()
 
-            if response_record is None:
-                return False
+            if response := result.scalar():
+                return response
+            else:
+                return ConsentResponse.NO
 
-            return response_record.response == ConsentResponse.YES
+
+class ConsentSelect(Select[View]):
+    def __init__(self):
+        super().__init__(
+            custom_id="consent",
+            options=[
+                SelectOption(
+                    label="Yes, share with anyone.",
+                    value=ConsentResponse.WITHOUT_PRIVACY.name,
+                    description=(
+                        "Quotes can be used anywhere, including other servers. "
+                        "Be careful not to share private information."
+                    ),
+                ),
+                SelectOption(
+                    label="Yes, share in the same community.",
+                    value=ConsentResponse.WITH_PRIVACY.name,
+                    description=(
+                        "Quotes can be used if everyone in the channel has "
+                        "access to the original message."
+                    ),
+                ),
+                SelectOption(
+                    label="No, don't store my messages.",
+                    value=ConsentResponse.NO.name,
+                    description=(
+                        "Axyn will still respond to you, but won't remember "
+                        "things you've said."
+                    ),
+                ),
+            ],
+            placeholder="Choose a setting",
+        )
+
+    @property
+    def selection(self) -> ConsentResponse:
+        return ConsentResponse[self.values[0]]
+
+    async def callback(self, interaction: Interaction):
+        client = cast("AxynClient", interaction.client)
+        await client.consent_manager.set_response(interaction, self.selection)
+        await interaction.response.send_message(
+            "Setting changed.",
+            ephemeral=True,
+        )
 
 
 class ConsentMenu(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @button(
-        label="Accept",
-        custom_id="consent:yes",
-        style=ButtonStyle.primary
-    )
-    async def yes(self, interaction: Interaction, button: Button[View]):
-        client = cast("AxynClient", interaction.client)
-
-        await client.consent_manager.set_response(interaction, ConsentResponse.YES)
-
-        await interaction.response.send_message(
-            content="Thank you! I've turned on learning for your messages.",
-            ephemeral=True
-        )
-
-    @button(
-        label="Decline",
-        custom_id="consent:no",
-        style=ButtonStyle.secondary
-    )
-    async def no(self, interaction: Interaction, button: Button[View]):
-        client = cast("AxynClient", interaction.client)
-
-        await client.consent_manager.set_response(interaction, ConsentResponse.NO)
-
-        await interaction.response.send_message(
-            content=(
-                "No problem! I've turned off learning for your messages. "
-                "I'll still respond if you talk to me, but I won't record "
-                "what you say."
-            ),
-            ephemeral=True
-        )
+        self.add_item(ConsentSelect())
 

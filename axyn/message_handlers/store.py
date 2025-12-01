@@ -1,5 +1,5 @@
 from __future__ import annotations
-from axyn.database import MessageRecord, MessageRevisionRecord
+from axyn.database import ConsentResponse, MessageRecord, MessageRevisionRecord
 from axyn.message_handlers import MessageHandler
 from logging import getLogger
 from typing import TYPE_CHECKING
@@ -23,10 +23,12 @@ class Store(MessageHandler):
             self._logger.info(f"Not storing {self.message.id} because it is ephemeral")
             return
 
-        if await self.client.consent_manager.has_consented(self.message.author):
-            await self._store_full()
-        else:
+        response = await self.client.consent_manager.get_response(self.message.author)
+
+        if response == ConsentResponse.NO:
             await self._store_redacted()
+        else:
+            await self._store_full()
 
     async def _store_full(self):
         """Store this message in full."""

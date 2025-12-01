@@ -10,11 +10,13 @@ from shutil import rmtree
 from sqlalchemy import (
     Column,
     DateTime,
+    Enum as EnumType,
     ForeignKey,
     UniqueConstraint,
     delete,
     desc,
     select,
+    table,
 )
 from sqlalchemy.exc import NoResultFound, OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -46,7 +48,7 @@ def get_path(file: str) -> str:
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 7
+SCHEMA_VERSION: int = 8
 
 
 class BaseRecord(DeclarativeBase):
@@ -328,8 +330,9 @@ class InteractionRecord(BaseRecord):
 
 
 class ConsentResponse(Enum):
-    NO = "no"
-    YES = "yes"
+    NO = 0
+    WITH_PRIVACY = 1
+    WITHOUT_PRIVACY = 2
 
 
 class ConsentPromptRecord(BaseRecord):
@@ -469,6 +472,58 @@ class DatabaseManager:
             # This only needs to happen once, even if we skipped over multiple
             # versions that would reset the index.
             self._reset_index(operations)
+
+        if version < 8:
+            # Change from {NO, YES} to {NO, WITH_PRIVACY, WITHOUT_PRIVACY}.
+            # To do this, we need to temporarily use a type that contains all
+            # four options, so that we can convert YES into WITH_PRIVACY while
+            # both are valid.
+
+            class Old(Enum):
+                NO = 0
+                YES = 1
+
+            class Transition(Enum):
+                NO = 0
+                YES = 1
+                WITH_PRIVACY = 2
+                WITHOUT_PRIVACY = 3
+
+            class New(Enum):
+                NO = 0
+                WITH_PRIVACY = 1
+                WITHOUT_PRIVACY = 2
+
+            with operations.batch_alter_table("consent_response") as batch:
+                batch.alter_column(
+                    "response",
+                    existing_type=EnumType(Old),
+                    existing_nullable=False,
+                    type_=EnumType(Transition),
+                    nullable=False,
+                )
+
+            transition_table = table(
+                "consent_response",
+                Column("response", EnumType(Transition), nullable=False),
+                # Other columns omitted because they are not used below
+            )
+
+            operations.execute(
+                transition_table
+                .update()
+                .where(transition_table.c.response == Transition.YES)
+                .values(response=Transition.WITH_PRIVACY)
+            )
+
+            with operations.batch_alter_table("consent_response") as batch:
+                batch.alter_column(
+                    "response",
+                    existing_type=EnumType(Transition),
+                    existing_nullable=False,
+                    type_=EnumType(New),
+                    nullable=False,
+                )
 
     def _reset_index(self, operations: Operations):
         """

@@ -118,7 +118,13 @@ class Reply(MessageHandler):
                 for response in responses:
                     await session.refresh(response, ["message"])
 
-                    if can_send_in_channel(self.client, response.message, self._channel):
+                    can_send = await can_send_in_channel(
+                        self.client,
+                        response.message,
+                        self._channel,
+                    )
+
+                    if can_send:
                         self._logger.debug(f'Selected reply "{response.content}"')
                         text = preprocess(self.client, response.content)
                         return text, distance

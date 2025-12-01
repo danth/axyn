@@ -3,6 +3,7 @@ from asyncio import create_task
 from axyn.consent import ConsentManager
 from axyn.database import (
     get_path,
+    ConsentResponse,
     DatabaseManager,
     MessageRecord,
     MessageRevisionRecord,
@@ -95,8 +96,9 @@ class AxynClient(Client):
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
         message = payload.message
+        response = await self.consent_manager.get_response(message.author)
 
-        if not await self.consent_manager.has_consented(message.author):
+        if response == ConsentResponse.NO:
             self.logger.info(f"Not storing new revision of {message.id} because the author has not given consent")
             return
 
