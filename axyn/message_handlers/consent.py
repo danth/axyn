@@ -18,3 +18,5 @@ class Consent(MessageHandler):
                 self.message.author,
             )
 
+            await session.commit()
+

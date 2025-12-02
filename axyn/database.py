@@ -2,7 +2,6 @@ from __future__ import annotations
 from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
 from axyn.types import is_supported_channel_type
-from contextlib import asynccontextmanager
 from datetime import datetime
 from enum import Enum
 import os
@@ -372,21 +371,7 @@ class DatabaseManager:
     def __init__(self):
         uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
         engine = create_async_engine(uri)
-        self._session_maker = async_sessionmaker(bind=engine)
-
-    @asynccontextmanager
-    async def session(self):
-        session = self._session_maker()
-        session.begin()
-
-        try:
-            yield session
-            await session.commit()
-        except:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+        self.session = async_sessionmaker(bind=engine)
 
     async def setup_hook(self):
         """Ensure the database is following the current schema."""
@@ -403,6 +388,8 @@ class DatabaseManager:
                 await self._create_new(session)
             else:
                 await self._migrate(session, version)
+
+            await session.commit()
 
     async def _create_new(self, session: AsyncSession):
         """Create a new database from a blank slate."""

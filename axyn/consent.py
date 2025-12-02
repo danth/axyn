@@ -50,6 +50,8 @@ class ConsentManager:
             async with self._database.session() as session:
                 session.add(ConsentPromptRecord(message_id=message.id))
 
+                await session.commit()
+
     async def _should_send_introduction(self, session: AsyncSession, user: UserUnion) -> bool:
         """Return whether a consent prompt should be sent to the given user."""
 
@@ -117,6 +119,8 @@ class ConsentManager:
                 interaction_id=interaction.id,
                 response=response
             ))
+
+            await session.commit()
 
     async def get_response(self, user: UserUnion) -> ConsentResponse:
         """

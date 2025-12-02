@@ -140,6 +140,8 @@ class IndexManager:
             self._index.build_index()
             self._index.save()
 
+            await session.commit()
+
     async def _get_prompt_message(
         self,
         session: AsyncSession,

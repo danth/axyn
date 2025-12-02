@@ -51,6 +51,8 @@ class Store(MessageHandler):
             session.add(MessageRecord.from_message(self.message))
             session.add(MessageRevisionRecord.from_message(self.message))
 
+            await session.commit()
+
     async def _store_redacted(self):
         """
         Store a redacted version of this message.
@@ -73,4 +75,6 @@ class Store(MessageHandler):
             await session.merge(UserRecord.from_user(self.message.author))
 
             session.add(MessageRecord.from_message(self.message))
+
+            await session.commit()
 

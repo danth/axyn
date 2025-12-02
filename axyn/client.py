@@ -108,6 +108,8 @@ class AxynClient(Client):
         try:
             async with self.database_manager.session() as session:
                 session.add(MessageRevisionRecord.from_message(message))
+
+                await session.commit()
         except IntegrityError:
             # The unique constraint fails when Discord resolves a link into an
             # embed, for example, because that counts as an update but doesn't
@@ -128,6 +130,8 @@ class AxynClient(Client):
                 .values(deleted_at=datetime.now())
             )
 
+            await session.commit()
+
     async def on_raw_bulk_message_delete(self, payload: RawBulkMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_ids} as deleted")
 
@@ -137,4 +141,6 @@ class AxynClient(Client):
                 .where(MessageRecord.message_id.in_(payload.message_ids))
                 .values(deleted_at=datetime.now())
             )
+
+            await session.commit()
 
