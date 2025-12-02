@@ -44,6 +44,7 @@ setup(
             "build >=1,<2",
         ],
         "test": [
+            "coverage >=7,<8",
             "pytest >=8,<9",
             "pytest-asyncio >=1,<2",
         ],

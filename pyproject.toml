@@ -1,3 +1,7 @@
+[tool.coverage.run]
+branch = true
+source = [ "axyn" ]
+
 [tool.pyright]
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false

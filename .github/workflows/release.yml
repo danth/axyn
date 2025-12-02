@@ -45,6 +45,17 @@ jobs:
       - name: Check with Pytest
         run: python -m pytest
 
+      - name: Create coverage report
+        run: |
+          python -m coverage run -m pytest
+          python -m coverage html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v5
+        with:
+          name: Coverage
+          path: htmlcov/
+
       - name: Create release
         id: release
         uses: python-semantic-release/python-semantic-release@v10

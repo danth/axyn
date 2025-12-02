@@ -92,6 +92,7 @@
 
         devShells.default = pkgs.mkShell {
           inputsFrom = [ axyn ];
+          packages = [ coverage ];
         };
       }));
 }
