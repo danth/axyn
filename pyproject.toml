@@ -2,6 +2,10 @@
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+asyncio_mode = "auto"
+
 [tool.semantic_release]
 commit_parser = "conventional"
 commit_message = "build: release v{version}"

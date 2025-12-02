@@ -43,6 +43,10 @@ setup(
         "build": [
             "build >=1,<2",
         ],
+        "test": [
+            "pytest >=8,<9",
+            "pytest-asyncio >=1,<2",
+        ],
     },
     entry_points={
         "console_scripts": [

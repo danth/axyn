@@ -77,10 +77,13 @@
 
           nativeCheckInputs = [
             pkgs.pyright
+            pytest
+            pytest-asyncio
           ];
 
           checkPhase = ''
             pyright "$out"
+            pytest
           '';
         };
 
