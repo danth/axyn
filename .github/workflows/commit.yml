@@ -140,13 +140,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout ${{ github.ref_name }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Reset to ${{ github.sha }}
+        run: git reset --hard ${{ github.sha }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v6
         with:
           artifact-ids: ${{ needs.build.outputs.artifact-id }}
           path: dist/
 
-      - name: Upload release
+      - name: Upload build artifacts
         uses: python-semantic-release/publish-action@v10
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
