@@ -74,6 +74,14 @@
             ngt
             sqlalchemy
           ] ++ sqlalchemy.optional-dependencies.aiosqlite;
+
+          nativeCheckInputs = [
+            pkgs.pyright
+          ];
+
+          checkPhase = ''
+            pyright "$out"
+          '';
         };
 
       in {
@@ -81,7 +89,6 @@
 
         devShells.default = pkgs.mkShell {
           inputsFrom = [ axyn ];
-          packages = [ pkgs.pyright ];
         };
       }));
 }
