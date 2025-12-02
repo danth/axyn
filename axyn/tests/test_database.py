@@ -1,9 +1,15 @@
 from __future__ import annotations
-from axyn.database import DatabaseManager, get_path
+from axyn.database import (
+    SCHEMA_VERSION,
+    BaseRecord,
+    DatabaseManager,
+    SchemaVersionRecord,
+    get_path,
+)
 from datetime import datetime
 from enum import Enum
 from ngtpy import create as create_ngt
-from pytest import fixture
+from pytest import fixture, mark, raises
 from sqlalchemy import (
     Boolean,
     Column,
@@ -15,7 +21,7 @@ from sqlalchemy import (
     String,
     Table,
 )
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from typing import TYPE_CHECKING
 
 
@@ -248,4 +254,47 @@ async def test_migrate_from_schema_0(schema_0: MetaData):
 
     manager = DatabaseManager()
     await manager.setup_hook()
+
+
+async def test_open_existing():
+    uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
+    engine = create_async_engine(uri)
+    session_maker = async_sessionmaker(engine)
+
+    async with session_maker() as session:
+        connection = await session.connection()
+        await connection.run_sync(BaseRecord.metadata.create_all)
+
+        session.add(SchemaVersionRecord(
+            schema_version=SCHEMA_VERSION,
+            applied_at=datetime.now(),
+        ))
+
+        await session.commit()
+
+    manager = DatabaseManager()
+    await manager.setup_hook()
+
+
+@mark.parametrize("schema_version", (-1, SCHEMA_VERSION + 1))
+async def test_open_invalid_schema(schema_version: int):
+    uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
+    engine = create_async_engine(uri)
+    session_maker = async_sessionmaker(engine)
+
+    async with session_maker() as session:
+        connection = await session.connection()
+        await connection.run_sync(BaseRecord.metadata.create_all)
+
+        session.add(SchemaVersionRecord(
+            schema_version=schema_version,
+            applied_at=datetime.now(),
+        ))
+
+        await session.commit()
+
+    manager = DatabaseManager()
+
+    with raises(Exception):
+        await manager.setup_hook()
 
