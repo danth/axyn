@@ -20,9 +20,7 @@ setup(
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: GNU Affero General Public License v3",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.13",
     ],
     keywords="Discord bot chatbot",
     url="https://github.com/danth/axyn",
@@ -31,7 +29,7 @@ setup(
         "Source": "https://github.com/danth/axyn",
     },
     packages=find_packages(),
-    python_requires=">=3.6,<4",
+    python_requires=">=3.13,<4", # Keep in sync with pyproject.toml
     install_requires=[
         "alembic >=1,<2",
         "discord.py >=2,<3",
