@@ -37,6 +37,7 @@ setup(
         "discord.py >=2,<3",
         "discordhealthcheck >=0.0.7,<1",
         "fastembed >=0.7,<1",
+        "ngt >=2,<3",
         "sqlalchemy[aiosqlite] >=2,<3",
     ],
     extras_require={
