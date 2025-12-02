@@ -1,0 +1,154 @@
+name: Commit
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    name: Build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -e .[build]
+
+      - name: Build package
+        run: python -m build .
+
+      - name: Upload build artifacts
+        id: artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: Build artifacts
+          path: dist/
+
+    outputs:
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+
+  test:
+    name: Test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -e .[test]
+
+      - name: Run tests
+        run: |
+          python -m coverage run -m pytest
+          python -m coverage html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v5
+        with:
+          name: Coverage report
+          path: htmlcov/
+
+  type_check:
+    name: Type check
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -e .[test]
+
+      - name: Check with Pyright
+        uses: jakebailey/pyright-action@v2
+
+  release:
+    name: Release
+
+    needs: [ build, test, type_check ]
+
+    if: github.repository_owner == 'danth' && github.ref_name == 'master'
+
+    concurrency:
+      group: release
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout ${{ github.ref_name }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Reset to ${{ github.sha }}
+        run: git reset --hard ${{ github.sha }}
+
+      - name: Create release
+        id: release
+        uses: python-semantic-release/python-semantic-release@v10
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_committer_name: github-actions
+          git_committer_email: 41898282+github-actions[bot]@users.noreply.github.com
+          changelog: false
+
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      tag: ${{ steps.release.outputs.tag }}
+
+  publish:
+    name: Publish
+
+    needs: [ build, release ]
+
+    if: needs.release.outputs.released == 'true'
+
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: dist/
+
+      - name: Upload release
+        uses: python-semantic-release/publish-action@v10
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.release.outputs.tag }}
+
