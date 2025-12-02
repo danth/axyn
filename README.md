@@ -17,7 +17,6 @@ Currently, the server members intent is required.
 
 ```sh
 python -m pip install -e .
-python -m spacy download en_core_web_md
 DISCORD_TOKEN=… axyn
 ```
 
