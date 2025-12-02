@@ -5,12 +5,14 @@ from axyn.database import (
     ConsentResponseRecord,
     InteractionRecord,
     MessageRecord,
+    MessageRevisionRecord,
+    UserRecord,
 )
 from discord import Member, SelectOption
 from discord.errors import Forbidden
 from discord.ui import Select, View
 from logging import getLogger
-from sqlalchemy import select, desc, func
+from sqlalchemy import delete, select, desc, func
 from typing import TYPE_CHECKING, cast
 
 
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
     from axyn.types import UserUnion
     from discord import Interaction, Message
     from sqlalchemy.ext.asyncio import AsyncSession
+    from typing import Union
 
 
 _logger = getLogger(__name__)
@@ -108,35 +111,62 @@ class ConsentManager:
         if await self._should_send_introduction(session, user):
             await self._send_introduction(session, user)
 
-    async def set_response(self, interaction: Interaction, response: ConsentResponse):
-        """Store a new ``ConsentResponse`` resulting from the given ``Interaction``."""
+    async def set_response(
+        self,
+        session: AsyncSession,
+        interaction: InteractionRecord,
+        response: ConsentResponse,
+    ):
+        """Store a new consent response resulting from the given interaction."""
 
-        _logger.info(f"User {interaction.user.id} changed their consent setting to {response}")
+        _logger.info(
+            f"User {interaction.user_id} changed their consent setting "
+            f"to {response}"
+        )
 
-        async with self._database.session() as session:
-            session.add(InteractionRecord.from_interaction(interaction))
-            session.add(ConsentResponseRecord(
-                interaction_id=interaction.id,
-                response=response
-            ))
+        session.add(ConsentResponseRecord(
+            interaction_id=interaction.interaction_id,
+            response=response
+        ))
 
-            await session.commit()
+        if response == ConsentResponse.NO:
+            _logger.info(
+                f"Redacting all messages from user {interaction.user_id}"
+            )
 
-    async def get_response(self, user: UserUnion) -> ConsentResponse:
+            ids = await session.scalars(
+                select(MessageRevisionRecord.revision_id)
+                .join(MessageRecord)
+                .where(MessageRecord.author_id == interaction.user_id)
+            )
+
+            await session.execute(
+                delete(MessageRevisionRecord)
+                .where(MessageRevisionRecord.revision_id.in_(ids))
+            )
+
+    async def get_response(self, user: Union[UserUnion, UserRecord]) -> ConsentResponse:
         """
         Return whether the given user has allowed their messages to be learned.
 
         This is always ``ConsentResponse.WITHOUT_PRIVACY`` for bots.
         """
 
-        if user.bot or user.system:
+        if isinstance(user, UserRecord):
+            user_id = user.user_id
+            human = user.human
+        else:
+            user_id = user.id
+            human = not (user.bot or user.system)
+
+        if not human:
             return ConsentResponse.WITHOUT_PRIVACY
 
         async with self._database.session() as session:
             result = await session.execute(
                 select(ConsentResponseRecord.response)
                 .join(InteractionRecord)
-                .where(InteractionRecord.user_id == user.id)
+                .where(InteractionRecord.user_id == user_id)
                 .order_by(desc(InteractionRecord.created_at))
                 .limit(1)
             )
@@ -186,7 +216,20 @@ class ConsentSelect(Select[View]):
 
     async def callback(self, interaction: Interaction):
         client = cast("AxynClient", interaction.client)
-        await client.consent_manager.set_response(interaction, self.selection)
+
+        async with client.database_manager.session() as session:
+            interaction_record = InteractionRecord.from_interaction(interaction)
+
+            session.add(interaction_record)
+
+            await client.consent_manager.set_response(
+                session,
+                interaction_record,
+                self.selection,
+            )
+
+            await session.commit()
+
         await interaction.response.send_message(
             "Setting changed.",
             ephemeral=True,
