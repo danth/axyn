@@ -37,11 +37,15 @@ if TYPE_CHECKING:
     from typing import Any
 
 
+DATA_DIRECTORY = "~/axyn"
+
+
 def get_path(file: str) -> str:
     """Return the path of the given file within Axyn's data directory."""
 
     # Find path of data directory
-    folder = os.path.expanduser("~/axyn")
+    folder = os.path.expanduser(DATA_DIRECTORY)
+
     # Create directory if it doesn't exist
     os.makedirs(folder, exist_ok=True)
 
