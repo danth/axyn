@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from axyn.client import AxynClient
     from numpy import dtype, float32, ndarray
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Optional, AsyncGenerator, Sequence
+    from typing import Optional, AsyncGenerator, Iterator
 
     Vector = ndarray[tuple[384], dtype[float32]]
 
@@ -43,7 +43,7 @@ class IndexManager:
         self,
         prompt: str,
         session: AsyncSession
-    ) -> AsyncGenerator[tuple[Sequence[MessageRevisionRecord], float]]:
+    ) -> AsyncGenerator[tuple[Iterator[MessageRevisionRecord], float]]:
         """
         Get a selection of possible responses to the given message content.
 
@@ -58,12 +58,11 @@ class IndexManager:
         results = self._index.search(vector, size=100)
 
         for index_id, distance in results:
-            result = await session.execute(
+            revisions = await session.scalars(
                 select(MessageRevisionRecord)
                 .join(IndexRecord, IndexRecord.message_id == MessageRevisionRecord.message_id)
                 .where(IndexRecord.index_id == index_id)
             )
-            revisions = result.scalars().all()
 
             yield revisions, distance
 
@@ -115,11 +114,10 @@ class IndexManager:
         self._logger.info("Updating index")
 
         async with self._client.database_manager.session() as session:
-            result = await session.execute(
+            messages = await session.scalars(
                 select(MessageRecord)
                 .where(MessageRecord.index == None)
             )
-            messages = result.scalars().all()
 
             batch: dict[bytes, int] = {}
 
@@ -160,11 +158,7 @@ class IndexManager:
 
 
         if current_message.reference_id is not None:
-            result = await session.execute(
-                select(MessageRecord)
-                .where(MessageRecord.message_id == current_message.reference_id)
-            )
-            reference = result.scalar_one()
+            reference = await session.get_one(MessageRecord, current_message.reference_id)
 
             if await is_valid_prompt(session, current_message, reference):
                 return reference
@@ -176,6 +170,7 @@ class IndexManager:
             current_message.channel_id,
             current_message.created_at,
         )
+        history = list(history)
 
         try:
             previous_message = history[0]
@@ -222,12 +217,11 @@ class IndexManager:
             return None
 
         # Find the most recent edit which existed before the reply was sent.
-        result = await session.execute(
+        return await session.scalar(
             select(MessageRevisionRecord)
             .where(MessageRevisionRecord.message == prompt_message)
             .where(MessageRevisionRecord.edited_at < current_message.created_at)
             .order_by(desc(MessageRevisionRecord.edited_at))
             .limit(1)
         )
-        return result.scalar()
 

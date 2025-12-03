@@ -12,7 +12,7 @@ from discord import Member, SelectOption
 from discord.errors import Forbidden
 from discord.ui import Select, View
 from logging import getLogger
-from sqlalchemy import delete, select, desc, func
+from sqlalchemy import delete, select, desc
 from typing import TYPE_CHECKING, cast
 
 
@@ -63,15 +63,14 @@ class ConsentManager:
 
         dm_channel = await user.create_dm()
 
-        result = await session.execute(
-            select(func.count())
-            .select_from(ConsentPromptRecord)
+        exists = await session.scalar(select(
+            select(ConsentPromptRecord)
             .join(MessageRecord)
             .where(MessageRecord.channel_id == dm_channel.id)
-        )
-        count = result.scalar_one()
-
-        return count == 0
+            .exists()
+        ))
+        assert exists is not None
+        return not exists
 
     async def _send_introduction(self, session: AsyncSession, user: UserUnion):
         """Send a consent prompt to the given user."""
@@ -165,7 +164,7 @@ class ConsentManager:
             return ConsentResponse.WITH_PRIVACY
 
         async with self._database.session() as session:
-            result = await session.execute(
+            response = await session.scalar(
                 select(ConsentResponseRecord.response)
                 .join(InteractionRecord)
                 .where(InteractionRecord.user_id == user_id)
@@ -173,10 +172,10 @@ class ConsentManager:
                 .limit(1)
             )
 
-            if response := result.scalar():
-                return response
-            else:
+            if response is None:
                 return ConsentResponse.NO
+            else:
+                return response
 
 
 class ConsentSelect(Select[View]):

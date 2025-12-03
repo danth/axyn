@@ -17,7 +17,7 @@ from sqlalchemy import (
     select,
     table,
 )
-from sqlalchemy.exc import NoResultFound, OperationalError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -378,13 +378,15 @@ class DatabaseManager:
 
         async with self.session() as session:
             try:
-                result = await session.execute(
+                version = await session.scalar(
                     select(SchemaVersionRecord.schema_version)
                     .order_by(desc(SchemaVersionRecord.applied_at))
                     .limit(1)
                 )
-                version = result.scalar_one()
-            except (OperationalError, NoResultFound):
+            except OperationalError:
+                version = None
+
+            if version is None:
                 await self._create_new(session)
             else:
                 await self._migrate(session, version)

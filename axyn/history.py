@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Sequence, Optional
+    from typing import Iterator, Optional, Sequence
 
 
 _logger = getLogger(__name__)
@@ -19,7 +19,7 @@ async def get_history(
     session: AsyncSession,
     channel_id: int,
     time: Optional[datetime] = None
-) -> Sequence[MessageRecord]:
+) -> Iterator[MessageRecord]:
     """
     Queries a chunk of channel history from our database.
 
@@ -32,14 +32,13 @@ async def get_history(
     if time is None:
         time = datetime.now()
 
-    result = await session.execute(
+    return await session.scalars(
         select(MessageRecord)
         .where(MessageRecord.channel_id == channel_id)
         .where(MessageRecord.created_at < time)
         .order_by(desc(MessageRecord.created_at))
         .limit(100)
     )
-    return result.scalars().all()
 
 
 async def get_delays(session: AsyncSession, history: Sequence[MessageRecord]) -> tuple[float, float, float]:

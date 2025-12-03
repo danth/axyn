@@ -45,12 +45,14 @@ async def is_valid(session: AsyncSession, message: MessageRecord) -> bool:
     This excludes messages which have no content stored.
     """
 
-    revisions = await session.scalar(
+    has_revisions = await session.scalar(select(
         select(MessageRevisionRecord)
         .where(MessageRevisionRecord.message_id == message.message_id)
-    )
+        .exists()
+    ))
+    assert has_revisions is not None
 
-    if not revisions:
+    if not has_revisions:
         _logger.debug(f"{message.message_id} is not valid because no revisions were saved")
         return False
 

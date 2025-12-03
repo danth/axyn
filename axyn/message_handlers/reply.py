@@ -78,6 +78,7 @@ class Reply(MessageHandler):
 
         async with self.client.database_manager.session() as session:
             history = await get_history(session, self._channel.id)
+            history = list(history)
 
             try:
                 _, median, _ = await get_delays(session, history)
