@@ -178,3 +178,21 @@ async def test_set_response_other(
         )
         assert count == 3, f"should not delete MessageRecords"
 
+
+async def test_get_response_defaults_to_no_for_humans(
+    consent_manager: ConsentManager,
+):
+    response = await consent_manager.get_response(
+        UserRecord(user_id=10, human=True),
+    )
+    assert response == ConsentResponse.NO
+
+
+async def test_get_response_defaults_to_with_privacy_for_bots(
+    consent_manager: ConsentManager,
+):
+    response = await consent_manager.get_response(
+        UserRecord(user_id=12, human=False),
+    )
+    assert response == ConsentResponse.WITH_PRIVACY
+

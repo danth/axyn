@@ -149,7 +149,9 @@ class ConsentManager:
         """
         Return whether the given user has allowed their messages to be learned.
 
-        This is always ``ConsentResponse.WITHOUT_PRIVACY`` for bots.
+        This is always ``ConsentResponse.WITH_PRIVACY`` for bots. Depending on
+        the bot, they might share private information about other users, so we
+        should not leak it elsewhere.
         """
 
         if isinstance(user, UserRecord):
@@ -160,7 +162,7 @@ class ConsentManager:
             human = not (user.bot or user.system)
 
         if not human:
-            return ConsentResponse.WITHOUT_PRIVACY
+            return ConsentResponse.WITH_PRIVACY
 
         async with self._database.session() as session:
             result = await session.execute(
