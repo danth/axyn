@@ -51,7 +51,7 @@ def get_path(file: str) -> str:
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 8
+SCHEMA_VERSION: int = 9
 
 
 class BaseRecord(DeclarativeBase):
@@ -443,11 +443,6 @@ class DatabaseManager:
                     nullable=True,
                 ))
 
-        if version < 7:
-            # This only needs to happen once, even if we skipped over multiple
-            # versions that would reset the index.
-            self._reset_index(operations)
-
         if version < 8:
             # Change from {NO, YES} to {NO, WITH_PRIVACY, WITHOUT_PRIVACY}.
             # To do this, we need to temporarily use a type that contains all
@@ -499,6 +494,11 @@ class DatabaseManager:
                     type_=EnumType(New),
                     nullable=False,
                 )
+
+        if version < 9:
+            # This only needs to happen once, even if we skipped over multiple
+            # versions that would reset the index.
+            self._reset_index(operations)
 
     def _reset_index(self, operations: Operations):
         """

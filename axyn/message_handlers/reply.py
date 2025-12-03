@@ -1,10 +1,11 @@
 from __future__ import annotations
 import asyncio
 from axyn.channel import channel_members
+from axyn.database import MessageRecord
 from axyn.filters import reason_not_to_reply, is_direct
 from axyn.history import get_history, get_delays
 from axyn.message_handlers import MessageHandler
-from axyn.preprocessor import preprocess
+from axyn.preprocessor import preprocess_reply
 from axyn.privacy import can_send_in_channel
 from logging import getLogger
 from random import random, shuffle
@@ -127,7 +128,30 @@ class Reply(MessageHandler):
 
                     if can_send:
                         self._logger.debug(f'Selected reply "{response.content}"')
-                        text = preprocess(self.client, response.content)
+
+                        original_response = await session.get_one(
+                            MessageRecord,
+                            response.message_id,
+                        )
+
+                        original_prompt = await self.client.index_manager.get_prompt_message(
+                            session,
+                            original_response,
+                        )
+
+                        if original_prompt is None:
+                            original_prompt_author_id = None
+                        else:
+                            original_prompt_author_id = original_prompt.author_id
+
+                        text = preprocess_reply(
+                            response.content,
+                            original_prompt_author_id=original_prompt_author_id,
+                            original_response_author_id=original_response.author_id,
+                            current_prompt_author_id=self.message.author.id,
+                            axyn_id=self.client.axyn().id,
+                        )
+
                         return text, distance
                     else:
                         self._logger.debug(f'Cannot use reply "{response.content}" due to privacy filter')

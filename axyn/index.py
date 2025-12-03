@@ -2,7 +2,7 @@ from __future__ import annotations
 from axyn.database import IndexRecord, MessageRecord, MessageRevisionRecord
 from axyn.filters import is_valid_prompt, is_valid_response
 from axyn.history import get_history, get_delays
-from axyn.preprocessor import preprocess
+from axyn.preprocessor import preprocess_index
 from discord.ext.tasks import loop
 from fastembed import TextEmbedding
 from logging import getLogger
@@ -69,7 +69,7 @@ class IndexManager:
     def _vector(self, content: str) -> Vector:
         """Return the vector for the given message content."""
 
-        content = preprocess(self._client, content)
+        content = preprocess_index(content)
         vectors = self._model.embed([content])
         vector = list(vectors)[0]
         return cast("Vector", vector)
@@ -124,7 +124,7 @@ class IndexManager:
             for message in messages:
                 self._logger.debug(f"Checking {message.message_id}")
 
-                prompt = await self._get_prompt_revision(session, message)
+                prompt = await self.get_prompt_revision(session, message)
 
                 if prompt is None:
                     # Mark the message as processed, but not added to the index.
@@ -140,7 +140,7 @@ class IndexManager:
 
             await session.commit()
 
-    async def _get_prompt_message(
+    async def get_prompt_message(
         self,
         session: AsyncSession,
         current_message: MessageRecord
@@ -198,7 +198,7 @@ class IndexManager:
 
         return previous_message
 
-    async def _get_prompt_revision(
+    async def get_prompt_revision(
         self,
         session: AsyncSession,
         current_message: MessageRecord
@@ -211,7 +211,7 @@ class IndexManager:
         sent.
         """
 
-        prompt_message = await self._get_prompt_message(session, current_message)
+        prompt_message = await self.get_prompt_message(session, current_message)
 
         if prompt_message is None:
             return None
