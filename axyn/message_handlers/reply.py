@@ -116,45 +116,42 @@ class Reply(MessageHandler):
                 responses = list(responses)
                 shuffle(responses)
 
-                # Select the first (after shuffling) response that we are allowed to use.
                 for response in responses:
-                    response_message = await session.get_one(MessageRecord, response.message_id)
+                    original_response = await session.get_one(
+                        MessageRecord,
+                        response.message_id,
+                    )
 
                     can_send = await can_send_in_channel(
                         self.client,
-                        response_message,
+                        original_response,
                         self._channel,
                     )
 
-                    if can_send:
-                        self._logger.debug(f'Selected reply "{response.content}"')
-
-                        original_response = await session.get_one(
-                            MessageRecord,
-                            response.message_id,
-                        )
-
-                        original_prompt = await self.client.index_manager.get_prompt_message(
-                            session,
-                            original_response,
-                        )
-
-                        if original_prompt is None:
-                            original_prompt_author_id = None
-                        else:
-                            original_prompt_author_id = original_prompt.author_id
-
-                        text = preprocess_reply(
-                            response.content,
-                            original_prompt_author_id=original_prompt_author_id,
-                            original_response_author_id=original_response.author_id,
-                            current_prompt_author_id=self.message.author.id,
-                            axyn_id=self.client.axyn().id,
-                        )
-
-                        return text, distance
-                    else:
+                    if not can_send:
                         self._logger.debug(f'Cannot use reply "{response.content}" due to privacy filter')
+                        continue
+
+                    original_prompt = await self.client.index_manager.get_prompt_message(
+                        session,
+                        original_response,
+                    )
+
+                    if original_prompt is None:
+                        self._logger.debug(f'Cannot use reply "{response.content}" because the original prompt is no longer valid')
+                        continue
+
+                    self._logger.debug(f'Selected reply "{response.content}"')
+
+                    text = preprocess_reply(
+                        response.content,
+                        original_prompt_author_id=original_prompt.author_id,
+                        original_response_author_id=original_response.author_id,
+                        current_prompt_author_id=self.message.author.id,
+                        axyn_id=self.client.axyn().id,
+                    )
+
+                    return text, distance
 
         self._logger.debug(f'Found no suitable responses')
         return None, float("inf")

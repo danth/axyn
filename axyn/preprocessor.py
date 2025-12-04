@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from re import Match
-    from typing import Optional
 
 
 _logger = getLogger(__name__)
@@ -23,7 +22,7 @@ def preprocess_index(content: str) -> str:
 def preprocess_reply(
     content: str,
     *,
-    original_prompt_author_id: Optional[int],
+    original_prompt_author_id: int,
     original_response_author_id: int,
     current_prompt_author_id: int,
     axyn_id: int,
