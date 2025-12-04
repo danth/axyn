@@ -26,10 +26,6 @@ dependencies = [
   "fastembed >=0.7,<1",
   "ngt >=2,<3",
   "sqlalchemy[aiosqlite] >=2,<3",
-  "sqlalchemy-boltons >=4,<5",
-  # The following is required by sqlalchemy-boltons, but they don't
-  # specify it in their own requirements.
-  "immutabledict >=4,<5",
 ]
 
 [project.scripts]

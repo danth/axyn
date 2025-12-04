@@ -25,7 +25,6 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
-from sqlalchemy_boltons.sqlite import Options, SchemaOptions
 from typing import TYPE_CHECKING, Optional
 
 
@@ -33,7 +32,9 @@ if TYPE_CHECKING:
     from axyn.types import UserUnion
     from discord import Guild, Interaction, Message
     from sqlalchemy import Connection
+    from sqlalchemy.engine.interfaces import DBAPIConnection
     from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.pool import ConnectionPoolEntry
     from typing import Any
 
 
@@ -331,37 +332,41 @@ class DatabaseManager:
 
         engine = create_async_engine(uri)
 
-        def on_connect(dbapi_connection, connection_record):
+        def on_connect(
+            dbapi_connection: DBAPIConnection,
+            connection_record: ConnectionPoolEntry,
+        ):
             dbapi_connection.isolation_level = None
 
         listen(engine.sync_engine, "connect", on_connect)
 
-        def on_begin(connection):
-            for statement in Options.get(connection)._cached_generate_begin_commands():
-                connection.exec_driver_sql(statement).close()
+        def on_begin(connection: Connection):
+            # Enforce foreign key constraints.
+            connection.exec_driver_sql("PRAGMA foreign_keys=1").close()
+
+            # Use a write-ahead log to improve concurrency.
+            connection.exec_driver_sql("PRAGMA journal_mode=WAL").close()
+
+            # Begin the transaction.
+            # https://kerkour.com/sqlite-for-servers#use-immediate-transactions
+            # explains in more detail why we use the following, but in short
+            # DEFERRED = read-only
+            # IMMEDIATE = read-write
+            options = connection.get_execution_options()
+            begin = "BEGIN " + options["transaction_mode"]
+            connection.exec_driver_sql(begin).close()
+
+            # Per-transaction setting, means that foreign key constraints are
+            # delayed until COMMIT, so rows can be inserted in any order.
+            # Must appear after BEGIN.
+            connection.exec_driver_sql("PRAGMA defer_foreign_keys=1").close()
 
         listen(engine.sync_engine, "begin", on_begin)
 
-        engine = Options.new(
-            timeout=5,
-            begin="DEFERRED",
-            foreign_keys="DEFERRED",
-            recursive_triggers=True,
-            trusted_schema=False,
-            schemas={
-                "main": SchemaOptions.new(
-                    journal="WAL",
-                    synchronous="NORMAL",
-                )
-            },
-        ).apply(engine)
+        read_engine = engine.execution_options(transaction_mode="DEFERRED")
+        write_engine = engine.execution_options(transaction_mode="IMMEDIATE")
 
-        write_engine = Options.apply_lambda(
-            engine,
-            lambda options: options.evolve(begin="IMMEDIATE"),
-        )
-
-        self.read_session = async_sessionmaker(bind=engine)
+        self.read_session = async_sessionmaker(bind=read_engine)
         self.write_session = async_sessionmaker(bind=write_engine)
 
     async def setup_hook(self):
