@@ -173,7 +173,11 @@ class IndexManager:
 
 
         if current_message.reference_id is not None:
-            reference = await session.get_one(MessageRecord, current_message.reference_id)
+            reference = await session.get(MessageRecord, current_message.reference_id)
+
+            if reference is None:
+                # The message references something that we never observed.
+                return None
 
             if await is_valid_prompt(session, current_message, reference):
                 return reference

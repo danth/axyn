@@ -50,7 +50,7 @@ def get_path(file: str) -> str:
     return os.path.join(folder, file)
 
 
-SCHEMA_VERSION: int = 9
+SCHEMA_VERSION: int = 10
 
 
 class BaseRecord(DeclarativeBase):
@@ -153,7 +153,8 @@ class MessageRecord(BaseRecord):
     )
     author_id: Mapped[int] = mapped_column(ForeignKey("user.user_id"))
     channel_id: Mapped[int] = mapped_column(ForeignKey("channel.channel_id"))
-    reference_id: Mapped[Optional[int]] = mapped_column(ForeignKey("message.message_id"))
+    reference_id: Mapped[Optional[int]]
+        # ^ No constraint because we may have missed the referenced message
     created_at: Mapped[datetime]
     deleted_at: Mapped[Optional[datetime]]
 
@@ -454,6 +455,20 @@ class DatabaseManager:
             # This only needs to happen once, even if we skipped over multiple
             # versions that would reset the index.
             self._reset_index(operations)
+
+        if version < 10:
+            batch_context = operations.batch_alter_table(
+                "message",
+                naming_convention={
+                    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+                },
+            )
+
+            with batch_context as batch:
+                batch.drop_constraint(
+                    "fk_message_reference_id_message",
+                    type_="foreignkey",
+                )
 
     def _reset_index(self, operations: Operations):
         """
