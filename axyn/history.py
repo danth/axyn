@@ -1,5 +1,5 @@
 from __future__ import annotations
-from axyn.database import MessageRecord
+from axyn.database import MessageRecord, UserRecord
 from datetime import datetime
 from logging import getLogger
 from statistics import quantiles
@@ -58,8 +58,8 @@ async def get_delays(session: AsyncSession, history: Sequence[MessageRecord]) ->
             continue
 
         # Bots usually reply immediately, which skews the results.
-        await session.refresh(current, ["author"])
-        if not current.author.human:
+        author = await session.get_one(UserRecord, current.author_id)
+        if not author.human:
             continue
 
         delay = (current.created_at - prompt.created_at).total_seconds()

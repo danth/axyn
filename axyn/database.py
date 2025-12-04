@@ -23,7 +23,6 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
-    relationship,
 )
 from typing import TYPE_CHECKING, Optional
 
@@ -81,9 +80,6 @@ class UserRecord(BaseRecord):
     )
     human: Mapped[bool]
 
-    messages: Mapped[list[MessageRecord]] = relationship(back_populates="author")
-    interactions: Mapped[list[InteractionRecord]] = relationship(back_populates="user")
-
     @staticmethod
     def from_user(user: UserUnion) -> UserRecord:
         """Create a ``UserRecord`` from the provided ``User``."""
@@ -104,11 +100,6 @@ class ChannelRecord(BaseRecord):
         autoincrement=False, # Should match Discord's ID
     )
     guild_id: Mapped[Optional[int]] = mapped_column(ForeignKey("guild.guild_id"))
-
-    guild: Mapped[GuildRecord] = relationship(back_populates="channels")
-
-    messages: Mapped[list[MessageRecord]] = relationship(back_populates="channel")
-    interactions: Mapped[list[InteractionRecord]] = relationship(back_populates="channel")
 
     @staticmethod
     def from_channel(channel: Any) -> ChannelRecord:
@@ -139,9 +130,6 @@ class GuildRecord(BaseRecord):
         autoincrement=False, # Should match Discord's ID
     )
 
-    channels: Mapped[list[ChannelRecord]] = relationship(back_populates="guild")
-    interactions: Mapped[list[InteractionRecord]] = relationship(back_populates="guild")
-
     @staticmethod
     def from_guild(guild: Guild) -> GuildRecord:
         """Create a ``GuildRecord`` from the provided ``Guild``."""
@@ -168,21 +156,6 @@ class MessageRecord(BaseRecord):
     reference_id: Mapped[Optional[int]] = mapped_column(ForeignKey("message.message_id"))
     created_at: Mapped[datetime]
     deleted_at: Mapped[Optional[datetime]]
-
-    author: Mapped[UserRecord] = relationship(back_populates="messages")
-    channel: Mapped[ChannelRecord] = relationship(back_populates="messages")
-    reference: Mapped[Optional[MessageRecord]] = relationship(
-        back_populates="references",
-        # Because this relationship is self-referential, we need to tell
-        # SQLAlchemy which way round it is.
-        remote_side=[message_id]
-    )
-
-    references: Mapped[list[MessageRecord]] = relationship(back_populates="reference")
-    revisions: Mapped[list[MessageRevisionRecord]] = relationship(back_populates="message")
-    interactions: Mapped[list[InteractionRecord]] = relationship(back_populates="message")
-    consent_prompt: Mapped[Optional[ConsentPromptRecord]] = relationship(back_populates="message")
-    index: Mapped[Optional[IndexRecord]] = relationship(back_populates="message")
 
     @staticmethod
     def from_message(message: Message) -> MessageRecord:
@@ -226,8 +199,6 @@ class MessageRevisionRecord(BaseRecord):
     message_id: Mapped[int] = mapped_column(ForeignKey("message.message_id"))
     edited_at: Mapped[datetime]
     content: Mapped[str]
-
-    message: Mapped[MessageRecord] = relationship(back_populates="revisions")
 
     @staticmethod
     def from_message(message: Message) -> MessageRevisionRecord:
@@ -273,9 +244,6 @@ class IndexRecord(BaseRecord):
     )
     index_id: Mapped[Optional[int]] = mapped_column(index=True)
 
-    message: Mapped[MessageRecord] = relationship(back_populates="index")
-
-
 class InteractionRecord(BaseRecord):
     """Database record storing an interaction we have recieved."""
 
@@ -290,13 +258,6 @@ class InteractionRecord(BaseRecord):
     channel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("channel.channel_id"))
     guild_id: Mapped[Optional[int]] = mapped_column(ForeignKey("guild.guild_id"))
     created_at: Mapped[datetime]
-
-    user: Mapped[UserRecord] = relationship(back_populates="interactions")
-    message: Mapped[Optional[MessageRecord]] = relationship(back_populates="interactions")
-    channel: Mapped[Optional[ChannelRecord]] = relationship(back_populates="interactions")
-    guild: Mapped[Optional[GuildRecord]] = relationship(back_populates="interactions")
-
-    consent_response: Mapped[Optional[ConsentResponseRecord]] = relationship(back_populates="interaction")
 
     @staticmethod
     def from_interaction(interaction: Interaction) -> InteractionRecord:
@@ -343,9 +304,6 @@ class ConsentPromptRecord(BaseRecord):
         primary_key=True,
     )
 
-    message: Mapped[MessageRecord] = relationship(back_populates="consent_prompt")
-
-
 class ConsentResponseRecord(BaseRecord):
     """
     Database record storing a consent response we have recieved.
@@ -361,9 +319,6 @@ class ConsentResponseRecord(BaseRecord):
         primary_key=True,
     )
     response: Mapped[ConsentResponse]
-
-    interaction: Mapped[InteractionRecord] = relationship(back_populates="consent_response")
-
 
 class DatabaseManager:
     """Holds a connection to the database and controls database migrations."""

@@ -8,7 +8,7 @@ from fastembed import TextEmbedding
 from logging import getLogger
 from ngtpy import create as create_ngt, Index
 from os import path
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, not_
 from statistics import StatisticsError
 from typing import TYPE_CHECKING, cast
 
@@ -116,7 +116,11 @@ class IndexManager:
         async with self._client.database_manager.session() as session:
             messages = await session.scalars(
                 select(MessageRecord)
-                .where(MessageRecord.index == None)
+                .where(not_(
+                    select(IndexRecord)
+                    .where(IndexRecord.message_id == MessageRecord.message_id)
+                    .exists()
+                ))
             )
 
             batch: dict[bytes, int] = {}
@@ -127,13 +131,24 @@ class IndexManager:
                 prompt = await self.get_prompt_revision(session, message)
 
                 if prompt is None:
-                    # Mark the message as processed, but not added to the index.
-                    session.add(IndexRecord(message=message, index_id=None))
-                else:
-                    self._logger.debug(f'Indexing {message.message_id} under "{prompt.content}"')
-                    vector = self._vector(prompt.content)
-                    index_id = self._insert(vector, batch)
-                    session.add(IndexRecord(message=message, index_id=index_id))
+                    self._logger.debug(f"Not indexing {message.message_id}")
+
+                    session.add(IndexRecord(
+                        message_id=message.message_id,
+                        index_id=None,
+                    ))
+
+                    continue
+
+                self._logger.debug(f'Indexing {message.message_id} under "{prompt.content}"')
+
+                vector = self._vector(prompt.content)
+                index_id = self._insert(vector, batch)
+
+                session.add(IndexRecord(
+                    message_id=message.message_id,
+                    index_id=index_id,
+                ))
 
             self._index.build_index()
             self._index.save()
@@ -219,7 +234,7 @@ class IndexManager:
         # Find the most recent edit which existed before the reply was sent.
         return await session.scalar(
             select(MessageRevisionRecord)
-            .where(MessageRevisionRecord.message == prompt_message)
+            .where(MessageRevisionRecord.message_id == prompt_message.message_id)
             .where(MessageRevisionRecord.edited_at < current_message.created_at)
             .order_by(desc(MessageRevisionRecord.edited_at))
             .limit(1)

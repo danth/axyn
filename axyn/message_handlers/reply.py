@@ -118,11 +118,11 @@ class Reply(MessageHandler):
 
                 # Select the first (after shuffling) response that we are allowed to use.
                 for response in responses:
-                    await session.refresh(response, ["message"])
+                    response_message = await session.get_one(MessageRecord, response.message_id)
 
                     can_send = await can_send_in_channel(
                         self.client,
-                        response.message,
+                        response_message,
                         self._channel,
                     )
 
