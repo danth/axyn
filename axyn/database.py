@@ -348,10 +348,6 @@ class DatabaseManager:
             connection.exec_driver_sql("PRAGMA journal_mode=WAL").close()
 
             # Begin the transaction.
-            # https://kerkour.com/sqlite-for-servers#use-immediate-transactions
-            # explains in more detail why we use the following, but in short
-            # DEFERRED = read-only
-            # IMMEDIATE = read-write
             options = connection.get_execution_options()
             begin = "BEGIN " + options["transaction_mode"]
             connection.exec_driver_sql(begin).close()

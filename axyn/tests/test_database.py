@@ -1,10 +1,12 @@
 from __future__ import annotations
+from asyncio import Event, TaskGroup, timeout
 from axyn.database import (
     SCHEMA_VERSION,
     BaseRecord,
     ConsentPromptRecord,
     DatabaseManager,
     SchemaVersionRecord,
+    UserRecord,
     get_path,
 )
 from datetime import datetime
@@ -22,6 +24,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    select,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -319,4 +322,60 @@ async def test_foreign_key_constraints_are_checked():
 
         with raises(IntegrityError):
             await session.commit()
+
+
+async def test_concurrent_writes_do_not_fail():
+    # This checks that we do not encounter the situation described at
+    # https://kerkour.com/sqlite-for-servers#use-immediate-transactions
+    #
+    # Usually it's a race condition, but in this test we synchronise the
+    # tasks to force it to happen.
+
+    manager = DatabaseManager()
+    await manager.setup_hook()
+
+    steal = Event()
+    stolen = Event()
+
+    async def victim():
+        async with manager.write_session() as session:
+            # Do a read statement to open a transaction.
+            #
+            # The desired behaviour is to open it in IMMEDIATE mode, locking
+            # the database now, even though we haven't started writing yet.
+            #
+            # The default is to use DEFERRED mode, not locking the database
+            # until we do a write statement.
+            await session.execute(select(UserRecord))
+
+            # Start the other task, then wait until it locks the database.
+            #
+            # If we used IMMEDIATE mode, the other task should start waiting
+            # for us to finish our transaction. This deadlocks, so a timeout
+            # will occur and we pass the test.
+            #
+            # If we used DEFERRED mode, the database is not locked yet, so the
+            # other task would get the lock and we would continue running. If
+            # we were to do a write statement after this, it would immediately
+            # fail because the other task has the lock that we need.
+            with raises(TimeoutError):
+                async with timeout(0.5):
+                    steal.set()
+                    await stolen.wait()
+
+    async def thief():
+        await steal.wait()
+
+        async with manager.write_session() as session:
+            # Do a write statement to open a transaction, locking the database
+            # regardless of what mode we used.
+            session.add(UserRecord(user_id=2, human=True))
+            await session.flush()
+
+            # Tell the other task that we got the lock.
+            stolen.set()
+
+    async with TaskGroup() as group:
+        group.create_task(victim())
+        group.create_task(thief())
 
