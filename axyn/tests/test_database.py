@@ -2,6 +2,7 @@ from __future__ import annotations
 from axyn.database import (
     SCHEMA_VERSION,
     BaseRecord,
+    ConsentPromptRecord,
     DatabaseManager,
     SchemaVersionRecord,
     get_path,
@@ -9,6 +10,7 @@ from axyn.database import (
 from datetime import datetime
 from enum import Enum
 from ngtpy import create as create_ngt
+from os.path import exists
 from pytest import fixture, mark, raises
 from sqlalchemy import (
     Boolean,
@@ -21,6 +23,7 @@ from sqlalchemy import (
     String,
     Table,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from typing import TYPE_CHECKING
 
@@ -297,4 +300,23 @@ async def test_open_invalid_schema(schema_version: int):
 
     with raises(Exception):
         await manager.setup_hook()
+
+
+async def test_uses_write_ahead_log():
+    manager = DatabaseManager()
+    await manager.setup_hook()
+
+    assert exists(get_path("database.sqlite3-shm"))
+    assert exists(get_path("database.sqlite3-wal"))
+
+
+async def test_foreign_key_constraints_are_checked():
+    manager = DatabaseManager()
+    await manager.setup_hook()
+
+    async with manager.write_session() as session:
+        session.add(ConsentPromptRecord(message_id=5))
+
+        with raises(IntegrityError):
+            await session.commit()
 

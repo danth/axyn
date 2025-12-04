@@ -36,7 +36,7 @@ async def database_manager(monkeypatch: MonkeyPatch, tmp_path: str):
         session.add(UserRecord(user_id=11, human=True))
         session.add(UserRecord(user_id=12, human=False))
 
-        session.add(ChannelRecord(channel_id=20, guild_id=30))
+        session.add(ChannelRecord(channel_id=20, guild_id=None))
 
         session.add(MessageRecord(
             message_id=40,
@@ -103,7 +103,7 @@ async def test_set_response_no(
             user_id=10,
             message_id=42,
             channel_id=20,
-            guild_id=30,
+            guild_id=None,
             created_at=datetime.fromisoformat("2025-12-02T22:32:59Z"),
         )
         session.add(interaction)
@@ -158,7 +158,7 @@ async def test_set_response_other(
             user_id=10,
             message_id=42,
             channel_id=20,
-            guild_id=30,
+            guild_id=None,
             created_at=datetime.fromisoformat("2025-12-02T22:32:59Z"),
         )
         session.add(interaction)

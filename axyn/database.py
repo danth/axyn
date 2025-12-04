@@ -19,6 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.event import listen
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -329,6 +330,17 @@ class DatabaseManager:
         uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
 
         engine = create_async_engine(uri)
+
+        def on_connect(dbapi_connection, connection_record):
+            dbapi_connection.isolation_level = None
+
+        listen(engine.sync_engine, "connect", on_connect)
+
+        def on_begin(connection):
+            for statement in Options.get(connection)._cached_generate_begin_commands():
+                connection.exec_driver_sql(statement).close()
+
+        listen(engine.sync_engine, "begin", on_begin)
 
         engine = Options.new(
             timeout=5,
