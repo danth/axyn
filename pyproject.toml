@@ -1,3 +1,54 @@
+[build-system]
+requires = [ "setuptools" ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axyn"
+version = "8.10.1"
+authors = [
+  { name = "Daniel Thwaites", email = "danth@danth.me" },
+]
+description = "A discord chatbot using traditional algorithms"
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.13",
+]
+keywords = [ "Discord", "bot", "chatbot" ]
+requires-python = ">=3.13,<4"
+dependencies = [
+  "alembic >=1,<2",
+  "discord.py >=2,<3",
+  "discordhealthcheck >=0.0.7,<1",
+  "fastembed >=0.7,<1",
+  "ngt >=2,<3",
+  "sqlalchemy[aiosqlite] >=2,<3",
+  "sqlalchemy-boltons >=4,<5",
+  # The following is required by sqlalchemy-boltons, but they don't
+  # specify it in their own requirements.
+  "immutabledict >=4,<5",
+]
+
+[project.scripts]
+axyn = "axyn.__main__:launch"
+
+[project.optional-dependencies]
+build = [ "build >=1,<2" ]
+test = [
+  "coverage >=7,<8",
+  "pytest >=8,<9",
+  "pytest-asyncio >=1,<2",
+]
+
+[project.urls]
+changelog = "https://github.com/danth/axyn/releases"
+homepage = "https://github.com/danth/axyn"
+issues = "https://github.com/danth/axyn/issues"
+source = "https://github.com/danth/axyn"
+
 [tool.coverage.run]
 branch = true
 source = [ "axyn" ]
@@ -6,14 +57,15 @@ source = [ "axyn" ]
 pythonVersion = "3.13" # Keep in sync with setup.py
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib"]
+addopts = [ "--import-mode=importlib" ]
 asyncio_mode = "auto"
 
 [tool.semantic_release]
 commit_parser = "conventional"
 commit_message = "build: release v{version}"
-version_variables = [
-	"setup.py:version",
-	"flake.nix:axynVersion",
-]
+version_toml = [ "pyproject.toml:project.version" ]
+version_variables = [ "flake.nix:axynVersion" ]
+
+[tool.setuptools.packages.find]
+include = [ "axyn*" ]
 
