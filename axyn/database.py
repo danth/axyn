@@ -330,27 +330,27 @@ class DatabaseManager:
 
         engine = create_async_engine(uri)
 
-        engine = Options.new( # pyright: ignore
+        engine = Options.new(
             timeout=5,
             begin="DEFERRED",
             foreign_keys="DEFERRED",
             recursive_triggers=True,
             trusted_schema=False,
             schemas={
-                "main": SchemaOptions.new( # pyright: ignore
+                "main": SchemaOptions.new(
                     journal="WAL",
                     synchronous="NORMAL",
                 )
             },
         ).apply(engine)
 
-        write_engine = Options.apply_lambda( # pyright: ignore
-            engine, # pyright: ignore
-            lambda options: options.evolve(begin="IMMEDIATE"), # pyright: ignore
+        write_engine = Options.apply_lambda(
+            engine,
+            lambda options: options.evolve(begin="IMMEDIATE"),
         )
 
-        self.read_session = async_sessionmaker(bind=engine) # pyright: ignore
-        self.write_session = async_sessionmaker(bind=write_engine) # pyright: ignore
+        self.read_session = async_sessionmaker(bind=engine)
+        self.write_session = async_sessionmaker(bind=write_engine)
 
     async def setup_hook(self):
         """Ensure the database is following the current schema."""
