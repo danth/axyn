@@ -113,7 +113,7 @@ class IndexManager:
 
         self._logger.info("Updating index")
 
-        async with self._client.database_manager.session() as session:
+        async with self._client.database_manager.write_session() as session:
             messages = await session.scalars(
                 select(MessageRecord)
                 .where(not_(

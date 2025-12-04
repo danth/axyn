@@ -55,6 +55,22 @@
           propagatedBuildInputs = [ discordpy ];
         };
 
+        sqlalchemy-boltons = buildPythonPackage rec {
+          pname = "sqlalchemy_boltons";
+          version = "4.0.1";
+
+          src = pkgs.fetchPypi {
+            inherit pname version;
+            hash = "sha256-YvmZ5PWwYYL2HXBbIHps8K//qVVj0zLJ38mF5dR0SkU=";
+          };
+
+          format = "pyproject";
+          build-system = [ setuptools ];
+          propagatedBuildInputs = [ immutabledict sqlalchemy ];
+          nativeCheckInputs = [ pytest ];
+          checkPhase = "pytest";
+        };
+
         # In a uniquely named variable for Python Semantic Release
         axynVersion = "8.10.0";
 
@@ -73,6 +89,7 @@
             fastembed
             ngt
             sqlalchemy
+            sqlalchemy-boltons
           ] ++ sqlalchemy.optional-dependencies.aiosqlite;
 
           nativeCheckInputs = [

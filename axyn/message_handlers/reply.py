@@ -77,7 +77,7 @@ class Reply(MessageHandler):
             self._logger.debug("Will reply immediately")
             return 0
 
-        async with self.client.database_manager.session() as session:
+        async with self.client.database_manager.read_session() as session:
             history = await get_history(session, self._channel.id)
             history = list(history)
 
@@ -104,7 +104,7 @@ class Reply(MessageHandler):
     async def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
 
-        async with self.client.database_manager.session() as session:
+        async with self.client.database_manager.read_session() as session:
             groups = self.client.index_manager.get_response_groups(
                 self.message.content,
                 session,

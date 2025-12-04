@@ -31,7 +31,7 @@ async def database_manager(monkeypatch: MonkeyPatch, tmp_path: str):
     database_manager = DatabaseManager()
     await database_manager.setup_hook()
 
-    async with database_manager.session() as session:
+    async with database_manager.write_session() as session:
         session.add(UserRecord(user_id=10, human=True))
         session.add(UserRecord(user_id=11, human=True))
         session.add(UserRecord(user_id=12, human=False))
@@ -97,7 +97,7 @@ async def test_set_response_no(
     database_manager: DatabaseManager,
     consent_manager: ConsentManager,
 ):
-    async with database_manager.session() as session:
+    async with database_manager.write_session() as session:
         interaction = InteractionRecord(
             interaction_id=50,
             user_id=10,
@@ -152,7 +152,7 @@ async def test_set_response_other(
     consent_manager: ConsentManager,
     response: ConsentResponse,
 ):
-    async with database_manager.session() as session:
+    async with database_manager.write_session() as session:
         interaction = InteractionRecord(
             interaction_id=50,
             user_id=10,

@@ -50,7 +50,7 @@ class ConsentManager:
 
             message = cast("Message", response.resource)
 
-            async with self._database.session() as session:
+            async with self._database.write_session() as session:
                 session.add(ConsentPromptRecord(message_id=message.id))
 
                 await session.commit()
@@ -163,7 +163,7 @@ class ConsentManager:
         if not human:
             return ConsentResponse.WITH_PRIVACY
 
-        async with self._database.session() as session:
+        async with self._database.read_session() as session:
             response = await session.scalar(
                 select(ConsentResponseRecord.response)
                 .join(InteractionRecord)
@@ -218,7 +218,7 @@ class ConsentSelect(Select[View]):
     async def callback(self, interaction: Interaction):
         client = cast("AxynClient", interaction.client)
 
-        async with client.database_manager.session() as session:
+        async with client.database_manager.write_session() as session:
             interaction_record = InteractionRecord.from_interaction(interaction)
 
             session.add(interaction_record)

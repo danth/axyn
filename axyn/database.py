@@ -24,6 +24,7 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
+from sqlalchemy_boltons.sqlite import Options, SchemaOptions
 from typing import TYPE_CHECKING, Optional
 
 
@@ -326,13 +327,35 @@ class DatabaseManager:
 
     def __init__(self):
         uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
+
         engine = create_async_engine(uri)
-        self.session = async_sessionmaker(bind=engine)
+
+        engine = Options.new( # pyright: ignore
+            timeout=5,
+            begin="DEFERRED",
+            foreign_keys="DEFERRED",
+            recursive_triggers=True,
+            trusted_schema=False,
+            schemas={
+                "main": SchemaOptions.new( # pyright: ignore
+                    journal="WAL",
+                    synchronous="NORMAL",
+                )
+            },
+        ).apply(engine)
+
+        write_engine = Options.apply_lambda( # pyright: ignore
+            engine, # pyright: ignore
+            lambda options: options.evolve(begin="IMMEDIATE"), # pyright: ignore
+        )
+
+        self.read_session = async_sessionmaker(bind=engine) # pyright: ignore
+        self.write_session = async_sessionmaker(bind=write_engine) # pyright: ignore
 
     async def setup_hook(self):
         """Ensure the database is following the current schema."""
 
-        async with self.session() as session:
+        async with self.write_session() as session:
             try:
                 version = await session.scalar(
                     select(SchemaVersionRecord.schema_version)

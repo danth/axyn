@@ -42,7 +42,7 @@ class Store(MessageHandler):
 
         self._logger.info(f"Storing full version of {self.message.id}")
 
-        async with self.client.database_manager.session() as session:
+        async with self.client.database_manager.write_session() as session:
             if self.message.channel.guild is not None:
                 await session.merge(GuildRecord.from_guild(self.message.channel.guild))
             await session.merge(ChannelRecord.from_channel(self.message.channel))
@@ -68,7 +68,7 @@ class Store(MessageHandler):
 
         self._logger.info(f"Storing redacted version of {self.message.id}")
 
-        async with self.client.database_manager.session() as session:
+        async with self.client.database_manager.write_session() as session:
             if self.message.channel.guild is not None:
                 await session.merge(GuildRecord.from_guild(self.message.channel.guild))
             await session.merge(ChannelRecord.from_channel(self.message.channel))
