@@ -50,6 +50,8 @@ branch = true
 source = [ "axyn" ]
 
 [tool.pyright]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
 pythonVersion = "3.13" # Keep in sync with setup.py
 
 [tool.pytest.ini_options]
