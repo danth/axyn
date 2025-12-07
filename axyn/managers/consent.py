@@ -46,8 +46,8 @@ class ConsentManager(Manager):
             message = cast("Message", response.resource)
 
             async with self._client.database_manager.write_session() as session:
+                await MessageRecord.insert(session, message)
                 session.add(ConsentPromptRecord(message_id=message.id))
-
                 await session.commit()
 
     async def _should_send_introduction(self, session: AsyncSession, user: UserUnion) -> bool:

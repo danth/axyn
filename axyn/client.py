@@ -17,7 +17,6 @@ from discord.app_commands import CommandTree
 import discordhealthcheck
 import logging
 from sqlalchemy import update
-from sqlalchemy.exc import IntegrityError
 from typing import TYPE_CHECKING
 
 
@@ -104,20 +103,11 @@ class AxynClient(Client):
             self.logger.info(f"Not storing new revision of {message.id} because the author has not given consent")
             return
 
-        try:
-            async with self.database_manager.write_session() as session:
-                session.add(MessageRevisionRecord.from_message(message))
+        self.logger.info(f"Storing new revision of {message.id}")
 
-                await session.commit()
-        except IntegrityError:
-            # The unique constraint fails when Discord resolves a link into an
-            # embed, for example, because that counts as an update but doesn't
-            # affect the content.
-            # The foreign key constraint fails if we didn't see the original
-            # version of the message.
-            self.logger.info(f"New revision of {message.id} rejected by database constraints")
-        else:
-            self.logger.info(f"Storing new revision of {message.id}")
+        async with self.database_manager.write_session() as session:
+            await MessageRevisionRecord.insert(session, message)
+            await session.commit()
 
     async def on_raw_message_delete(self, payload: RawMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_id} as deleted")

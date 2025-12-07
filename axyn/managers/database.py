@@ -13,6 +13,7 @@ from datetime import datetime
 from enum import Enum
 from shutil import rmtree
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Enum as EnumType,
@@ -217,6 +218,10 @@ class DatabaseManager(Manager):
                     "fk_message_reference_id_message",
                     type_="foreignkey",
                 )
+
+        if version < 11:
+            with operations.batch_alter_table("message") as batch:
+                batch.add_column(Column("ephemeral", Boolean(), nullable=True))
 
     def _reset_index(self, operations: Operations):
         """

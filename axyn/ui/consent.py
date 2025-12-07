@@ -51,9 +51,12 @@ class ConsentSelect(Select[View]):
         client = cast("AxynClient", interaction.client)
 
         async with client.database_manager.write_session() as session:
-            interaction_record = InteractionRecord.from_interaction(interaction)
+            await InteractionRecord.insert(session, interaction)
 
-            session.add(interaction_record)
+            interaction_record = await session.get_one(
+                InteractionRecord,
+                interaction.id,
+            )
 
             await client.consent_manager.set_response(
                 session,

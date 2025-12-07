@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 import os
 from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -15,11 +16,12 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from axyn.types import UserUnion
     from discord import Guild, Interaction, Message
+    from sqlalchemy.ext.asyncio import AsyncSession
     from typing import Any
 
 
 DATA_DIRECTORY = "~/axyn"
-SCHEMA_VERSION: int = 10
+SCHEMA_VERSION: int = 11
 
 
 def get_path(file: str) -> str:
@@ -62,12 +64,14 @@ class UserRecord(BaseRecord):
     human: Mapped[bool]
 
     @staticmethod
-    def from_user(user: UserUnion) -> UserRecord:
-        """Create a ``UserRecord`` from the provided ``User``."""
-
-        return UserRecord(
-            user_id=user.id,
-            human=not (user.bot or user.system)
+    async def insert(session: AsyncSession, user: UserUnion):
+        await session.execute(
+            insert(UserRecord)
+            .values(
+                user_id=user.id,
+                human=not (user.bot or user.system),
+            )
+            .on_conflict_do_nothing()
         )
 
 
@@ -83,22 +87,24 @@ class ChannelRecord(BaseRecord):
     guild_id: Mapped[Optional[int]] = mapped_column(ForeignKey("guild.guild_id"))
 
     @staticmethod
-    def from_channel(channel: Any) -> ChannelRecord:
-        """
-        Create a ``ChannelRecord`` from the provided channel.
-
-        Raises an exception if the channel is of an unsupported type.
-        """
-
+    async def insert(session: AsyncSession, channel: Any):
         if not is_supported_channel_type(channel):
-            raise TypeError(f"unsupported channel type: {type(channel)}")
+            raise TypeError("unsupported channel type: {type(message.channel)}")
 
         if channel.guild is None:
             guild_id = None
         else:
+            await GuildRecord.insert(session, channel.guild)
             guild_id = channel.guild.id
 
-        return ChannelRecord(channel_id=channel.id, guild_id=guild_id)
+        await session.execute(
+            insert(ChannelRecord)
+            .values(
+                channel_id=channel.id,
+                guild_id=guild_id,
+            )
+            .on_conflict_do_nothing()
+        )
 
 
 class GuildRecord(BaseRecord):
@@ -112,10 +118,12 @@ class GuildRecord(BaseRecord):
     )
 
     @staticmethod
-    def from_guild(guild: Guild) -> GuildRecord:
-        """Create a ``GuildRecord`` from the provided ``Guild``."""
-
-        return GuildRecord(guild_id=guild.id)
+    async def insert(session: AsyncSession, guild: Guild):
+        await session.execute(
+            insert(GuildRecord)
+            .values(guild_id=guild.id)
+            .on_conflict_do_nothing()
+        )
 
 
 class MessageRecord(BaseRecord):
@@ -136,33 +144,34 @@ class MessageRecord(BaseRecord):
     channel_id: Mapped[int] = mapped_column(ForeignKey("channel.channel_id"))
     reference_id: Mapped[Optional[int]]
         # ^ No constraint because we may have missed the referenced message
+    ephemeral: Mapped[Optional[bool]]
+        # ^ Optional because we did not always store this flag
     created_at: Mapped[datetime]
     deleted_at: Mapped[Optional[datetime]]
 
     @staticmethod
-    def from_message(message: Message) -> MessageRecord:
-        """
-        Create a ``MessageRecord`` from the provided ``Message``.
-
-        Raises an exception if the message is from a channel of an unsupported
-        type.
-        """
-
-        if not is_supported_channel_type(message.channel):
-            raise Exception(f"unsupported channel type: {type(message.channel)}")
+    async def insert(session: AsyncSession, message: Message):
+        await UserRecord.insert(session, message.author)
+        await ChannelRecord.insert(session, message.channel)
 
         if message.reference is None:
             reference_id = None
         else:
             reference_id = message.reference.message_id
 
-        return MessageRecord(
-            message_id=message.id,
-            author_id=message.author.id,
-            channel_id=message.channel.id,
-            reference_id=reference_id,
-            created_at=message.created_at,
-            deleted_at=None
+        await session.execute(
+            insert(MessageRecord)
+            .values(
+                message_id=message.id,
+                author_id=message.author.id,
+                channel_id=message.channel.id,
+                reference_id=reference_id,
+                ephemeral=message.flags.ephemeral,
+                created_at=message.created_at,
+                deleted_at=None,
+
+            )
+            .on_conflict_do_nothing()
         )
 
 
@@ -183,23 +192,22 @@ class MessageRevisionRecord(BaseRecord):
     content: Mapped[str]
 
     @staticmethod
-    def from_message(message: Message) -> MessageRevisionRecord:
-        """
-        Create a ``MessageRevisionRecord`` from the provided ``Message``.
-
-        Raises an exception if the message is from a channel of an unsupported
-        type.
-        """
+    async def insert(session: AsyncSession, message: Message):
+        await MessageRecord.insert(session, message)
 
         if message.edited_at is None:
             edited_at = message.created_at
         else:
             edited_at = message.edited_at
 
-        return MessageRevisionRecord(
-            message_id=message.id,
-            edited_at=edited_at,
-            content=message.content
+        await session.execute(
+            insert(MessageRevisionRecord)
+            .values(
+                message_id=message.id,
+                edited_at=edited_at,
+                content=message.content,
+            )
+            .on_conflict_do_nothing()
         )
 
 
@@ -243,31 +251,36 @@ class InteractionRecord(BaseRecord):
     created_at: Mapped[datetime]
 
     @staticmethod
-    def from_interaction(interaction: Interaction) -> InteractionRecord:
-        """Create an ``InteractionRecord`` from the provided ``Interaction``."""
-
+    async def insert(session: AsyncSession, interaction: Interaction):
         if interaction.message is None:
             message_id = None
         else:
+            await MessageRecord.insert(session, interaction.message)
             message_id = interaction.message.id
 
         if interaction.channel is None:
             channel_id = None
         else:
+            await ChannelRecord.insert(session, interaction.channel)
             channel_id = interaction.channel.id
 
         if interaction.guild is None:
             guild_id = None
         else:
+            await GuildRecord.insert(session, interaction.guild)
             guild_id = interaction.guild.id
 
-        return InteractionRecord(
-            interaction_id=interaction.id,
-            user_id=interaction.user.id,
-            message_id=message_id,
-            channel_id=channel_id,
-            guild_id=guild_id,
-            created_at=interaction.created_at
+        await session.execute(
+            insert(InteractionRecord)
+            .values(
+                interaction_id=interaction.id,
+                user_id=interaction.user.id,
+                message_id=message_id,
+                channel_id=channel_id,
+                guild_id=guild_id,
+                created_at=interaction.created_at
+            )
+            .on_conflict_do_nothing()
         )
 
 

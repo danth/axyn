@@ -3,7 +3,7 @@ from axyn.database import MessageRecord, UserRecord
 from datetime import datetime
 from logging import getLogger
 from statistics import quantiles
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, not_
 from typing import TYPE_CHECKING
 
 
@@ -36,6 +36,7 @@ async def get_history(
         select(MessageRecord)
         .where(MessageRecord.channel_id == channel_id)
         .where(MessageRecord.created_at < time)
+        .where(not_(MessageRecord.ephemeral.is_(True))) # Includes False or None
         .order_by(desc(MessageRecord.created_at))
         .limit(100)
     )
