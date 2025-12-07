@@ -35,19 +35,8 @@ class ConsentManager(Manager):
         async def consent(interaction: Interaction): # pyright: ignore[reportUnusedFunction]
             """Change whether Axyn learns from your messages."""
 
-            _logger.info(f"User {interaction.user.id} requested a consent menu")
-
-            response = await interaction.response.send_message(
-                "May I take quotes from you?",
-                ephemeral=True,
-                view=ConsentMenu()
-            )
-
-            message = cast("Message", response.resource)
-
             async with self._client.database_manager.write_session() as session:
-                await MessageRecord.insert(session, message)
-                session.add(ConsentPromptRecord(message_id=message.id))
+                await self.send_menu(session, interaction)
                 await session.commit()
 
     async def _should_send_introduction(self, session: AsyncSession, user: UserUnion) -> bool:
@@ -74,8 +63,8 @@ class ConsentManager(Manager):
 
         if isinstance(user, Member):
             introduction += (
-                f"You just messaged me in **{user.guild}**, and it seems like "
-                "it's the first time we've met. "
+                f"You just messaged me in **{user.guild.name}**, and it seems "
+                "like it's the first time we've met. "
             )
         else:
             introduction += "It seems like it's the first time we've met. "
@@ -105,6 +94,22 @@ class ConsentManager(Manager):
 
         if await self._should_send_introduction(session, user):
             await self._send_introduction(session, user)
+
+    async def send_menu(self, session: AsyncSession, interaction: Interaction):
+        """Sent a consent menu in response to the given interaction."""
+
+        _logger.info(f"User {interaction.user.id} requested a consent menu")
+
+        response = await interaction.response.send_message(
+            "May I take quotes from you?",
+            ephemeral=True,
+            view=ConsentMenu()
+        )
+
+        message = cast("Message", response.resource)
+
+        await MessageRecord.insert(session, message)
+        session.add(ConsentPromptRecord(message_id=message.id))
 
     async def set_response(
         self,
