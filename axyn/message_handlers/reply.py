@@ -34,44 +34,37 @@ class Reply(MessageHandler):
             self._logger.debug(f"Not replying because {reason}")
             return
 
-        if random() > self._get_reply_probability():
+        reply, distance = await self._get_reply()
+
+        if reply is None:
+            return
+
+        if random() > self._get_probability(distance):
             self._logger.debug("Not replying because the probability check failed")
             return
 
-        delay = await self._get_reply_delay()
+        delay = await self._get_delay()
         if delay > 0:
             await asyncio.sleep(delay)
 
-        await self._process_reply()
+        await self._send_reply(reply)
 
-    async def _process_reply(self):
-        """Respond to this message immediately."""
-
-        async with self._channel.typing():
-            reply, distance = await self._get_reply()
-
-        if reply:
-            maximum_distance = self._get_maximum_distance()
-
-            if distance <= maximum_distance:
-                await self._send_reply(reply)
-
-    def _get_reply_probability(self) -> float:
-        """Return the probability of attempting a reply."""
+    def _get_probability(self, distance: float) -> float:
+        """Return the probability of sending a reply."""
 
         if is_direct(self.client, self.message):
-            self._logger.debug("Will reply with guaranteed probability")
-            return 1
+            members = 1
+        else:
+            members = len(channel_members(self._channel)) - 1
 
-        member_count = len(channel_members(self._channel))
+        # https://www.desmos.com/calculator/jqyrqevoad
+        probability = (2 - distance) / (2 * members * (distance + 1))
 
-        probability = 1 / (member_count - 1)
-
-        self._logger.debug(f"Will reply with probability {probability}")
+        self._logger.debug(f"Probability of replying is {probability}")
         return probability
 
-    async def _get_reply_delay(self) -> float:
-        """Return the number of seconds to wait before attempting a reply."""
+    async def _get_delay(self) -> float:
+        """Return the number of seconds to wait before sending a reply."""
 
         if is_direct(self.client, self.message):
             self._logger.debug("Will reply immediately")
@@ -90,16 +83,6 @@ class Reply(MessageHandler):
 
         self._logger.debug(f"Will reply in {delay} seconds")
         return delay
-
-    def _get_maximum_distance(self) -> float:
-        """Return the maximum acceptable cosine distance for a reply to be sent."""
-
-        if is_direct(self.client, self.message):
-            self._logger.debug("Will reply regardless of cosine distance")
-            return 2
-
-        self._logger.debug("Will reply if cosine distance is below 0.1")
-        return 0.1
 
     async def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
