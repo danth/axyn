@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from discord import Message
 
 
-class MessageHandler(ABC):
+class Handler(ABC):
     def __init__(self, client: AxynClient, message: Message):
         """
         Create a new message handler for the given message.

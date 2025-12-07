@@ -4,7 +4,7 @@ from axyn.channel import channel_members
 from axyn.database import MessageRecord
 from axyn.filters import reason_not_to_reply, is_direct
 from axyn.history import get_history, get_delays
-from axyn.message_handlers import MessageHandler
+from axyn.handlers import Handler
 from axyn.preprocessor import preprocess_reply
 from axyn.privacy import can_send_in_channel
 from logging import getLogger
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from typing import Optional
 
 
-class Reply(MessageHandler):
+class ReplyHandler(Handler):
     def __init__(self, client: AxynClient, message: Message):
         super().__init__(client, message)
 

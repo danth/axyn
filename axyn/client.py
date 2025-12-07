@@ -1,17 +1,16 @@
 from __future__ import annotations
 from asyncio import create_task
-from axyn.consent import ConsentManager
 from axyn.database import (
-    get_path,
     ConsentResponse,
-    DatabaseManager,
     MessageRecord,
     MessageRevisionRecord,
 )
-from axyn.index import IndexManager
-from axyn.message_handlers.consent import Consent
-from axyn.message_handlers.reply import Reply
-from axyn.message_handlers.store import Store
+from axyn.managers.consent import ConsentManager
+from axyn.managers.database import DatabaseManager
+from axyn.managers.index import IndexManager
+from axyn.handlers.consent import ConsentHandler
+from axyn.handlers.reply import ReplyHandler
+from axyn.handlers.store import StoreHandler
 from datetime import datetime
 from discord import Client, Intents
 from discord.app_commands import CommandTree
@@ -60,13 +59,13 @@ class AxynClient(Client):
         return self.user
 
     async def setup_hook(self):
-        self.database_manager = DatabaseManager()
+        self.database_manager = DatabaseManager(self)
         await self.database_manager.setup_hook()
 
-        self.consent_manager = ConsentManager(self, self.database_manager)
+        self.consent_manager = ConsentManager(self)
         await self.consent_manager.setup_hook()
 
-        self.index_manager = IndexManager(self, get_path("index"))
+        self.index_manager = IndexManager(self)
         await self.index_manager.setup_hook()
 
         self.logger.info("Syncing command definitions")
@@ -90,11 +89,11 @@ class AxynClient(Client):
 
         # This must finish before the other tasks start, because they assume the
         # message is already in our database.
-        await Store(self, message).handle()
+        await StoreHandler(self, message).handle()
 
-        create_task(Consent(self, message).handle())
+        create_task(ConsentHandler(self, message).handle())
 
-        reply = create_task(Reply(self, message).handle())
+        reply = create_task(ReplyHandler(self, message).handle())
         self.reply_tasks[message.channel.id] = reply
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):

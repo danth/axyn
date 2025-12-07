@@ -1,8 +1,8 @@
 from axyn.filters import is_direct
-from axyn.message_handlers import MessageHandler
+from axyn.handlers import Handler
 
 
-class Consent(MessageHandler):
+class ConsentHandler(Handler):
     async def handle(self):
         """
         If the message directly addresses Axyn, and the author has not met Axyn

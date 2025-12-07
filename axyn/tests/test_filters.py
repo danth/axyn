@@ -1,12 +1,13 @@
 from __future__ import annotations
+from axyn.client import AxynClient
 from axyn.database import (
     ChannelRecord,
-    DatabaseManager,
     MessageRecord,
     MessageRevisionRecord,
     UserRecord,
 )
 from axyn.filters import is_valid_prompt, is_valid_response
+from axyn.managers.database import DatabaseManager
 from datetime import datetime
 from logging import DEBUG
 from pytest import fixture
@@ -25,7 +26,8 @@ LOG_NAME = "axyn.filters"
 async def session(monkeypatch: MonkeyPatch, tmp_path: str):
     monkeypatch.setattr("axyn.database.DATA_DIRECTORY", tmp_path)
 
-    database_manager = DatabaseManager()
+    client = AxynClient()
+    database_manager = DatabaseManager(client)
     await database_manager.setup_hook()
 
     async with database_manager.write_session() as session:

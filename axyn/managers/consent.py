@@ -8,17 +8,16 @@ from axyn.database import (
     MessageRevisionRecord,
     UserRecord,
 )
-from discord import Member, SelectOption
+from axyn.managers import Manager
+from axyn.ui.consent import ConsentMenu
+from discord import Member
 from discord.errors import Forbidden
-from discord.ui import Select, View
 from logging import getLogger
 from sqlalchemy import delete, select, desc
 from typing import TYPE_CHECKING, cast
 
 
 if TYPE_CHECKING:
-    from axyn.client import AxynClient
-    from axyn.database import DatabaseManager
     from axyn.types import UserUnion
     from discord import Interaction, Message
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,15 +27,11 @@ if TYPE_CHECKING:
 _logger = getLogger(__name__)
 
 
-class ConsentManager:
-    def __init__(self, client: AxynClient, database: DatabaseManager):
-        self.client = client
-        self._database = database
-
+class ConsentManager(Manager):
     async def setup_hook(self):
-        self.client.add_view(ConsentMenu())
+        self._client.add_view(ConsentMenu())
 
-        @self.client.command_tree.command()
+        @self._client.command_tree.command()
         async def consent(interaction: Interaction): # pyright: ignore[reportUnusedFunction]
             """Change whether Axyn learns from your messages."""
 
@@ -50,7 +45,7 @@ class ConsentManager:
 
             message = cast("Message", response.resource)
 
-            async with self._database.write_session() as session:
+            async with self._client.database_manager.write_session() as session:
                 session.add(ConsentPromptRecord(message_id=message.id))
 
                 await session.commit()
@@ -163,7 +158,7 @@ class ConsentManager:
         if not human:
             return ConsentResponse.WITH_PRIVACY
 
-        async with self._database.read_session() as session:
+        async with self._client.database_manager.read_session() as session:
             response = await session.scalar(
                 select(ConsentResponseRecord.response)
                 .join(InteractionRecord)
@@ -176,70 +171,4 @@ class ConsentManager:
                 return ConsentResponse.NO
             else:
                 return response
-
-
-class ConsentSelect(Select[View]):
-    def __init__(self):
-        super().__init__(
-            custom_id="consent",
-            options=[
-                SelectOption(
-                    label="Yes, share with anyone.",
-                    value=ConsentResponse.WITHOUT_PRIVACY.name,
-                    description=(
-                        "Quotes can be used anywhere, including other servers. "
-                        "Be careful not to share private information."
-                    ),
-                ),
-                SelectOption(
-                    label="Yes, share in the same community.",
-                    value=ConsentResponse.WITH_PRIVACY.name,
-                    description=(
-                        "Quotes can be used if everyone in the channel has "
-                        "access to the original message."
-                    ),
-                ),
-                SelectOption(
-                    label="No, don't store my messages.",
-                    value=ConsentResponse.NO.name,
-                    description=(
-                        "Axyn will still respond to you, but won't remember "
-                        "things you've said."
-                    ),
-                ),
-            ],
-            placeholder="Choose a setting",
-        )
-
-    @property
-    def selection(self) -> ConsentResponse:
-        return ConsentResponse[self.values[0]]
-
-    async def callback(self, interaction: Interaction):
-        client = cast("AxynClient", interaction.client)
-
-        async with client.database_manager.write_session() as session:
-            interaction_record = InteractionRecord.from_interaction(interaction)
-
-            session.add(interaction_record)
-
-            await client.consent_manager.set_response(
-                session,
-                interaction_record,
-                self.selection,
-            )
-
-            await session.commit()
-
-        await interaction.response.send_message(
-            "Setting changed.",
-            ephemeral=True,
-        )
-
-
-class ConsentMenu(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-        self.add_item(ConsentSelect())
 

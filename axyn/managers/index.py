@@ -1,7 +1,13 @@
 from __future__ import annotations
-from axyn.database import IndexRecord, MessageRecord, MessageRevisionRecord
+from axyn.database import (
+    IndexRecord,
+    MessageRecord,
+    MessageRevisionRecord,
+    get_path,
+)
 from axyn.filters import is_valid_prompt, is_valid_response
 from axyn.history import get_history, get_delays
+from axyn.managers import Manager
 from axyn.preprocessor import preprocess_index
 from discord.ext.tasks import loop
 from fastembed import TextEmbedding
@@ -22,8 +28,12 @@ if TYPE_CHECKING:
     Vector = ndarray[tuple[384], dtype[float32]]
 
 
-class IndexManager:
-    def __init__(self, client: AxynClient, directory: str):
+class IndexManager(Manager):
+    def __init__(self, client: AxynClient):
+        super().__init__(client)
+
+        directory = get_path("index")
+
         if not path.exists(directory):
             create_ngt(
                 directory,
@@ -31,7 +41,6 @@ class IndexManager:
                 distance_type="Cosine",
             )
 
-        self._client = client
         self._index = Index(directory)
         self._model = TextEmbedding()
         self._logger = getLogger(__name__)

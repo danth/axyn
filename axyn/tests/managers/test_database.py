@@ -1,14 +1,15 @@
 from __future__ import annotations
 from asyncio import Event, TaskGroup, timeout
+from axyn.client import AxynClient
 from axyn.database import (
     SCHEMA_VERSION,
     BaseRecord,
     ConsentPromptRecord,
-    DatabaseManager,
     SchemaVersionRecord,
     UserRecord,
     get_path,
 )
+from axyn.managers.database import DatabaseManager
 from datetime import datetime
 from enum import Enum
 from ngtpy import create as create_ngt
@@ -233,9 +234,11 @@ def schema_0() -> MetaData:
     return metadata
 
 
-async def test_create_new():
-    manager = DatabaseManager()
+async def _database_setup_hook() -> DatabaseManager:
+    client = AxynClient()
+    manager = DatabaseManager(client)
     await manager.setup_hook()
+    return manager
 
 
 async def test_migrate_from_schema_0(schema_0: MetaData):
@@ -258,8 +261,7 @@ async def test_migrate_from_schema_0(schema_0: MetaData):
 
     create_ngt(get_path("index"), dimension=300)
 
-    manager = DatabaseManager()
-    await manager.setup_hook()
+    await _database_setup_hook()
 
 
 async def test_open_existing():
@@ -278,8 +280,7 @@ async def test_open_existing():
 
         await session.commit()
 
-    manager = DatabaseManager()
-    await manager.setup_hook()
+    await _database_setup_hook()
 
 
 @mark.parametrize("schema_version", (-1, SCHEMA_VERSION + 1))
@@ -299,23 +300,19 @@ async def test_open_invalid_schema(schema_version: int):
 
         await session.commit()
 
-    manager = DatabaseManager()
-
     with raises(Exception):
-        await manager.setup_hook()
+        await _database_setup_hook()
 
 
 async def test_uses_write_ahead_log():
-    manager = DatabaseManager()
-    await manager.setup_hook()
+    await _database_setup_hook()
 
     assert exists(get_path("database.sqlite3-shm"))
     assert exists(get_path("database.sqlite3-wal"))
 
 
 async def test_foreign_key_constraints_are_checked():
-    manager = DatabaseManager()
-    await manager.setup_hook()
+    manager = await _database_setup_hook()
 
     async with manager.write_session() as session:
         session.add(ConsentPromptRecord(message_id=5))
@@ -331,8 +328,7 @@ async def test_concurrent_writes_do_not_fail():
     # Usually it's a race condition, but in this test we synchronise the
     # tasks to force it to happen.
 
-    manager = DatabaseManager()
-    await manager.setup_hook()
+    manager = await _database_setup_hook()
 
     steal = Event()
     stolen = Event()

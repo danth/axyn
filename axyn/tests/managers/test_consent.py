@@ -2,18 +2,14 @@ from __future__ import annotations
 from axyn.database import (
     ChannelRecord,
     ConsentResponse,
-    DatabaseManager,
     InteractionRecord,
     MessageRecord,
     MessageRevisionRecord,
     UserRecord,
 )
-from axyn.consent import (
-    ConsentManager,
-    ConsentMenu,
-    ConsentSelect,
-)
-from collections import Counter
+from axyn.client import AxynClient
+from axyn.managers.database import DatabaseManager
+from axyn.managers.consent import ConsentManager
 from datetime import datetime
 from pytest import fixture, mark
 from sqlalchemy import select, func
@@ -28,7 +24,8 @@ if TYPE_CHECKING:
 async def database_manager(monkeypatch: MonkeyPatch, tmp_path: str):
     monkeypatch.setattr("axyn.database.DATA_DIRECTORY", tmp_path)
 
-    database_manager = DatabaseManager()
+    client = AxynClient()
+    database_manager = DatabaseManager(client)
     await database_manager.setup_hook()
 
     async with database_manager.write_session() as session:
@@ -85,14 +82,6 @@ async def database_manager(monkeypatch: MonkeyPatch, tmp_path: str):
     return database_manager
 
 
-@fixture
-def consent_manager(database_manager: DatabaseManager):
-    return ConsentManager(
-        None, # pyright: ignore[reportArgumentType]
-        database_manager,
-    )
-
-
 async def test_set_response_no(
     database_manager: DatabaseManager,
     consent_manager: ConsentManager,
@@ -141,6 +130,17 @@ async def test_set_response_no(
             .select_from(MessageRecord)
         )
         assert count == 3, "should not delete existing MessageRecords"
+
+
+@fixture
+async def consent_manager(database_manager: DatabaseManager):
+    client = AxynClient()
+    client.database_manager = database_manager
+
+    consent_manager = ConsentManager(client)
+    await consent_manager.setup_hook()
+
+    return consent_manager
 
 
 @mark.parametrize("response", (
@@ -200,34 +200,4 @@ async def test_get_response_defaults_to_with_privacy_for_bots(
         UserRecord(user_id=12, human=False),
     )
     assert response == ConsentResponse.WITH_PRIVACY
-
-
-async def test_select_presents_all_options():
-    select = ConsentSelect()
-
-    values = Counter(option.value for option in select.options)
-    responses = Counter(response.name for response in ConsentResponse)
-    assert values == responses, "each ConsentResponse should appear exactly once"
-
-
-async def test_select_has_different_labels():
-    select = ConsentSelect()
-
-    labels = Counter(option.label for option in select.options)
-    for label, count in labels.items():
-        assert count == 1, f'"{label}" should only appear once'
-
-
-async def test_select_has_different_descriptions():
-    select = ConsentSelect()
-
-    descriptions = Counter(option.description for option in select.options)
-    for description, count in descriptions.items():
-        assert count == 1, f'"{description}" should only appear once'
-
-
-async def test_menu_contains_select():
-    menu = ConsentMenu()
-
-    assert any(isinstance(child, ConsentSelect) for child in menu.children)
 

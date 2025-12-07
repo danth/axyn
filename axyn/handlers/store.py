@@ -7,7 +7,7 @@ from axyn.database import (
     MessageRevisionRecord,
     UserRecord,
 )
-from axyn.message_handlers import MessageHandler
+from axyn.handlers import Handler
 from logging import getLogger
 from typing import TYPE_CHECKING
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from discord import Message
 
 
-class Store(MessageHandler):
+class StoreHandler(Handler):
     def __init__(self, client: AxynClient, message: Message):
         super().__init__(client, message)
 
