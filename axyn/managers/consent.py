@@ -91,9 +91,10 @@ class ConsentManager(Manager):
         except Forbidden:
             _logger.warning(f"Not allowed to send an introduction message to user {user.id}")
             return
-        else:
-            _logger.info(f"Sent an introduction message to user {user.id}")
 
+        _logger.info(f"Sent an introduction message to user {user.id}")
+
+        await MessageRecord.insert(session, message)
         session.add(ConsentPromptRecord(message_id=message.id))
 
     async def send_introduction(self, session: AsyncSession, user: UserUnion):
