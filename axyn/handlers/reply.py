@@ -1,15 +1,14 @@
 from __future__ import annotations
-from asyncio import create_task, sleep
+from asyncio import create_task, sleep, timeout
 from axyn.channel import channel_members
 from axyn.database import MessageRecord
 from axyn.filters import reason_not_to_reply, is_direct
-from axyn.history import get_history, get_delays
 from axyn.handlers import Handler
 from axyn.preprocessor import preprocess_reply
 from axyn.privacy import can_send_in_channel
+from datetime import datetime, timedelta, timezone
 from logging import getLogger
 from random import random, shuffle
-from statistics import StatisticsError
 from typing import TYPE_CHECKING
 
 
@@ -42,9 +41,7 @@ class ReplyHandler(Handler):
             self._logger.debug("Not replying because the probability check failed")
             return
 
-        delay = await self._get_delay()
-
-        self._schedule_reply(reply, delay)
+        self._schedule_reply(reply)
 
     async def _get_probability(self, distance: float) -> float:
         """Return the probability of sending a reply."""
@@ -60,27 +57,6 @@ class ReplyHandler(Handler):
 
         self._logger.debug(f"Probability of replying is {probability}")
         return probability
-
-    async def _get_delay(self) -> float:
-        """Return the number of seconds to wait before sending a reply."""
-
-        if await is_direct(self.client, self.message):
-            self._logger.debug("Will reply immediately")
-            return 0
-
-        async with self.client.database_manager.read_session() as session:
-            history = await get_history(session, self._channel.id)
-            history = list(history)
-
-            try:
-                _, median, _ = await get_delays(session, history)
-            except StatisticsError:
-                median = 60
-
-        delay = median * 1.5
-
-        self._logger.debug(f"Will reply in {delay} seconds")
-        return delay
 
     async def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
@@ -137,15 +113,17 @@ class ReplyHandler(Handler):
         self._logger.debug(f'Found no suitable responses')
         return None, float("inf")
 
-    def _schedule_reply(self, reply: str, delay: float):
+    def _schedule_reply(self, reply: str):
         """
-        Schedule the given reply to be sent after some time.
+        Schedule the given reply to be sent soon.
 
-        Scheduled replies are associated with both the channel and the prompt
-        author. If there is an existing scheduled reply with the same key, that
-        reply is cancelled.
+        The reply will normally be sent after a few seconds. If during that
+        time, the prompt author starts typing another message, the delay will
+        be extended until they stop.
 
-        This particular key was chosen because:
+        If during the delay, another reply is scheduled with the same channel
+        and prompt author, then this reply will be discarded. This particular
+        key was chosen because:
 
         - Keeping channels separate means that high traffic elsewhere does not
           reduce the number of replies seen.
@@ -153,8 +131,8 @@ class ReplyHandler(Handler):
           found interesting, rather than only the most recent message, which
           makes the fact that replies can be cancelled less obvious.
         - Cancelling replies to the same user avoids amplifying spam, because
-          if they message faster than average, then we will discard most of our
-          replies before they are sent.
+          if they message too fast, then we will discard most of our replies
+          before they are sent.
         """
 
         key = (self.message.author.id, self.message.channel.id)
@@ -165,13 +143,52 @@ class ReplyHandler(Handler):
                 task.cancel()
 
         self._logger.info(f'Scheduling reply "{reply}"')
-        task = create_task(self._send_reply(reply, delay))
+        task = create_task(self._do_reply(reply))
         self.client.reply_tasks[key] = task
 
-    async def _send_reply(self, reply: str, delay: float):
-        """Send the given reply after some time."""
+    async def _do_reply(self, reply: str):
+        """
+        Wait for a short length of time, then send the given reply.
 
-        await sleep(delay)
+        If during the delay, the prompt author starts typing another message,
+        the delay will be extended until they stop. If we are waiting for an
+        excessive length of time then the reply will be discarded.
+        """
+
+        async with self._channel.typing():
+            try:
+                async with timeout(30):
+                    await self._delay_reply()
+            except TimeoutError:
+                self._logger.info("Cancelling scheduled reply because the user is typing")
+                return
+
+        await self._send_reply(reply)
+
+    async def _delay_reply(self):
+        """
+        Wait for a short length of time.
+
+        If during the delay, the prompt author starts typing another message,
+        the delay will be extended until they stop.
+        """
+
+        delay = 2
+
+        while delay > 0:
+            await sleep(delay)
+
+            try:
+                last_typing = self.client.last_typing[self.message.author.id]
+            except KeyError:
+                break
+
+            typing_until = last_typing + timedelta(seconds=10)
+            delay = typing_until - datetime.now(timezone.utc)
+            delay = delay.total_seconds()
+
+    async def _send_reply(self, reply: str):
+        """Send the given reply."""
 
         self._logger.info(f'Sending reply "{reply}"')
 

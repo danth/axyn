@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         RawMessageUpdateEvent,
         RawMessageDeleteEvent,
         RawBulkMessageDeleteEvent,
+        RawTypingEvent,
     )
 
 
@@ -41,7 +42,11 @@ class AxynClient(Client):
 
         self.logger = logging.getLogger(__name__)
 
+        # (author id, user id) → scheduled reply
         self.reply_tasks: dict[tuple[int, int], Task[None]] = dict()
+
+        # user id → time last seen typing
+        self.last_typing: dict[int, datetime] = dict()
 
         self.command_tree = CommandTree(self)
 
@@ -75,6 +80,12 @@ class AxynClient(Client):
 
     async def on_message(self, message: Message):
         """Reply to and store incoming messages."""
+
+        try:
+            if self.last_typing[message.author.id] < message.created_at:
+                del self.last_typing[message.author.id]
+        except KeyError:
+            pass
 
         # This must finish before the other tasks start, because they assume the
         # message is already in our database.
@@ -120,4 +131,9 @@ class AxynClient(Client):
             )
 
             await session.commit()
+
+    async def on_raw_typing(self, payload: RawTypingEvent):
+        self.logger.debug(f"User {payload.user_id} is typing")
+
+        self.last_typing[payload.user_id] = payload.timestamp
 
