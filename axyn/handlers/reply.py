@@ -53,9 +53,10 @@ class ReplyHandler(Handler):
         """Return the probability of sending a reply."""
 
         if is_direct(self.client, self.message):
-            members = 1
-        else:
-            members = len(channel_members(self._channel)) - 1
+            self._logger.debug("Probability of replying to a direct message is constant")
+            return 1
+
+        members = len(channel_members(self._channel)) - 1
 
         # https://www.desmos.com/calculator/jqyrqevoad
         probability = (2 - distance) / (2 * members * (distance + 1))
