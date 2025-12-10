@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio
+from asyncio import create_task, sleep
 from axyn.channel import channel_members
 from axyn.database import MessageRecord
 from axyn.filters import reason_not_to_reply, is_direct
@@ -28,7 +28,6 @@ class ReplyHandler(Handler):
     async def handle(self):
         """Respond to this message, if allowed."""
 
-
         reason = reason_not_to_reply(self.message)
         if reason:
             self._logger.debug(f"Not replying because {reason}")
@@ -44,10 +43,8 @@ class ReplyHandler(Handler):
             return
 
         delay = await self._get_delay()
-        if delay > 0:
-            await asyncio.sleep(delay)
 
-        await self._send_reply(reply)
+        self._schedule_reply(reply, delay)
 
     def _get_probability(self, distance: float) -> float:
         """Return the probability of sending a reply."""
@@ -140,8 +137,41 @@ class ReplyHandler(Handler):
         self._logger.debug(f'Found no suitable responses')
         return None, float("inf")
 
-    async def _send_reply(self, reply: str):
-        """Send a reply message."""
+    def _schedule_reply(self, reply: str, delay: float):
+        """
+        Schedule the given reply to be sent after some time.
+
+        Scheduled replies are associated with both the channel and the prompt
+        author. If there is an existing scheduled reply with the same key, that
+        reply is cancelled.
+
+        This particular key was chosen because:
+
+        - Keeping channels separate means that high traffic elsewhere does not
+          reduce the number of replies seen.
+        - Keeping users separate mimics a human replying to a few messages they
+          found interesting, rather than only the most recent message, which
+          makes the fact that replies can be cancelled less obvious.
+        - Cancelling replies to the same user avoids amplifying spam, because
+          if they message faster than average, then we will discard most of our
+          replies before they are sent.
+        """
+
+        key = (self.message.author.id, self.message.channel.id)
+
+        if task := self.client.reply_tasks.get(key):
+            if not task.done():
+                self._logger.info(f"Cancelling existing scheduled reply")
+                task.cancel()
+
+        self._logger.info(f'Scheduling reply "{reply}"')
+        task = create_task(self._send_reply(reply, delay))
+        self.client.reply_tasks[key] = task
+
+    async def _send_reply(self, reply: str, delay: float):
+        """Send the given reply after some time."""
+
+        await sleep(delay)
 
         self._logger.info(f'Sending reply "{reply}"')
 

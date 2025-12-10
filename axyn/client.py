@@ -41,7 +41,7 @@ class AxynClient(Client):
 
         self.logger = logging.getLogger(__name__)
 
-        self.reply_tasks: dict[int, Task[None]] = dict()
+        self.reply_tasks: dict[tuple[int, int], Task[None]] = dict()
 
         self.command_tree = CommandTree(self)
 
@@ -76,24 +76,12 @@ class AxynClient(Client):
     async def on_message(self, message: Message):
         """Reply to and store incoming messages."""
 
-        # If the reply handler decides to delay, this will cancel previous
-        # tasks in the channel so only the last message in a conversation
-        # finishes the timer and recieves a reply.
-        if message.channel.id in self.reply_tasks:
-            self.logger.info(
-                "Cancelling reply task in channel %i due to a newer message",
-                message.channel.id,
-            )
-            self.reply_tasks[message.channel.id].cancel()
-
         # This must finish before the other tasks start, because they assume the
         # message is already in our database.
         await StoreHandler(self, message).handle()
 
         create_task(ConsentHandler(self, message).handle())
-
-        reply = create_task(ReplyHandler(self, message).handle())
-        self.reply_tasks[message.channel.id] = reply
+        create_task(ReplyHandler(self, message).handle())
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
         message = payload.message
