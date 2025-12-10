@@ -38,7 +38,7 @@ class ReplyHandler(Handler):
         if reply is None:
             return
 
-        if random() > self._get_probability(distance):
+        if random() > await self._get_probability(distance):
             self._logger.debug("Not replying because the probability check failed")
             return
 
@@ -46,10 +46,10 @@ class ReplyHandler(Handler):
 
         self._schedule_reply(reply, delay)
 
-    def _get_probability(self, distance: float) -> float:
+    async def _get_probability(self, distance: float) -> float:
         """Return the probability of sending a reply."""
 
-        if is_direct(self.client, self.message):
+        if await is_direct(self.client, self.message):
             self._logger.debug("Probability of replying to a direct message is constant")
             return 1
 
@@ -64,7 +64,7 @@ class ReplyHandler(Handler):
     async def _get_delay(self) -> float:
         """Return the number of seconds to wait before sending a reply."""
 
-        if is_direct(self.client, self.message):
+        if await is_direct(self.client, self.message):
             self._logger.debug("Will reply immediately")
             return 0
 

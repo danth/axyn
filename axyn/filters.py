@@ -1,5 +1,5 @@
 from __future__ import annotations
-from axyn.database import UserRecord, MessageRevisionRecord
+from axyn.database import UserRecord, MessageRecord, MessageRevisionRecord
 from discord import ChannelType, MessageType, Message
 from logging import getLogger
 from sqlalchemy import select
@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from axyn.client import AxynClient
-    from axyn.database import MessageRecord
     from sqlalchemy.ext.asyncio import AsyncSession
     from typing import Optional
 
@@ -16,24 +15,30 @@ if TYPE_CHECKING:
 _logger = getLogger(__name__)
 
 
-def is_direct(client: AxynClient, message: Message) -> bool:
-    """Return whether the given message is directly talking to Axyn."""
+async def is_direct(client: AxynClient, message: Message) -> bool:
+    """Return whether the given message appears to be talking to Axyn."""
 
     axyn = client.axyn()
 
     if message.channel.type == ChannelType.private:
         return True
 
+    if "axyn" in getattr(message.channel, "name", ""):
+        return True
+
     if axyn.mentioned_in(message):
         return True
 
-    if message.reference is not None:
-        if isinstance(message.reference.resolved, Message):
-            if message.reference.resolved.author == axyn:
-                return True
+    async with client.database_manager.read_session() as session:
+        current_message = await session.get_one(MessageRecord, message.id)
+        prompt_message = await client.index_manager.get_prompt_message(
+            session,
+            current_message,
+        )
 
-    if "axyn" in getattr(message.channel, "name", ""):
-        return True
+        if prompt_message is not None:
+            if prompt_message.author_id == axyn.id:
+                return True
 
     return False
 
