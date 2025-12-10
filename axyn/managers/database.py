@@ -200,11 +200,6 @@ class DatabaseManager(Manager):
                     nullable=False,
                 )
 
-        if version < 9:
-            # This only needs to happen once, even if we skipped over multiple
-            # versions that would reset the index.
-            self._reset_index(operations)
-
         if version < 10:
             batch_context = operations.batch_alter_table(
                 "message",
@@ -222,6 +217,11 @@ class DatabaseManager(Manager):
         if version < 11:
             with operations.batch_alter_table("message") as batch:
                 batch.add_column(Column("ephemeral", Boolean(), nullable=True))
+
+        if version < 12:
+            # This only needs to happen once, even if we skipped over multiple
+            # versions that would reset the index.
+            self._reset_index(operations)
 
     def _reset_index(self, operations: Operations):
         """

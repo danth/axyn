@@ -55,6 +55,11 @@ async def get_delays(session: AsyncSession, history: Sequence[MessageRecord]) ->
     delays: list[float] = []
 
     for current, prompt in zip(history, history[1:]):
+        if current.reference_id is not None:
+            prompt = await session.get(MessageRecord, current.reference_id)
+            if prompt is None:
+                continue
+
         if current.author_id == prompt.author_id:
             continue
 
