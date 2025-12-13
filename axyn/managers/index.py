@@ -6,7 +6,7 @@ from axyn.database import (
     get_path,
 )
 from axyn.filters import is_valid_prompt, is_valid_response
-from axyn.history import get_history, get_delays
+from axyn.history import analyze_delays
 from axyn.managers import Manager
 from axyn.preprocessor import preprocess_index
 from discord.ext.tasks import loop
@@ -193,16 +193,16 @@ class IndexManager(Manager):
             else:
                 return None
 
-        history = await get_history(
-            session,
-            current_message.channel_id,
-            current_message.created_at,
+        previous_message = await session.scalar(
+            select(MessageRecord)
+            .where(MessageRecord.channel_id == current_message.channel_id)
+            .where(MessageRecord.created_at < current_message.created_at)
+            .where(MessageRecord.ephemeral.is_not(True))
+            .order_by(desc(MessageRecord.created_at))
+            .limit(1)
         )
-        history = list(history)
 
-        try:
-            previous_message = history[0]
-        except IndexError:
+        if previous_message is None:
             self._logger.debug(f"{current_message.message_id} is not valid because no previous messages were found")
             return None
 
@@ -210,7 +210,11 @@ class IndexManager(Manager):
             return None
 
         try:
-            _, _, upper_quartile = await get_delays(session, history)
+            _, _, upper_quartile = await analyze_delays(
+                session,
+                current_message.channel_id,
+                current_message.created_at,
+            )
         except StatisticsError:
             self._logger.debug(f"{current_message.message_id} is not valid because not enough previous messages were found")
             return None

@@ -3,75 +3,82 @@ from axyn.database import MessageRecord, UserRecord
 from datetime import datetime
 from logging import getLogger
 from statistics import quantiles
-from sqlalchemy import select, desc, not_
+from sqlalchemy import desc, func, select
+from sqlalchemy.orm import aliased
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Iterator, Optional, Sequence
 
 
 _logger = getLogger(__name__)
 
 
-async def get_history(
+async def analyze_delays(
     session: AsyncSession,
     channel_id: int,
-    time: Optional[datetime] = None
-) -> Iterator[MessageRecord]:
+    time: datetime
+) -> tuple[float, float, float]:
     """
-    Queries a chunk of channel history from our database.
+    Analyze the delays in the given channel.
 
-    If a time is provided, the history will be up to but not including that
-    time. Otherwise, it will be the most recent history.
-
-    The number of messages returned is unspecified.
+    Only messages before the given time will be considered.
     """
 
-    if time is None:
-        time = datetime.now()
+    prompt = aliased(MessageRecord, name="prompt")
 
-    return await session.scalars(
-        select(MessageRecord)
+    response = (
+        select(
+            MessageRecord,
+
+            # LAG gets a value from the previous record, according to the
+            # provided sort order.
+            func
+            .lag(MessageRecord.message_id)
+            .over(order_by=MessageRecord.created_at)
+            .label("previous_message_id"),
+        )
         .where(MessageRecord.channel_id == channel_id)
         .where(MessageRecord.created_at < time)
-        .where(not_(MessageRecord.ephemeral.is_(True))) # Includes False or None
+        .where(MessageRecord.ephemeral.is_not(True))
         .order_by(desc(MessageRecord.created_at))
-        .limit(100)
+        .limit(99)
+        .subquery("response")
     )
 
+    query = (
+        select(
+            prompt.created_at.label("prompt_created_at"),
+            response.c.created_at.label("response_created_at"),
+        )
+        .join(
+            prompt,
+            prompt.message_id == func.coalesce(
+                response.c.reference_id,
+                response.c.previous_message_id,
+            ),
+        )
+        .join(
+            UserRecord,
+            response.c.author_id == UserRecord.user_id,
+        )
+        .where(prompt.author_id != response.c.author_id)
+        .where(prompt.ephemeral.is_not(True))
+        .where(UserRecord.human)
+    )
 
-async def get_delays(session: AsyncSession, history: Sequence[MessageRecord]) -> tuple[float, float, float]:
-    """
-    Given a contiguous chunk of channel history, analyse the delays.
+    stream = await session.stream(query)
 
-    Raises ``StatisticsError`` if there was not enough information in the
-    provided list to get a result.
-    """
+    try:
+        delays = [
+            (response_created_at - prompt_created_at).total_seconds()
+            async for prompt_created_at, response_created_at in stream
+        ]
+    finally:
+        await stream.close()
 
-    # Group messages into consecutive pairs, and for valid pairs, calculate the
-    # time in seconds between the messages being sent.
-    delays: list[float] = []
-
-    for current, prompt in zip(history, history[1:]):
-        if current.reference_id is not None:
-            prompt = await session.get(MessageRecord, current.reference_id)
-            if prompt is None:
-                continue
-
-        if current.author_id == prompt.author_id:
-            continue
-
-        # Bots usually reply immediately, which skews the results.
-        author = await session.get_one(UserRecord, current.author_id)
-        if not author.human:
-            continue
-
-        delay = (current.created_at - prompt.created_at).total_seconds()
-        delays.append(delay)
-
-    _logger.debug(f"Got {len(delays)} useful pairs from {len(history)} messages")
+    _logger.debug(f"Got {len(delays)} useful pairs")
 
     lower, median, upper = quantiles(delays)
 
