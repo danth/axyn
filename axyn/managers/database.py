@@ -218,7 +218,7 @@ class DatabaseManager(Manager):
             with operations.batch_alter_table("message") as batch:
                 batch.add_column(Column("ephemeral", Boolean(), nullable=True))
 
-        if version < 12:
+        if version < 13:
             # This only needs to happen once, even if we skipped over multiple
             # versions that would reset the index.
             self._reset_index(operations)

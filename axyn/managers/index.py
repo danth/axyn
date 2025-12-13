@@ -219,7 +219,7 @@ class IndexManager(Manager):
             self._logger.debug(f"{current_message.message_id} is not valid because not enough previous messages were found")
             return None
 
-        delay = (previous_message.created_at - current_message.created_at).total_seconds()
+        delay = (current_message.created_at - previous_message.created_at).total_seconds()
 
         if delay > upper_quartile:
             self._logger.debug(

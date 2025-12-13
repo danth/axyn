@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 DATA_DIRECTORY = "~/axyn"
-SCHEMA_VERSION: int = 12
+SCHEMA_VERSION: int = 13
 
 
 def get_path(file: str) -> str:
