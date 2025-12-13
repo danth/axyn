@@ -87,7 +87,9 @@
           '';
         };
 
-      in {
+      in rec {
+        checks = packages;
+
         packages.default = axyn;
 
         devShells.default = pkgs.mkShell {

@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Run tests
 
     runs-on: ubuntu-latest
 
@@ -38,7 +38,7 @@ jobs:
           path: htmlcov/
 
   type_check:
-    name: Type check
+    name: Check types
 
     runs-on: ubuntu-latest
 
@@ -58,10 +58,28 @@ jobs:
       - name: Check with Pyright
         uses: jakebailey/pyright-action@v2
 
+  nix_check:
+    name: Check Nix flake
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Configure Cachix
+        uses: cachix/cachix-action@v16
+        with:
+          name: danth
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Check Nix flake
+        run: nix flake check github:${{ github.repository }}/${{ github.sha }}
+
   release:
     name: Release
 
-    needs: [ test, type_check ]
+    needs: [ test, type_check, nix_check ]
 
     if: github.repository_owner == 'danth' && github.ref_name == 'master'
 
