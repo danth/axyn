@@ -39,22 +39,6 @@
           propagatedBuildInputs = [ numpy pybind11 ];
         };
 
-        discordhealthcheck = buildPythonPackage rec {
-          pname = "discordhealthcheck";
-          version = "0.1.1";
-
-          src = pkgs.fetchFromGitHub {
-            owner = "psidex";
-            repo = "DiscordHealthCheck";
-            rev = "1822ca34190fb34cb51779876ba3aebd760219fb";
-            hash = "sha256-icFlbOTJtFfZJC4A4Fz7c6/aXT1vaFgmkBbBmdScBxM=";
-          };
-
-          format = "pyproject";
-          build-system = [ setuptools ];
-          propagatedBuildInputs = [ discordpy ];
-        };
-
         # In a uniquely named variable for Python Semantic Release
         axynVersion = "8.13.3";
 
@@ -68,7 +52,6 @@
 
           propagatedBuildInputs = [
             alembic
-            discordhealthcheck
             discordpy
             fastembed
             ngt

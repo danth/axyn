@@ -14,7 +14,6 @@ from axyn.handlers.store import StoreHandler
 from datetime import datetime
 from discord import Client, Intents
 from discord.app_commands import CommandTree
-import discordhealthcheck
 import logging
 from sqlalchemy import update
 from typing import TYPE_CHECKING
@@ -74,9 +73,6 @@ class AxynClient(Client):
 
         self.logger.info("Syncing command definitions")
         create_task(self.command_tree.sync())
-
-        self.logger.info("Starting Docker health check")
-        await discordhealthcheck.start(self)
 
     async def on_message(self, message: Message):
         """Reply to and store incoming messages."""
