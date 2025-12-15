@@ -59,6 +59,30 @@ async def normal_message(session: AsyncSession):
 
 
 @fixture
+async def blank_message(session: AsyncSession):
+    session.add(UserRecord(user_id=20, human=True))
+    session.add(ChannelRecord(channel_id=30, guild_id=None))
+
+    message = MessageRecord(
+        message_id=10,
+        author_id=20,
+        channel_id=30,
+        reference_id=None,
+        created_at=datetime.fromisoformat("2025-12-03T13:40:00Z"),
+        deleted_at=None,
+    )
+    session.add(message)
+
+    session.add(MessageRevisionRecord(
+        message_id=10,
+        edited_at=datetime.fromisoformat("2025-12-03T13:40:00Z"),
+        content="",
+    ))
+
+    return message
+
+
+@fixture
 async def bot_message(session: AsyncSession):
     session.add(UserRecord(user_id=20, human=False))
     session.add(ChannelRecord(channel_id=30, guild_id=None))
@@ -203,6 +227,21 @@ async def test_normal_message_is_valid_response(
     assert caplog.record_tuples == []
 
 
+async def test_blank_message_is_invalid_response(
+    caplog: LogCaptureFixture,
+    session: AsyncSession,
+    blank_message: MessageRecord,
+):
+    with caplog.at_level(DEBUG, logger=LOG_NAME):
+        assert not await is_valid_response(session, blank_message)
+
+    assert caplog.record_tuples == [(
+        LOG_NAME,
+        DEBUG,
+        "10 is not valid because no content was stored",
+    )]
+
+
 async def test_bot_message_is_invalid_response(
     caplog: LogCaptureFixture,
     session: AsyncSession,
@@ -229,7 +268,7 @@ async def test_redacted_message_is_invalid_response(
     assert caplog.record_tuples == [(
         LOG_NAME,
         DEBUG,
-        "10 is not valid because no revisions were saved",
+        "10 is not valid because no content was stored",
     )]
 
 
@@ -258,6 +297,26 @@ async def test_normal_message_is_valid_prompt(
         )
 
     assert caplog.record_tuples == []
+
+
+async def test_blank_message_is_invalid_prompt(
+    caplog: LogCaptureFixture,
+    session: AsyncSession,
+    response_message: MessageRecord,
+    blank_message: MessageRecord,
+):
+    with caplog.at_level(DEBUG, logger=LOG_NAME):
+        assert not await is_valid_prompt(
+            session,
+            response_message,
+            blank_message,
+        )
+
+    assert caplog.record_tuples == [(
+        LOG_NAME,
+        DEBUG,
+        "10 is not valid because no content was stored",
+    )]
 
 
 async def test_bot_message_is_valid_prompt(
@@ -292,7 +351,7 @@ async def test_redacted_message_is_invalid_prompt(
     assert caplog.record_tuples == [(
         LOG_NAME,
         DEBUG,
-        "10 is not valid because no revisions were saved",
+        "10 is not valid because no content was stored",
     )]
 
 
