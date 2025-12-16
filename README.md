@@ -7,77 +7,83 @@
 
 # Axyn
 
-A Discord chatbot using traditional algorithms.
+A chatbot using rudimentary algorithms.
 
-## Run
+![Screenshot of an example conversation](images/Screenshot_20200426_124703.png)
 
-Obtain a bot token from the
-[Discord developer portal](https://discord.com/developers/applications).
-Currently, the server members intent is required.
+## Instructions for users
 
-```sh
-python -m pip install -e .
-DISCORD_TOKEN=… axyn
-```
+### Teaching Axyn
 
-## Usage
+Everything Axyn can say is a quote from a conversation it's seen in the past.
+As you have real conversations, it will pick up on phrases you use, and
+eventually repeat them back to you.
 
-### Required Permissions
+For Axyn to turn a message into a quote, it needs to match it up with a
+previous message. This is so it has some context to know when the quote is
+relevant. Using the reply button helps to make this more accurate, especially
+in busy channels.
+
+### Getting a reply
+
+Axyn will occasionally join in with real conversations. The chance of this
+happening increases as Axyn learns more, but decreases when there are more
+people in the chat.
+
+If you seem to be talking to Axyn directly, then it is guaranteed to respond.
+There are a few things you can do to trigger this:
+
+- Pinging it
+- Hitting reply on one of its messages
+- Sending it a direct message
+- Sending a message in a channel called `#axyn`
+
+### Maintaining privacy
+
+Axyn will only quote you if you give it permission to do so. You can do this by
+typing `/consent` and making a choice from the menu. Alternatively, if it's
+able, Axyn will send you the same menu as a direct message the first time you
+interact with it.
+
+To avoid leaking private information, it is strongly recommended to choose the
+middle option. This means quotes can only be used if everyone who would be able
+to see the quote can already see the original message. The only risk is that
+someone can leave a channel and still have access to copies of certain
+messages, because Axyn had repeated them elsewhere - comparable to the person
+taking a screenshot before they leave.
+
+The top option does not have this restriction, so it works great if you use
+Axyn with multiple groups of friends and want to port your messages between
+them... or if you want to feed Axyn lines in secret and have them spontaneously
+appear. However, you need to be very careful in this mode, because everything
+you say in Axyn's presence effectively becomes public.
+
+Regardless of which mode you were originally in, removing your consent will
+cause Axyn to forget everything it has learned from you.
+
+## Instructions for channel owners
+
+Axyn needs the following permissions to work fully:
 
 - Send messages
-- Send messages in threads
 - Embed links
 - Manage slash commands
 
-### Chat
+You should remove its permission to send messages in important channels, such
+as those for announcements.
 
-Axyn will reply immediately if you:
+You should also ensure Axyn is not given permission to ping everyone.
 
-- Send it a direct message
-- Mention it
-- Reply to a message it sent
-- Talk in a channel with `axyn` in its name
+## Instructions for the bot owner
 
-Otherwise, it will wait some time before replying. The delay is adjusted using
-the average interval between messages in the current channel.
+Obtain a bot token from the
+[Discord developer portal](https://discord.com/developers/applications).
+Access to server members and message content must both be enabled.
 
-![Screenshot of example conversation](images/Screenshot_20200426_124703.png)
+Then, run the following commands, inserting your bot token as shown.
 
-If the bot stops typing and nothing is sent, it was unsure how to respond.
-More uncertain messages are allowed through when replying immediately.
+```sh
+python -m pip install -e .
+DISCORD_TOKEN=… python -m axyn
+```
 
-Axyn will learn a message if it fits all of these criteria:
-
-- It contains some text
-- It does not look like a bot command
-- It was sent by a human user
-- The author has enabled learning
-- It is a reply, or Axyn can find a message which:
-  - Contains some text
-  - Is directly above this message
-  - Was sent by Axyn or a human user (not other bots)
-  - Was sent by a different author to this message
-  - Was sent no more than 5 minutes before this message
-
-## How does it work?
-
-Axyn only uses traditional algorithms: in other words, it does not use a
-[large language model](https://en.wikipedia.org/wiki/Large_language_model)
-to generate output.
-
-Instead, it watches real conversations and stores the messages, then when
-prompted, it uses the sort of code you might find in a search engine to pick
-out an appropriate reply from its database.
-
-This means that anything Axyn says is a direct quote from a conversation it's
-seen before.
-
-## Privacy
-
-Users must give permission for their messages to be stored. The first time a
-user pings, replies to, or directly messages Axyn, they will receive a menu
-allowing their preference to be changed. This menu can be accessed later using
-the `/consent` command.
-
-For a message to be reused, everyone in the current channel must have access to
-the channel where the message was originally sent.

@@ -19,7 +19,9 @@ context for the commit title.
 ## Type Hints
 
 All code should use appropriate type hints. Names that are only used for type
-checking should be imported inside an `if TYPE_CHECKING:` block, with
-`from __future__ import annotations` outside the block to prevent errors at
-runtime.
+checking should be imported inside an `if TYPE_CHECKING:` block.
+
+`from __future__ import annotations` is currently required to allow type hints
+to be lazily evaluated, so they do not cause errors during normal usage. This
+can be removed once we require Python 3.14 or higher.
 
