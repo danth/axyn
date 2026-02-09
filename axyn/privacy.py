@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from axyn.client import AxynClient
     from axyn.types import ChannelUnion
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 _logger = getLogger(__name__)
@@ -16,6 +17,7 @@ _logger = getLogger(__name__)
 
 async def can_send_in_channel(
     client: AxynClient,
+    session: AsyncSession,
     message: MessageRecord,
     current_channel: ChannelUnion,
 ):
@@ -30,7 +32,7 @@ async def can_send_in_channel(
     if original_author is None:
         return False
 
-    consent_response = await client.consent_manager.get_response(original_author)
+    consent_response = await client.consent_manager.get_response(session, original_author)
 
     if consent_response == ConsentResponse.WITHOUT_PRIVACY:
         _logger.debug(

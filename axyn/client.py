@@ -99,15 +99,16 @@ class AxynClient(Client):
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
         message = payload.message
-        response = await self.consent_manager.get_response(message.author)
-
-        if response == ConsentResponse.NO:
-            self.logger.info(f"Not storing new revision of {message.id} because the author has not given consent")
-            return
-
-        self.logger.info(f"Storing new revision of {message.id}")
 
         async with self.database_manager.session() as session:
+            response = await self.consent_manager.get_response(session, message.author)
+
+            if response == ConsentResponse.NO:
+                self.logger.info(f"Not storing new revision of {message.id} because the author has not given consent")
+                return
+
+            self.logger.info(f"Storing new revision of {message.id}")
+
             await MessageRevisionRecord.insert(session, message)
             await session.commit()
 

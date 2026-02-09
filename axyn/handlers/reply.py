@@ -81,6 +81,7 @@ class ReplyHandler(Handler):
 
                     can_send = await can_send_in_channel(
                         self.client,
+                        session,
                         original_response,
                         self._channel,
                     )

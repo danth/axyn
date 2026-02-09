@@ -31,9 +31,9 @@ class StoreHandler(Handler):
         It would also increase the average delay between messages.
         """
 
-        consent = await self.client.consent_manager.get_response(self.message.author)
-
         async with self.client.database_manager.session() as session:
+            consent = await self.client.consent_manager.get_response(session, self.message.author)
+
             if consent == ConsentResponse.NO:
                 self._logger.info(f"Storing redacted version of {self.message.id}")
                 await MessageRecord.insert(session, self.message)

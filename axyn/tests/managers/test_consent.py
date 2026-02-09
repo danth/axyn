@@ -119,8 +119,8 @@ async def test_set_response_no(
             ConsentResponse.NO,
         )
 
-        await session.commit() # Because get_response starts its own session
         new_response = await consent_manager.get_response(
+            session,
             UserRecord(user_id=10, human=True)
         )
         assert new_response == ConsentResponse.NO
@@ -181,8 +181,8 @@ async def test_set_response_other(
 
         await consent_manager.set_response(session, interaction, response)
 
-        await session.commit() # Because get_response starts its own session
         new_response = await consent_manager.get_response(
+            session,
             UserRecord(user_id=10, human=True)
         )
         assert new_response == response
@@ -201,21 +201,27 @@ async def test_set_response_other(
 
 
 async def test_get_response_defaults_to_no_for_humans(
+    database_manager: DatabaseManager,
     consent_manager: ConsentManager,
 ):
-    response = await consent_manager.get_response(
-        UserRecord(user_id=10, human=True),
-    )
-    assert response == ConsentResponse.NO
+    async with database_manager.session() as session:
+        response = await consent_manager.get_response(
+            session,
+            UserRecord(user_id=10, human=True),
+        )
+        assert response == ConsentResponse.NO
 
 
 async def test_get_response_defaults_to_with_privacy_for_bots(
+    database_manager: DatabaseManager,
     consent_manager: ConsentManager,
 ):
-    response = await consent_manager.get_response(
-        UserRecord(user_id=12, human=False),
-    )
-    assert response == ConsentResponse.WITH_PRIVACY
+    async with database_manager.session() as session:
+        response = await consent_manager.get_response(
+            session,
+            UserRecord(user_id=12, human=False),
+        )
+        assert response == ConsentResponse.WITH_PRIVACY
 
 
 async def test_send_introduction_from_dm(

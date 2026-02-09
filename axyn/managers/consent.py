@@ -145,7 +145,11 @@ class ConsentManager(Manager):
                 .where(MessageRevisionRecord.revision_id.in_(ids))
             )
 
-    async def get_response(self, user: Union[UserUnion, UserRecord]) -> ConsentResponse:
+    async def get_response(
+        self,
+        session: AsyncSession,
+        user: Union[UserUnion, UserRecord]
+    ) -> ConsentResponse:
         """
         Return whether the given user has allowed their messages to be learned.
 
@@ -164,17 +168,16 @@ class ConsentManager(Manager):
         if not human:
             return ConsentResponse.WITH_PRIVACY
 
-        async with self._client.database_manager.session() as session:
-            response = await session.scalar(
-                select(ConsentResponseRecord.response)
-                .join(InteractionRecord)
-                .where(InteractionRecord.user_id == user_id)
-                .order_by(desc(InteractionRecord.created_at))
-                .limit(1)
-            )
+        response = await session.scalar(
+            select(ConsentResponseRecord.response)
+            .join(InteractionRecord)
+            .where(InteractionRecord.user_id == user_id)
+            .order_by(desc(InteractionRecord.created_at))
+            .limit(1)
+        )
 
-            if response is None:
-                return ConsentResponse.NO
-            else:
-                return response
+        if response is None:
+            return ConsentResponse.NO
+        else:
+            return response
 
