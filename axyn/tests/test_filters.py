@@ -30,7 +30,7 @@ async def session(monkeypatch: MonkeyPatch, tmp_path: str):
     database_manager = DatabaseManager(client)
     await database_manager.setup_hook()
 
-    async with database_manager.write_session() as session:
+    async with database_manager.session() as session:
         yield session
 
 

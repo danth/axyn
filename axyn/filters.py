@@ -29,7 +29,7 @@ async def is_direct(client: AxynClient, message: Message) -> bool:
     if axyn.mentioned_in(message):
         return True
 
-    async with client.database_manager.read_session() as session:
+    async with client.database_manager.session() as session:
         current_message = await session.get_one(MessageRecord, message.id)
         prompt_message = await client.index_manager.get_prompt_message(
             session,

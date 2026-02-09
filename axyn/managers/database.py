@@ -61,9 +61,7 @@ class DatabaseManager(Manager):
         listen(engine.sync_engine, "connect", on_connect)
 
         def on_begin(connection: Connection):
-            options = connection.get_execution_options()
-            begin = "BEGIN " + options["transaction_mode"]
-            connection.exec_driver_sql(begin)
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
 
             # This only applies to the current transaction, so cannot be with
             # the other settings above.
@@ -71,16 +69,12 @@ class DatabaseManager(Manager):
 
         listen(engine.sync_engine, "begin", on_begin)
 
-        read_engine = engine.execution_options(transaction_mode="DEFERRED")
-        write_engine = engine.execution_options(transaction_mode="IMMEDIATE")
-
-        self.read_session = async_sessionmaker(bind=read_engine)
-        self.write_session = async_sessionmaker(bind=write_engine)
+        self.session = async_sessionmaker(bind=engine)
 
     async def setup_hook(self):
         """Ensure the database is following the current schema."""
 
-        async with self.write_session() as session:
+        async with self.session() as session:
             try:
                 version = await session.scalar(
                     select(SchemaVersionRecord.schema_version)

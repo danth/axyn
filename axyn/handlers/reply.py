@@ -61,7 +61,7 @@ class ReplyHandler(Handler):
     async def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
 
-        async with self.client.database_manager.read_session() as session:
+        async with self.client.database_manager.session() as session:
             groups = self.client.index_manager.get_response_groups(
                 self.message.content,
                 session,

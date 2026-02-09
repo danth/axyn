@@ -44,7 +44,7 @@ async def database_manager(monkeypatch: MonkeyPatch, tmp_path: str):
     database_manager = DatabaseManager(client)
     await database_manager.setup_hook()
 
-    async with database_manager.write_session() as session:
+    async with database_manager.session() as session:
         session.add(UserRecord(user_id=10, human=True))
         session.add(UserRecord(user_id=11, human=True))
         session.add(UserRecord(user_id=12, human=False))
@@ -102,7 +102,7 @@ async def test_set_response_no(
     database_manager: DatabaseManager,
     consent_manager: ConsentManager,
 ):
-    async with database_manager.write_session() as session:
+    async with database_manager.session() as session:
         interaction = InteractionRecord(
             interaction_id=50,
             user_id=10,
@@ -168,7 +168,7 @@ async def test_set_response_other(
     consent_manager: ConsentManager,
     response: ConsentResponse,
 ):
-    async with database_manager.write_session() as session:
+    async with database_manager.session() as session:
         interaction = InteractionRecord(
             interaction_id=50,
             user_id=10,
@@ -244,7 +244,7 @@ async def test_send_introduction_from_dm(
     user.send.return_value = message
 
     with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.write_session() as session:
+        async with database_manager.session() as session:
             await consent_manager.send_introduction(session, user)
             await session.commit()
 
@@ -260,7 +260,7 @@ async def test_send_introduction_from_dm(
     )
     assert list(user.send.call_args.kwargs.keys()) == ["view"]
 
-    async with database_manager.read_session() as session:
+    async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is not None
 
@@ -298,7 +298,7 @@ async def test_send_introduction_from_guild(
     member.send.return_value = message
 
     with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.write_session() as session:
+        async with database_manager.session() as session:
             await consent_manager.send_introduction(session, member)
             await session.commit()
 
@@ -315,7 +315,7 @@ async def test_send_introduction_from_guild(
     )
     assert list(member.send.call_args.kwargs.keys()) == ["view"]
 
-    async with database_manager.read_session() as session:
+    async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is not None
 
@@ -336,14 +336,14 @@ async def test_send_introduction_to_bot(
     user.system = False
 
     with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.write_session() as session:
+        async with database_manager.session() as session:
             await consent_manager.send_introduction(session, user)
             await session.commit()
 
     assert not user.create_dm.called
     assert not user.send.called
 
-    async with database_manager.read_session() as session:
+    async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is None
 
@@ -360,14 +360,14 @@ async def test_send_introduction_to_system(
     user.system = True
 
     with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.write_session() as session:
+        async with database_manager.session() as session:
             await consent_manager.send_introduction(session, user)
             await session.commit()
 
     assert not user.create_dm.called
     assert not user.send.called
 
-    async with database_manager.read_session() as session:
+    async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is None
 
@@ -391,13 +391,13 @@ async def test_send_introduction_forbidden(
     user.send.side_effect = Forbidden(Mock(), "Cannot DM user")
 
     with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.write_session() as session:
+        async with database_manager.session() as session:
             await consent_manager.send_introduction(session, user)
             await session.commit()
 
     user.send.assert_called_once()
 
-    async with database_manager.read_session() as session:
+    async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is None
 
@@ -441,7 +441,7 @@ async def test_send_menu(
     interaction.user = user
 
     with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.write_session() as session:
+        async with database_manager.session() as session:
             await consent_manager.send_menu(session, interaction)
             await session.commit()
 
@@ -455,7 +455,7 @@ async def test_send_menu(
     ]
     assert response.send_message.call_args.kwargs["ephemeral"]
 
-    async with database_manager.read_session() as session:
+    async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is not None
 

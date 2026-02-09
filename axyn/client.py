@@ -107,14 +107,14 @@ class AxynClient(Client):
 
         self.logger.info(f"Storing new revision of {message.id}")
 
-        async with self.database_manager.write_session() as session:
+        async with self.database_manager.session() as session:
             await MessageRevisionRecord.insert(session, message)
             await session.commit()
 
     async def on_raw_message_delete(self, payload: RawMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_id} as deleted")
 
-        async with self.database_manager.write_session() as session:
+        async with self.database_manager.session() as session:
             await session.execute(
                 update(MessageRecord)
                 .where(MessageRecord.message_id == payload.message_id)
@@ -126,7 +126,7 @@ class AxynClient(Client):
     async def on_raw_bulk_message_delete(self, payload: RawBulkMessageDeleteEvent):
         self.logger.info(f"Marking {payload.message_ids} as deleted")
 
-        async with self.database_manager.write_session() as session:
+        async with self.database_manager.session() as session:
             await session.execute(
                 update(MessageRecord)
                 .where(MessageRecord.message_id.in_(payload.message_ids))

@@ -314,7 +314,7 @@ async def test_uses_write_ahead_log():
 async def test_foreign_key_constraints_are_checked():
     manager = await _database_setup_hook()
 
-    async with manager.write_session() as session:
+    async with manager.session() as session:
         session.add(ConsentPromptRecord(message_id=5))
 
         with raises(IntegrityError):
@@ -334,7 +334,7 @@ async def test_concurrent_writes_do_not_fail():
     stolen = Event()
 
     async def victim():
-        async with manager.write_session() as session:
+        async with manager.session() as session:
             # Do a read statement to open a transaction.
             #
             # The desired behaviour is to open it in IMMEDIATE mode, locking
@@ -362,7 +362,7 @@ async def test_concurrent_writes_do_not_fail():
     async def thief():
         await steal.wait()
 
-        async with manager.write_session() as session:
+        async with manager.session() as session:
             # Do a write statement to open a transaction, locking the database
             # regardless of what mode we used.
             session.add(UserRecord(user_id=2, human=True))

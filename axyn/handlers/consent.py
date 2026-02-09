@@ -12,7 +12,7 @@ class ConsentHandler(Handler):
         if not await is_direct(self.client, self.message):
             return
 
-        async with self.client.database_manager.write_session() as session:
+        async with self.client.database_manager.session() as session:
             await self.client.consent_manager.send_introduction(
                 session,
                 self.message.author,

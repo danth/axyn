@@ -35,7 +35,7 @@ class ConsentManager(Manager):
         async def consent(interaction: Interaction): # pyright: ignore[reportUnusedFunction]
             """Change whether Axyn learns from your messages."""
 
-            async with self._client.database_manager.write_session() as session:
+            async with self._client.database_manager.session() as session:
                 await self.send_menu(session, interaction)
                 await session.commit()
 
@@ -164,7 +164,7 @@ class ConsentManager(Manager):
         if not human:
             return ConsentResponse.WITH_PRIVACY
 
-        async with self._client.database_manager.read_session() as session:
+        async with self._client.database_manager.session() as session:
             response = await session.scalar(
                 select(ConsentResponseRecord.response)
                 .join(InteractionRecord)
