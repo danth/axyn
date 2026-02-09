@@ -51,24 +51,23 @@ class DatabaseManager(Manager):
         ):
             dbapi_connection.isolation_level = None
 
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.execute("PRAGMA journal_mode=WAL")
+            finally:
+                cursor.close()
+
         listen(engine.sync_engine, "connect", on_connect)
 
         def on_begin(connection: Connection):
-            # Enforce foreign key constraints.
-            connection.exec_driver_sql("PRAGMA foreign_keys=1").close()
-
-            # Use a write-ahead log to improve concurrency.
-            connection.exec_driver_sql("PRAGMA journal_mode=WAL").close()
-
-            # Begin the transaction.
             options = connection.get_execution_options()
             begin = "BEGIN " + options["transaction_mode"]
-            connection.exec_driver_sql(begin).close()
+            connection.exec_driver_sql(begin)
 
-            # Per-transaction setting, means that foreign key constraints are
-            # delayed until COMMIT, so rows can be inserted in any order.
-            # Must appear after BEGIN.
-            connection.exec_driver_sql("PRAGMA defer_foreign_keys=1").close()
+            # This only applies to the current transaction, so cannot be with
+            # the other settings above.
+            connection.exec_driver_sql("PRAGMA defer_foreign_keys=ON")
 
         listen(engine.sync_engine, "begin", on_begin)
 
