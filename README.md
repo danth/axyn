@@ -42,24 +42,22 @@ There are a few things you can do to trigger this:
 
 Axyn will only quote you if you give it permission to do so. You can do this by
 typing `/consent` and making a choice from the menu. Alternatively, if it's
-able, Axyn will send you the same menu as a direct message the first time you
-interact with it.
+able, Axyn will invite you to consent the first time you interact with it.
+
+Your consent choice applies retrospectively, so after you accept, Axyn may
+collect historic messages from channels it can see. Similarly, removing consent
+will erase all messages that were previously collected.
 
 To avoid leaking private information, it is strongly recommended to choose the
-middle option. This means quotes can only be used if everyone who would be able
-to see the quote can already see the original message. The only risk is that
-someone can leave a channel and still have access to copies of certain
-messages, because Axyn had repeated them elsewhere - comparable to the person
-taking a screenshot before they leave.
+middle option. This means your messages can only be shared if everyone who
+would see the quote can already see the original. For example, messages from
+a group chat with you and a friend could be used in Axyn's direct messages to
+that friend, but they could not be used in a larger server.
 
-The top option does not have this restriction, so it works great if you use
-Axyn with multiple groups of friends and want to port your messages between
-them... or if you want to feed Axyn lines in secret and have them spontaneously
-appear. However, you need to be very careful in this mode, because everything
-you say in Axyn's presence effectively becomes public.
-
-Regardless of which mode you were originally in, removing your consent will
-cause Axyn to forget everything it has learned from you.
+The top option requires extreme caution because it effectively makes all of
+your messages public. However, it can be useful if you want to port quotes
+between different groups of friends, or feed Axyn lines in direct messages and
+have them spontaneously appear.
 
 ## Instructions for channel owners
 

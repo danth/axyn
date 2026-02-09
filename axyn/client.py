@@ -8,6 +8,7 @@ from axyn.database import (
 from axyn.managers.consent import ConsentManager
 from axyn.managers.database import DatabaseManager
 from axyn.managers.index import IndexManager
+from axyn.managers.scan import ScanManager
 from axyn.handlers.consent import ConsentHandler
 from axyn.handlers.reply import ReplyHandler
 from axyn.handlers.store import StoreHandler
@@ -71,8 +72,14 @@ class AxynClient(Client):
         self.index_manager = IndexManager(self)
         await self.index_manager.setup_hook()
 
+        self.scan_manager = ScanManager(self)
+        await self.scan_manager.setup_hook()
+
         self.logger.info("Syncing command definitions")
         create_task(self.command_tree.sync())
+
+    async def on_ready(self):
+        create_task(self.scan_manager.scan_all())
 
     async def on_message(self, message: Message):
         """Reply to and store incoming messages."""
