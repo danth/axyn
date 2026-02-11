@@ -4,7 +4,6 @@ from alembic.runtime.migration import MigrationContext
 from axyn.database import (
     SCHEMA_VERSION,
     BaseRecord,
-    IndexRecord,
     SchemaVersionRecord,
     get_path,
 )
@@ -17,7 +16,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum as EnumType,
-    delete,
+    Integer,
     desc,
     select,
     table,
@@ -211,23 +210,13 @@ class DatabaseManager(Manager):
             with operations.batch_alter_table("message") as batch:
                 batch.add_column(Column("ephemeral", Boolean(), nullable=True))
 
-        if version < 14:
+        if version < 15:
             # This only needs to happen once, even if we skipped over multiple
             # versions that would reset the index.
-            self._reset_index(operations)
+            rmtree(get_path("index"))
 
-    def _reset_index(self, operations: Operations):
-        """
-        Reset the index.
+            operations.drop_table("index")
 
-        This clears the index table in the database, and also removes the
-        corresponding file on disk.
-
-        This must be called before the ``IndexManager`` is loaded to avoid
-        causing undefined behaviour.
-        """
-
-        operations.execute(delete(IndexRecord))
-
-        rmtree(get_path("index"))
+            with operations.batch_alter_table("message_revision") as batch:
+                batch.add_column(Column("index_id", Integer(), nullable=True))
 

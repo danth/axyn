@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 DATA_DIRECTORY = "~/axyn"
-SCHEMA_VERSION: int = 14
+SCHEMA_VERSION: int = 15
 
 
 def get_path(file: str) -> str:
@@ -188,6 +188,7 @@ class MessageRevisionRecord(BaseRecord):
 
     revision_id: Mapped[int] = mapped_column(primary_key=True)
     message_id: Mapped[int] = mapped_column(ForeignKey("message.message_id"))
+    index_id: Mapped[Optional[int]]
     edited_at: Mapped[datetime]
     content: Mapped[str]
 
@@ -209,30 +210,6 @@ class MessageRevisionRecord(BaseRecord):
             )
             .on_conflict_do_nothing()
         )
-
-
-class IndexRecord(BaseRecord):
-    """
-    Database record storing an indexed message.
-
-    The index can be queried with a prompt to find the best matching reply, but
-    it only returns an ID. This record maps that ID to a message containing the
-    actual text. Each index ID may be mapped to more than one message (if we
-    stored multiple replies to the same prompt), and those messages may also
-    contain multiple edited versions to choose from.
-
-    A message not having an ``IndexRecord`` means it has not been processed
-    yet. This is different to having a record with an ``index_id`` of ``None``,
-    which means we couldn't index it because there was no previous message.
-    """
-
-    __tablename__ = "index"
-
-    message_id: Mapped[int] = mapped_column(
-        ForeignKey("message.message_id"),
-        primary_key=True,
-    )
-    index_id: Mapped[Optional[int]] = mapped_column(index=True)
 
 
 class InteractionRecord(BaseRecord):

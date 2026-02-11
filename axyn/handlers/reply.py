@@ -1,7 +1,7 @@
 from __future__ import annotations
 from asyncio import create_task, sleep, timeout
 from axyn.channel import channel_members
-from axyn.database import MessageRecord
+from axyn.database import MessageRecord, MessageRevisionRecord
 from axyn.filters import reason_not_to_reply, is_direct
 from axyn.handlers import Handler
 from axyn.preprocessor import preprocess_reply
@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from axyn.client import AxynClient
     from discord import Message
+    from sqlalchemy.ext.asyncio import AsyncSession
     from typing import Optional
 
 
@@ -62,57 +63,74 @@ class ReplyHandler(Handler):
         """Return a chosen reply and its cosine distance."""
 
         async with self.client.database_manager.session() as session:
-            groups = self.client.index_manager.get_response_groups(
-                self.message.content,
+            responses = self.client.index_manager.get_responses_to_text(
                 session,
+                self.message.content,
             )
 
-            async for responses, distance in groups:
-                self._logger.debug(f"Processing response group with cosine distance {distance}")
+            group: list[tuple[MessageRevisionRecord, MessageRevisionRecord]] = []
+            group_distance = float("inf")
 
-                responses = list(responses)
-                shuffle(responses)
+            async for prompt, response, distance in responses:
+                if group_distance > distance:
+                    self._logger.debug(f"Processing response group with cosine distance {group_distance}")
 
-                for response in responses:
-                    original_response = await session.get_one(
-                        MessageRecord,
-                        response.message_id,
-                    )
+                    if text := await self._get_reply_from_group(session, group):
+                        return text, group_distance
 
-                    can_send = await can_send_in_channel(
-                        self.client,
-                        session,
-                        original_response,
-                        self._channel,
-                    )
+                    group = []
+                    group_distance = distance
 
-                    if not can_send:
-                        self._logger.debug(f'Cannot use reply "{response.content}" due to privacy filter')
-                        continue
+                group.append((prompt, response))
 
-                    original_prompt = await self.client.index_manager.get_prompt_message(
-                        session,
-                        original_response,
-                    )
+            self._logger.debug(f"Processing response group with cosine distance {group_distance}")
 
-                    if original_prompt is None:
-                        self._logger.debug(f'Cannot use reply "{response.content}" because the original prompt is no longer valid')
-                        continue
-
-                    self._logger.debug(f'Selected reply "{response.content}"')
-
-                    text = preprocess_reply(
-                        response.content,
-                        original_prompt_author_id=original_prompt.author_id,
-                        original_response_author_id=original_response.author_id,
-                        current_prompt_author_id=self.message.author.id,
-                        axyn_id=self.client.axyn().id,
-                    )
-
-                    return text, distance
+            if text := await self._get_reply_from_group(session, group):
+                return text, group_distance
 
         self._logger.debug(f'Found no suitable responses')
         return None, float("inf")
+
+    async def _get_reply_from_group(
+        self,
+        session: AsyncSession,
+        group: list[tuple[MessageRevisionRecord, MessageRevisionRecord]],
+    ) -> Optional[str]:
+        shuffle(group)
+
+        for prompt_revision, response_revision in group:
+            prompt_message = await session.get_one(
+                MessageRecord,
+                prompt_revision.message_id,
+            )
+
+            response_message = await session.get_one(
+                MessageRecord,
+                response_revision.message_id,
+            )
+
+            can_send = await can_send_in_channel(
+                self.client,
+                session,
+                response_message,
+                self._channel,
+            )
+
+            if not can_send:
+                self._logger.debug(f'Cannot use reply "{response_revision.content}" due to privacy filter')
+                continue
+
+            self._logger.debug(f'Selected reply "{response_revision.content}"')
+
+            text = preprocess_reply(
+                response_revision.content,
+                original_prompt_author_id=prompt_message.author_id,
+                original_response_author_id=response_message.author_id,
+                current_prompt_author_id=self.message.author.id,
+                axyn_id=self.client.axyn().id,
+            )
+
+            return text
 
     def _schedule_reply(self, reply: str):
         """

@@ -1,11 +1,6 @@
 from __future__ import annotations
-from axyn.database import (
-    IndexRecord,
-    MessageRecord,
-    MessageRevisionRecord,
-    get_path,
-)
-from axyn.filters import is_valid_prompt, is_valid_response
+from axyn.database import MessageRecord, MessageRevisionRecord, get_path
+from axyn.filters import is_valid_pair
 from axyn.history import analyze_delays
 from axyn.managers import Manager
 from axyn.preprocessor import preprocess_index
@@ -14,7 +9,7 @@ from fastembed import TextEmbedding
 from logging import getLogger
 from ngtpy import create as create_ngt, Index
 from os import path
-from sqlalchemy import select, desc, not_
+from sqlalchemy import asc, select
 from statistics import StatisticsError
 from typing import TYPE_CHECKING, cast
 
@@ -23,7 +18,7 @@ if TYPE_CHECKING:
     from axyn.client import AxynClient
     from numpy import dtype, float32, ndarray
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Optional, AsyncGenerator, Iterator
+    from typing import AsyncGenerator
 
     Vector = ndarray[tuple[384], dtype[float32]]
 
@@ -47,33 +42,6 @@ class IndexManager(Manager):
 
     async def setup_hook(self):
         self._update_index.start()
-
-    async def get_response_groups(
-        self,
-        prompt: str,
-        session: AsyncSession
-    ) -> AsyncGenerator[tuple[Iterator[MessageRevisionRecord], float]]:
-        """
-        Get a selection of possible responses to the given message content.
-
-        Responses are grouped by the cosine distance between their original
-        prompt and the current prompt. This is a useful metric to decide
-        whether the response is relevant or not. It always falls in the range
-        ``[0, 2]``, where zero is the most relevant. The generator produces
-        response groups in ascending order.
-        """
-
-        vector = self._vector(prompt)
-        results = self._index.search(vector, size=100)
-
-        for index_id, distance in results:
-            revisions = await session.scalars(
-                select(MessageRevisionRecord)
-                .join(IndexRecord, IndexRecord.message_id == MessageRevisionRecord.message_id)
-                .where(IndexRecord.index_id == index_id)
-            )
-
-            yield revisions, distance
 
     def _vector(self, content: str) -> Vector:
         """Return the vector for the given message content."""
@@ -118,142 +86,123 @@ class IndexManager(Manager):
 
     @loop(minutes=1)
     async def _update_index(self):
-        """Scan the database for new responses and add them to the index."""
+        """Scan the database for new revisions and add them to the index."""
 
         self._logger.info("Updating index")
 
         async with self._client.database_manager.session() as session:
-            messages = await session.scalars(
-                select(MessageRecord)
-                .where(not_(
-                    select(IndexRecord)
-                    .where(IndexRecord.message_id == MessageRecord.message_id)
-                    .exists()
-                ))
+            revisions = await session.scalars(
+                select(MessageRevisionRecord)
+                .where(MessageRevisionRecord.index_id == None)
             )
 
             batch: dict[bytes, int] = {}
 
-            for message in messages:
-                self._logger.debug(f"Checking {message.message_id}")
-
-                prompt = await self.get_prompt_revision(session, message)
-
-                if prompt is None:
-                    self._logger.debug(f"Not indexing {message.message_id}")
-
-                    session.add(IndexRecord(
-                        message_id=message.message_id,
-                        index_id=None,
-                    ))
-
-                    continue
-
-                self._logger.debug(f'Indexing {message.message_id} under "{prompt.content}"')
-
-                vector = self._vector(prompt.content)
-                index_id = self._insert(vector, batch)
-
-                session.add(IndexRecord(
-                    message_id=message.message_id,
-                    index_id=index_id,
-                ))
+            for revision in revisions:
+                vector = self._vector(revision.content)
+                revision.index_id = self._insert(vector, batch)
 
             self._index.build_index()
             self._index.save()
 
             await session.commit()
 
-    async def get_prompt_message(
+    async def get_responses_to_text(
         self,
         session: AsyncSession,
-        current_message: MessageRecord
-    ) -> Optional[MessageRecord]:
+        prompt_text: str,
+    ) -> AsyncGenerator[tuple[MessageRevisionRecord, MessageRevisionRecord, float]]:
         """
-        Query the database for a prompt corresponding to the given response.
+        Get a selection of possible responses to the given text.
 
-        The input and output of this method are filtered with
-        ``_is_valid_response`` and ``_is_valid_prompt`` respectively, to avoid
-        indexing low quality data. Invalid messages will result in ``None``.
+        This looks up existing prompts with similar text to the input, then for
+        each of those, looks up a selection of possible responses.
+
+        Each return value is a triple containing a prompt revision, response
+        revision, and the distance between the prompt and the input text.
+
+        Cosine distance is a useful metric to decide whether the response is
+        relevant or not. It always falls in the range ``[0, 2]``, where zero
+        is the most relevant. The generator always produces distances in
+        ascending order.
         """
 
-        if not await is_valid_response(session, current_message):
-            return None
+        vector = self._vector(prompt_text)
+        results = self._index.search(vector, size=100)
 
+        for index_id, distance in results:
+            prompts = await session.scalars(
+                select(MessageRevisionRecord)
+                .where(MessageRevisionRecord.index_id == index_id)
+            )
 
-        if current_message.reference_id is not None:
-            reference = await session.get(MessageRecord, current_message.reference_id)
+            for prompt in prompts:
+                async for response in self.get_responses_to_revision(session, prompt):
+                    yield prompt, response, distance
 
-            if reference is None:
-                # The message references something that we never observed.
-                return None
+    async def get_responses_to_revision(
+        self,
+        session: AsyncSession,
+        prompt_revision: MessageRevisionRecord,
+    ) -> AsyncGenerator[MessageRevisionRecord]:
+        """Get a selection of possible responses to the given revision."""
 
-            if await is_valid_prompt(session, current_message, reference):
-                return reference
-            else:
-                return None
+        prompt_message = await session.get_one(
+            MessageRecord,
+            prompt_revision.message_id,
+        )
 
-        previous_message = await session.scalar(
+        references = await session.scalars(
+            select(MessageRevisionRecord)
+            .join(MessageRecord)
+            .where(MessageRecord.reference_id == prompt_revision.message_id)
+        )
+
+        for reference in references:
+            if await is_valid_pair(session, prompt_revision, reference):
+                yield reference
+
+        next_message = await session.scalar(
             select(MessageRecord)
-            .where(MessageRecord.channel_id == current_message.channel_id)
-            .where(MessageRecord.created_at < current_message.created_at)
+            .where(MessageRecord.channel_id == prompt_message.channel_id)
+            .where(MessageRecord.created_at > prompt_message.created_at)
             .where(MessageRecord.ephemeral.is_not(True))
-            .order_by(desc(MessageRecord.created_at))
+            .order_by(asc(MessageRecord.created_at))
             .limit(1)
         )
 
-        if previous_message is None:
-            self._logger.debug(f"{current_message.message_id} is not valid because no previous messages were found")
-            return None
-
-        if not await is_valid_prompt(session, current_message, previous_message):
-            return None
+        if next_message is None:
+            return
 
         try:
             _, _, upper_quartile = await analyze_delays(
                 session,
-                current_message.channel_id,
-                current_message.created_at,
+                next_message.channel_id,
+                next_message.created_at,
             )
         except StatisticsError:
-            self._logger.debug(f"{current_message.message_id} is not valid because not enough previous messages were found")
-            return None
+            self._logger.debug(
+                f"({prompt_revision.revision_id}, next message) "
+                "is not valid because not enough previous messages were found"
+            )
+            return
 
-        delay = (current_message.created_at - previous_message.created_at).total_seconds()
+        delay = (next_message.created_at - prompt_message.created_at).total_seconds()
 
         if delay > upper_quartile:
             self._logger.debug(
-                f"{current_message.message_id} is not valid because the previous message was too long ago "
+                f"({prompt_revision.revision_id}, next message) "
+                "is not valid because the time between messages was too long "
                 f"(expected <= {upper_quartile}, got {delay})"
             )
-            return None
+            return
 
-        return previous_message
-
-    async def get_prompt_revision(
-        self,
-        session: AsyncSession,
-        current_message: MessageRecord
-    ) -> Optional[MessageRevisionRecord]:
-        """
-        Query the database for a prompt corresponding to the given response.
-
-        This behaves identically to ``_get_prompt_message``, but selects a
-        specific revision of the prompt depending on the time the response was
-        sent.
-        """
-
-        prompt_message = await self.get_prompt_message(session, current_message)
-
-        if prompt_message is None:
-            return None
-
-        # Find the most recent edit which existed before the reply was sent.
-        return await session.scalar(
+        revisions = await session.scalars(
             select(MessageRevisionRecord)
-            .where(MessageRevisionRecord.message_id == prompt_message.message_id)
-            .where(MessageRevisionRecord.edited_at < current_message.created_at)
-            .order_by(desc(MessageRevisionRecord.edited_at))
-            .limit(1)
+            .where(MessageRevisionRecord.message_id == next_message.message_id)
         )
+
+        for revision in revisions:
+            if await is_valid_pair(session, prompt_revision, revision):
+                yield revision
 
