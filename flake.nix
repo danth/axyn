@@ -40,7 +40,7 @@
         };
 
         # In a uniquely named variable for Python Semantic Release
-        axynVersion = "8.14.1";
+        axynVersion = "8.14.2";
 
         axyn = buildPythonApplication rec {
           pname = "axyn";
