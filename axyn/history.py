@@ -1,6 +1,5 @@
 from __future__ import annotations
-from axyn.database import MessageRecord, UserRecord
-from datetime import datetime
+from axyn.database import MessageRecord
 from logging import getLogger
 from statistics import quantiles
 from sqlalchemy import desc, func, select
@@ -17,13 +16,11 @@ _logger = getLogger(__name__)
 
 async def analyze_delays(
     session: AsyncSession,
-    channel_id: int,
-    time: datetime
+    user_id: int
 ) -> tuple[float, float, float]:
     """
-    Analyze the delays in the given channel.
-
-    Only messages before the given time will be considered.
+    Query the database for messages from the given user, and run statistics
+    on how long they take to reply.
     """
 
     prompt = aliased(MessageRecord, name="prompt")
@@ -36,11 +33,13 @@ async def analyze_delays(
             # provided sort order.
             func
             .lag(MessageRecord.message_id)
-            .over(order_by=MessageRecord.created_at)
+            .over(
+                order_by=MessageRecord.created_at,
+                partition_by=MessageRecord.channel_id,
+            )
             .label("previous_message_id"),
         )
-        .where(MessageRecord.channel_id == channel_id)
-        .where(MessageRecord.created_at < time)
+        .where(MessageRecord.author_id == user_id)
         .where(MessageRecord.ephemeral.is_not(True))
         .order_by(desc(MessageRecord.created_at))
         .limit(99)
@@ -59,13 +58,8 @@ async def analyze_delays(
                 response.c.previous_message_id,
             ),
         )
-        .join(
-            UserRecord,
-            response.c.author_id == UserRecord.user_id,
-        )
-        .where(prompt.author_id != response.c.author_id)
+        .where(prompt.author_id != user_id)
         .where(prompt.ephemeral.is_not(True))
-        .where(UserRecord.human)
     )
 
     stream = await session.stream(query)
@@ -78,11 +72,11 @@ async def analyze_delays(
     finally:
         await stream.close()
 
-    _logger.debug(f"Got {len(delays)} useful pairs")
+    _logger.debug(f"User {user_id}: Got {len(delays)} useful pairs")
 
     lower, median, upper = quantiles(delays)
 
-    _logger.debug(f"Quartiles are {lower}, {median}, {upper}")
+    _logger.debug(f"User {user_id}: Quartiles are {lower}, {median}, {upper}")
 
     return lower, median, upper
 

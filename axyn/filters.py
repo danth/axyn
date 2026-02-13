@@ -62,8 +62,7 @@ async def is_direct(client: AxynClient, message: Message) -> bool:
         try:
             _, _, upper_quartile = await analyze_delays(
                 session,
-                current_message.channel_id,
-                current_message.created_at,
+                current_message.author_id
             )
         except StatisticsError:
             return False

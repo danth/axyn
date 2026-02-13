@@ -177,8 +177,7 @@ class IndexManager(Manager):
         try:
             _, _, upper_quartile = await analyze_delays(
                 session,
-                next_message.channel_id,
-                next_message.created_at,
+                next_message.author_id
             )
         except StatisticsError:
             self._logger.debug(
