@@ -9,7 +9,7 @@ class ConsentHandler(Handler):
         before, then send them a consent prompt.
         """
 
-        if not await is_direct(self.client, self.message):
+        if not is_direct(self.client, self.message):
             return
 
         async with self.client.database_manager.session() as session:

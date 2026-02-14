@@ -30,8 +30,8 @@ Axyn will occasionally join in with real conversations. The chance of this
 happening increases as Axyn learns more, but decreases when there are more
 people in the chat.
 
-If you seem to be talking to Axyn directly, then it is guaranteed to respond.
-There are a few things you can do to trigger this:
+If you talk to Axyn directly, then it is guaranteed to respond. There are a few
+things you can do to trigger this:
 
 - Pinging it
 - Hitting reply on one of its messages
