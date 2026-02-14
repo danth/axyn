@@ -2,7 +2,7 @@ from __future__ import annotations
 from axyn.database import MessageRecord
 from logging import getLogger
 from statistics import quantiles
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 from typing import TYPE_CHECKING
 
@@ -41,8 +41,6 @@ async def analyze_delays(
         )
         .where(MessageRecord.author_id == user_id)
         .where(MessageRecord.ephemeral.is_not(True))
-        .order_by(desc(MessageRecord.created_at))
-        .limit(99)
         .subquery("response")
     )
 
