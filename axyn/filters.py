@@ -49,6 +49,8 @@ def select_valid_pairs[T: tuple[Any, ...]](
         .join(response_author, response_author.user_id == response_message.author_id)
         .where(prompt_revision.content != "")
         .where(response_revision.content != "")
+        .where(prompt_message.ephemeral.is_not(True))
+        .where(response_message.ephemeral.is_not(True))
         .where(prompt_message.author_id != response_message.author_id)
         .where(or_(
             prompt_message.deleted_at.is_(None),

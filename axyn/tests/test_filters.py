@@ -212,6 +212,84 @@ async def test_blank_response_is_invalid(session: AsyncSession):
     assert not await _is_valid_pair(session, prompt, response)
 
 
+async def test_ephemeral_prompt_is_invalid(session: AsyncSession):
+    session.add(UserRecord(user_id=1, human=True))
+    session.add(UserRecord(user_id=2, human=True))
+    session.add(ChannelRecord(channel_id=1, guild_id=None))
+    session.add(MessageRecord(
+        message_id=1,
+        author_id=1,
+        channel_id=1,
+        reference_id=None,
+        created_at=datetime.fromisoformat("2025-12-03T13:40:00Z"),
+        deleted_at=None,
+        ephemeral=True,
+    ))
+    prompt = MessageRevisionRecord(
+        revision_id=1,
+        message_id=1,
+        edited_at=datetime.fromisoformat("2025-12-03T13:40:00Z"),
+        content="Hello, world!",
+    )
+    session.add(prompt)
+    session.add(MessageRecord(
+        message_id=2,
+        author_id=2,
+        channel_id=1,
+        reference_id=None,
+        created_at=datetime.fromisoformat("2025-12-03T13:41:00Z"),
+        deleted_at=None,
+    ))
+    response = MessageRevisionRecord(
+        revision_id=2,
+        message_id=2,
+        edited_at=datetime.fromisoformat("2025-12-03T13:41:00Z"),
+        content="Hi there!",
+    )
+    session.add(response)
+
+    assert not await _is_valid_pair(session, prompt, response)
+
+
+async def test_ephemeral_response_is_invalid(session: AsyncSession):
+    session.add(UserRecord(user_id=1, human=True))
+    session.add(UserRecord(user_id=2, human=True))
+    session.add(ChannelRecord(channel_id=1, guild_id=None))
+    session.add(MessageRecord(
+        message_id=1,
+        author_id=1,
+        channel_id=1,
+        reference_id=None,
+        created_at=datetime.fromisoformat("2025-12-03T13:40:00Z"),
+        deleted_at=None,
+    ))
+    prompt = MessageRevisionRecord(
+        revision_id=1,
+        message_id=1,
+        edited_at=datetime.fromisoformat("2025-12-03T13:40:00Z"),
+        content="Hello, world!",
+    )
+    session.add(prompt)
+    session.add(MessageRecord(
+        message_id=2,
+        author_id=2,
+        channel_id=1,
+        reference_id=None,
+        created_at=datetime.fromisoformat("2025-12-03T13:41:00Z"),
+        deleted_at=None,
+        ephemeral=True,
+    ))
+    response = MessageRevisionRecord(
+        revision_id=2,
+        message_id=2,
+        edited_at=datetime.fromisoformat("2025-12-03T13:41:00Z"),
+        content="Hi there!",
+    )
+    session.add(response)
+
+    assert not await _is_valid_pair(session, prompt, response)
+
+
 async def test_human_replying_to_bot_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=False))
     session.add(UserRecord(user_id=2, human=True))
