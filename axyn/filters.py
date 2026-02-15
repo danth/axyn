@@ -2,14 +2,15 @@ from __future__ import annotations
 from axyn.database import UserRecord, MessageRecord, MessageRevisionRecord
 from discord import ChannelType, MessageType, Message
 from logging import getLogger
-from sqlalchemy import select
+from sqlalchemy import or_
+from sqlalchemy.orm import aliased
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     from axyn.client import AxynClient
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Optional
+    from sqlalchemy import Select
+    from typing import Any, Optional
 
 
 _logger = getLogger(__name__)
@@ -32,72 +33,29 @@ def is_direct(client: AxynClient, message: Message) -> bool:
     )
 
 
-async def is_valid_pair(
-    session: AsyncSession,
-    prompt: MessageRevisionRecord,
-    response: MessageRevisionRecord,
-) -> bool:
-    """Return whether the given pair of revisions is learnable."""
+def select_valid_pairs[T: tuple[Any, ...]](
+    query: Select[T],
+    prompt_revision: type[MessageRevisionRecord],
+    response_revision: type[MessageRevisionRecord],
+) -> Select[T]:
+    prompt_message = aliased(MessageRecord)
+    response_message = aliased(MessageRecord)
+    response_author = aliased(UserRecord)
 
-    if not prompt.content or not response.content:
-        _logger.debug(
-            f"({prompt.revision_id}, {response.revision_id}) "
-            "is not valid because one of the messages is blank"
-        )
-        return False
-
-    human = await session.scalar(
-        select(UserRecord.human)
-        .join(MessageRecord)
-        .where(MessageRecord.message_id == response.message_id)
+    return (
+        query
+        .join(prompt_message, prompt_message.message_id == prompt_revision.message_id)
+        .join(response_message, response_message.message_id == response_revision.message_id)
+        .join(response_author, response_author.user_id == response_message.author_id)
+        .where(prompt_revision.content != "")
+        .where(response_revision.content != "")
+        .where(prompt_message.author_id != response_message.author_id)
+        .where(or_(
+            prompt_message.deleted_at.is_(None),
+            prompt_message.deleted_at > response_message.created_at,
+        ))
+        .where(response_author.human)
     )
-
-    if not human:
-        _logger.debug(
-            f"({prompt.revision_id}, {response.revision_id}) "
-            "is not valid because the responding author is not human"
-        )
-        return False
-
-    same_author = await session.scalar(
-        select(
-            select(MessageRecord.author_id)
-            .where(MessageRecord.message_id == prompt.message_id)
-            .scalar_subquery()
-            ==
-            select(MessageRecord.author_id)
-            .where(MessageRecord.message_id == response.message_id)
-            .scalar_subquery()
-        )
-    )
-
-    if same_author:
-        _logger.debug(
-            f"({prompt.revision_id}, {response.revision_id}) "
-            "is not valid because both messages have the same author"
-        )
-        return False
-
-    deleted_prior = await session.scalar(
-        select(
-            select(MessageRecord.deleted_at)
-            .where(MessageRecord.message_id == prompt.message_id)
-            .scalar_subquery()
-            <
-            select(MessageRecord.created_at)
-            .where(MessageRecord.message_id == response.message_id)
-            .scalar_subquery()
-        )
-    )
-
-    if deleted_prior:
-        _logger.debug(
-            f"({prompt.revision_id}, {response.revision_id}) "
-            "is not valid because the prompt was deleted before the response was created"
-        )
-        return False
-
-    return True
 
 
 def reason_not_to_reply(message: Message) -> Optional[str]:

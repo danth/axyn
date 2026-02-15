@@ -6,16 +6,17 @@ from axyn.database import (
     MessageRevisionRecord,
     UserRecord,
 )
-from axyn.filters import is_valid_pair
+from axyn.filters import select_valid_pairs
 from axyn.managers.database import DatabaseManager
 from datetime import datetime
-from logging import DEBUG
 from pytest import fixture
+from sqlalchemy import select
+from sqlalchemy.orm import aliased
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from pytest import LogCaptureFixture, MonkeyPatch
+    from pytest import MonkeyPatch
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -34,10 +35,33 @@ async def session(monkeypatch: MonkeyPatch, tmp_path: str):
         yield session
 
 
-async def test_human_replying_to_human_is_valid(
-    caplog: LogCaptureFixture,
+async def _is_valid_pair(
     session: AsyncSession,
-):
+    prompt: MessageRevisionRecord,
+    response: MessageRevisionRecord,
+) -> bool:
+    prompt_revision = aliased(MessageRevisionRecord)
+    response_revision = aliased(MessageRevisionRecord)
+
+    valid = await session.scalar(
+        select(
+            select_valid_pairs(
+                select(1)
+                .select_from(prompt_revision)
+                .select_from(response_revision)
+                .where(prompt_revision.revision_id == prompt.revision_id)
+                .where(response_revision.revision_id == response.revision_id),
+                prompt_revision,
+                response_revision,
+            )
+            .exists()
+        )
+    )
+    assert valid is not None
+    return valid
+
+
+async def test_human_replying_to_human_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -72,16 +96,10 @@ async def test_human_replying_to_human_is_valid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == []
+    assert await _is_valid_pair(session, prompt, response)
 
 
-async def test_human_replying_to_self_is_invalid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_human_replying_to_self_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
     session.add(MessageRecord(
@@ -115,20 +133,10 @@ async def test_human_replying_to_self_is_invalid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert not await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        DEBUG,
-        "(1, 2) is not valid because both messages have the same author",
-    )]
+    assert not await _is_valid_pair(session, prompt, response)
 
 
-async def test_blank_prompt_is_invalid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_blank_prompt_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -163,20 +171,10 @@ async def test_blank_prompt_is_invalid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert not await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        DEBUG,
-        "(1, 2) is not valid because one of the messages is blank",
-    )]
+    assert not await _is_valid_pair(session, prompt, response)
 
 
-async def test_blank_response_is_invalid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_blank_response_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -211,20 +209,10 @@ async def test_blank_response_is_invalid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert not await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        DEBUG,
-        "(1, 2) is not valid because one of the messages is blank",
-    )]
+    assert not await _is_valid_pair(session, prompt, response)
 
 
-async def test_human_replying_to_bot_is_valid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_human_replying_to_bot_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=False))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -259,16 +247,10 @@ async def test_human_replying_to_bot_is_valid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == []
+    assert await _is_valid_pair(session, prompt, response)
 
 
-async def test_bot_replying_to_human_is_invalid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_bot_replying_to_human_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=False))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -303,20 +285,10 @@ async def test_bot_replying_to_human_is_invalid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert not await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        DEBUG,
-        "(1, 2) is not valid because the responding author is not human",
-    )]
+    assert not await _is_valid_pair(session, prompt, response)
 
 
-async def test_deleted_response_is_valid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_deleted_response_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -351,16 +323,10 @@ async def test_deleted_response_is_valid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == []
+    assert await _is_valid_pair(session, prompt, response)
 
 
-async def test_prompt_deleted_before_response_is_invalid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_prompt_deleted_before_response_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -395,20 +361,10 @@ async def test_prompt_deleted_before_response_is_invalid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert not await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        DEBUG,
-        "(1, 2) is not valid because the prompt was deleted before the response was created",
-    )]
+    assert not await _is_valid_pair(session, prompt, response)
 
 
-async def test_prompt_deleted_after_response_is_valid(
-    caplog: LogCaptureFixture,
-    session: AsyncSession,
-):
+async def test_prompt_deleted_after_response_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -443,8 +399,5 @@ async def test_prompt_deleted_after_response_is_valid(
     )
     session.add(response)
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        assert await is_valid_pair(session, prompt, response)
-
-    assert caplog.record_tuples == []
+    assert await _is_valid_pair(session, prompt, response)
 
