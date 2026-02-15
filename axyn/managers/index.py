@@ -90,14 +90,14 @@ class IndexManager(Manager):
         self._logger.info("Updating index")
 
         async with self._client.database_manager.session() as session:
-            revisions = await session.scalars(
+            revisions = await session.stream_scalars(
                 select(MessageRevisionRecord)
                 .where(MessageRevisionRecord.index_id == None)
             )
 
             batch: dict[bytes, int] = {}
 
-            for revision in revisions:
+            async for revision in revisions:
                 vector = self._vector(revision.content)
                 revision.index_id = self._insert(vector, batch)
 
@@ -130,12 +130,12 @@ class IndexManager(Manager):
         results = self._index.search(vector, size=100)
 
         for index_id, distance in results:
-            prompts = await session.scalars(
+            prompts = await session.stream_scalars(
                 select(MessageRevisionRecord)
                 .where(MessageRevisionRecord.index_id == index_id)
             )
 
-            for prompt in prompts:
+            async for prompt in prompts:
                 async for response in self.get_responses_to_revision(session, prompt):
                     yield prompt, response, distance
 
@@ -151,13 +151,13 @@ class IndexManager(Manager):
             prompt_revision.message_id,
         )
 
-        references = await session.scalars(
+        references = await session.stream_scalars(
             select(MessageRevisionRecord)
             .join(MessageRecord)
             .where(MessageRecord.reference_id == prompt_revision.message_id)
         )
 
-        for reference in references:
+        async for reference in references:
             if await is_valid_pair(session, prompt_revision, reference):
                 yield reference
 
@@ -195,12 +195,12 @@ class IndexManager(Manager):
             )
             return
 
-        revisions = await session.scalars(
+        revisions = await session.stream_scalars(
             select(MessageRevisionRecord)
             .where(MessageRevisionRecord.message_id == next_message.message_id)
         )
 
-        for revision in revisions:
+        async for revision in revisions:
             if await is_valid_pair(session, prompt_revision, revision):
                 yield revision
 
