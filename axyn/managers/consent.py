@@ -134,15 +134,13 @@ class ConsentManager(Manager):
                 f"Redacting all messages from user {interaction.user_id}"
             )
 
-            ids = await session.scalars(
-                select(MessageRevisionRecord.revision_id)
-                .join(MessageRecord)
-                .where(MessageRecord.author_id == interaction.user_id)
-            )
-
             await session.execute(
                 delete(MessageRevisionRecord)
-                .where(MessageRevisionRecord.revision_id.in_(ids))
+                .where(MessageRevisionRecord.message_id.in_(
+                    select(MessageRecord.message_id)
+                    .where(MessageRecord.author_id == interaction.user_id)
+                    .scalar_subquery()
+                ))
             )
 
     async def get_response(
