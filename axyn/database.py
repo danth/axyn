@@ -3,6 +3,7 @@ from axyn.types import is_supported_channel_type
 from datetime import datetime
 from enum import Enum
 import os
+from re import sub
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import (
@@ -16,8 +17,9 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from axyn.types import UserUnion
     from discord import Guild, Interaction, Message
+    from re import Match
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Any
+    from typing import Any, Literal
 
 
 DATA_DIRECTORY = "~/axyn"
@@ -210,6 +212,31 @@ class MessageRevisionRecord(BaseRecord):
             )
             .on_conflict_do_nothing()
         )
+
+    def replace_pings(
+        self,
+        replacements: dict[int, int | Literal["everyone", "here"]]
+    ) -> str:
+        """
+        Replace pings in the content with different users.
+
+        This is useful to put a quote into context when it is addressed to,
+        or written by someone different than the original message was.
+        """
+
+        def replace_ping(match: Match[str]) -> str:
+            for old, new in replacements.items():
+                if match.group(0) == f"<@{old}>":
+                    if isinstance(new, int):
+                        return f"<@{new}>"
+                    else:
+                        return f"@{new}"
+
+            return match.group(0)
+
+        # Everything must be replaced in one pass, else we might replace a
+        # ping more than once, if some of the arguments are the same.
+        return sub("<@[0-9]+>", replace_ping, self.content)
 
 
 class InteractionRecord(BaseRecord):

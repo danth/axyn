@@ -4,7 +4,6 @@ from axyn.channel import channel_members
 from axyn.database import MessageRecord, MessageRevisionRecord
 from axyn.filters import reason_not_to_reply, is_direct
 from axyn.handlers import Handler
-from axyn.preprocessor import preprocess_reply
 from axyn.privacy import can_send_in_channel
 from datetime import datetime, timedelta, timezone
 from logging import getLogger
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
     from axyn.client import AxynClient
     from discord import Message
     from sqlalchemy.ext.asyncio import AsyncSession
-    from typing import Optional
+    from typing import Optional, Literal
 
 
 class ReplyHandler(Handler):
@@ -122,13 +121,14 @@ class ReplyHandler(Handler):
 
             self._logger.debug(f'Selected reply "{response_revision.content}"')
 
-            text = preprocess_reply(
-                response_revision.content,
-                original_prompt_author_id=prompt_message.author_id,
-                original_response_author_id=response_message.author_id,
-                current_prompt_author_id=self.message.author.id,
-                axyn_id=self.client.axyn().id,
-            )
+            replacements: dict[int, int | Literal["everyone", "here"]] = {}
+            replacements.setdefault(prompt_message.author_id, self.message.author.id)
+            replacements.setdefault(response_message.author_id, self.client.axyn().id)
+            replacements.setdefault(self.client.axyn().id, "everyone")
+
+            text = response_revision.replace_pings(replacements)
+
+            self._logger.debug(f'Processed to "{text}"')
 
             return text
 

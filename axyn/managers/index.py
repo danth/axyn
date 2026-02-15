@@ -3,7 +3,6 @@ from axyn.database import MessageRecord, MessageRevisionRecord, get_path
 from axyn.filters import is_valid_pair
 from axyn.history import analyze_delays
 from axyn.managers import Manager
-from axyn.preprocessor import preprocess_index
 from discord.ext.tasks import loop
 from fastembed import TextEmbedding
 from logging import getLogger
@@ -46,7 +45,7 @@ class IndexManager(Manager):
     def _vector(self, content: str) -> Vector:
         """Return the vector for the given message content."""
 
-        content = preprocess_index(content)
+        content = content.strip()
         vectors = self._model.embed([content])
         vector = list(vectors)[0]
         return cast("Vector", vector)
