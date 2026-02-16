@@ -28,3 +28,17 @@ class Handler(ABC):
     @abstractmethod
     async def handle(self):
         """Do whatever handling is required for this message."""
+
+    def _attributes(self):
+        """Return OpenTelemetry attributes for this message."""
+
+        attributes = {
+            "channel.id": self.message.channel.id,
+            "message.id": self.message.id,
+            "user.id": self.message.author.id,
+        }
+
+        if self.message.guild is not None:
+            attributes["guild.id"] = self.message.guild.id
+
+        return attributes

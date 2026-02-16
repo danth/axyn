@@ -5,8 +5,8 @@ from axyn.history import analyze_delays
 from axyn.managers import Manager
 from discord.ext.tasks import loop
 from fastembed import TextEmbedding
-from logging import getLogger
 from ngtpy import create as create_ngt, Index
+from opentelemetry.trace import get_tracer
 from os import path
 from sqlalchemy import asc, select
 from sqlalchemy.orm import aliased
@@ -21,6 +21,9 @@ if TYPE_CHECKING:
     from typing import AsyncGenerator
 
     Vector = ndarray[tuple[384], dtype[float32]]
+
+
+_tracer = get_tracer(__name__)
 
 
 class IndexManager(Manager):
@@ -38,11 +41,12 @@ class IndexManager(Manager):
 
         self._index = Index(directory)
         self._model = TextEmbedding()
-        self._logger = getLogger(__name__)
 
+    @_tracer.start_as_current_span("set up index manager")
     async def setup_hook(self):
         self._update_index.start()
 
+    @_tracer.start_as_current_span("embed text")
     def _vector(self, content: str) -> Vector:
         """Return the vector for the given message content."""
 
@@ -51,6 +55,7 @@ class IndexManager(Manager):
         vector = list(vectors)[0]
         return cast("Vector", vector)
 
+    @_tracer.start_as_current_span("insert embedding into index")
     def _insert(self, vector: Vector, batch: dict[bytes, int]) -> int:
         """
         Insert a vector into the index.
@@ -85,10 +90,9 @@ class IndexManager(Manager):
             return index_id
 
     @loop(minutes=1)
+    @_tracer.start_as_current_span("refresh index")
     async def _update_index(self):
         """Scan the database for new revisions and add them to the index."""
-
-        self._logger.info("Updating index")
 
         async with self._client.database_manager.session() as session:
             revisions = await session.stream_scalars(
@@ -127,18 +131,19 @@ class IndexManager(Manager):
         ascending order.
         """
 
-        vector = self._vector(prompt_text)
-        results = self._index.search(vector, size=100)
+        with _tracer.start_as_current_span("get responses to text"):
+            vector = self._vector(prompt_text)
+            results = self._index.search(vector, size=100)
 
-        for index_id, distance in results:
-            prompts = await session.stream_scalars(
-                select(MessageRevisionRecord)
-                .where(MessageRevisionRecord.index_id == index_id)
-            )
+            for index_id, distance in results:
+                prompts = await session.stream_scalars(
+                    select(MessageRevisionRecord)
+                    .where(MessageRevisionRecord.index_id == index_id)
+                )
 
-            async for prompt in prompts:
-                async for response in self.get_responses_to_revision(session, prompt):
-                    yield prompt, response, distance
+                async for prompt in prompts:
+                    async for response in self.get_responses_to_revision(session, prompt):
+                        yield prompt, response, distance
 
     async def get_responses_to_revision(
         self,
@@ -147,73 +152,68 @@ class IndexManager(Manager):
     ) -> AsyncGenerator[MessageRevisionRecord]:
         """Get a selection of possible responses to the given revision."""
 
-        prompt_revision = aliased(MessageRevisionRecord)
-        response_revision = aliased(MessageRevisionRecord)
-        prompt_message = aliased(MessageRecord)
-        response_message = aliased(MessageRecord)
+        with _tracer.start_as_current_span(
+            "get responses to revision",
+            attributes={"revision.id": revision.revision_id},
+        ):
+            prompt_revision = aliased(MessageRevisionRecord)
+            response_revision = aliased(MessageRevisionRecord)
+            prompt_message = aliased(MessageRecord)
+            response_message = aliased(MessageRecord)
 
-        references = await session.stream_scalars(
-            select_valid_pairs(
-                select(response_revision)
-                .select_from(prompt_revision)
-                .join(response_message, response_message.reference_id == prompt_revision.message_id)
-                .join(response_revision, response_revision.message_id == response_message.message_id)
-                .where(prompt_revision.revision_id == revision.revision_id),
-                prompt_revision,
-                response_revision,
+            references = await session.stream_scalars(
+                select_valid_pairs(
+                    select(response_revision)
+                    .select_from(prompt_revision)
+                    .join(response_message, response_message.reference_id == prompt_revision.message_id)
+                    .join(response_revision, response_revision.message_id == response_message.message_id)
+                    .where(prompt_revision.revision_id == revision.revision_id),
+                    prompt_revision,
+                    response_revision,
+                )
             )
-        )
 
-        async for reference in references:
-            yield reference
+            async for reference in references:
+                yield reference
 
-        next_message = await session.scalar(
-            select(response_message)
-            .join(prompt_message, prompt_message.message_id == revision.message_id)
-            .where(response_message.channel_id == prompt_message.channel_id)
-            .where(response_message.created_at > prompt_message.created_at)
-            .where(response_message.ephemeral.is_not(True))
-            .order_by(asc(response_message.created_at))
-            .limit(1)
-        )
-
-        if next_message is None:
-            return
-
-        try:
-            _, _, upper_quartile = await analyze_delays(
-                session,
-                next_message.author_id
+            next_message = await session.scalar(
+                select(response_message)
+                .join(prompt_message, prompt_message.message_id == revision.message_id)
+                .where(response_message.channel_id == prompt_message.channel_id)
+                .where(response_message.created_at > prompt_message.created_at)
+                .where(response_message.ephemeral.is_not(True))
+                .order_by(asc(response_message.created_at))
+                .limit(1)
             )
-        except StatisticsError:
-            self._logger.debug(
-                f"({revision.revision_id}, next message) "
-                "is not valid because not enough previous messages were found"
+
+            if next_message is None:
+                return
+
+            try:
+                _, _, upper_quartile = await analyze_delays(
+                    session,
+                    next_message.author_id
+                )
+            except StatisticsError:
+                return
+
+            prev_message = await session.get_one(MessageRecord, revision.message_id)
+
+            delay = (next_message.created_at - prev_message.created_at).total_seconds()
+
+            if delay > upper_quartile:
+                return
+
+            references = await session.stream_scalars(
+                select_valid_pairs(
+                    select(response_revision)
+                    .join(prompt_revision, prompt_revision.revision_id == revision.revision_id)
+                    .where(response_revision.message_id == next_message.message_id),
+                    prompt_revision,
+                    response_revision,
+                )
             )
-            return
 
-        prev_message = await session.get_one(MessageRecord, revision.message_id)
-
-        delay = (next_message.created_at - prev_message.created_at).total_seconds()
-
-        if delay > upper_quartile:
-            self._logger.debug(
-                f"({revision.revision_id}, next message) "
-                "is not valid because the time between messages was too long "
-                f"(expected <= {upper_quartile}, got {delay})"
-            )
-            return
-
-        references = await session.stream_scalars(
-            select_valid_pairs(
-                select(response_revision)
-                .join(prompt_revision, prompt_revision.revision_id == revision.revision_id)
-                .where(response_revision.message_id == next_message.message_id),
-                prompt_revision,
-                response_revision,
-            )
-        )
-
-        async for reference in references:
-            yield reference
+            async for reference in references:
+                yield reference
 

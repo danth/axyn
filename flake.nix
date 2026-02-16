@@ -55,6 +55,10 @@
             discordpy
             fastembed
             ngt
+            opentelemetry-api
+            opentelemetry-exporter-otlp-proto-http
+            opentelemetry-instrumentation-sqlalchemy
+            opentelemetry-sdk
             sqlalchemy
           ] ++ sqlalchemy.optional-dependencies.aiosqlite;
 

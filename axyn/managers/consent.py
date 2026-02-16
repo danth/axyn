@@ -12,7 +12,7 @@ from axyn.managers import Manager
 from axyn.ui.consent import ConsentMenu
 from discord import Member
 from discord.errors import Forbidden
-from logging import getLogger
+from opentelemetry.trace import get_current_span, get_tracer
 from sqlalchemy import delete, select, desc
 from typing import TYPE_CHECKING, cast
 
@@ -24,10 +24,11 @@ if TYPE_CHECKING:
     from typing import Union
 
 
-_logger = getLogger(__name__)
+_tracer = get_tracer(__name__)
 
 
 class ConsentManager(Manager):
+    @_tracer.start_as_current_span("set up consent manager")
     async def setup_hook(self):
         self._client.add_view(ConsentMenu())
 
@@ -78,10 +79,8 @@ class ConsentManager(Manager):
         try:
             message = await user.send(introduction, view=ConsentMenu())
         except Forbidden:
-            _logger.warning(f"Not allowed to send an introduction message to user {user.id}")
+            get_current_span().add_event("Cancelled due to insufficient permissions")
             return
-
-        _logger.info(f"Sent an introduction message to user {user.id}")
 
         await MessageRecord.insert(session, message)
         session.add(ConsentPromptRecord(message_id=message.id))
@@ -93,13 +92,13 @@ class ConsentManager(Manager):
         """
 
         if await self._should_send_introduction(session, user):
-            await self._send_introduction(session, user)
+            with _tracer.start_as_current_span(
+                "send consent introduction",
+                attributes={"user.id": user.id},
+            ):
+                await self._send_introduction(session, user)
 
-    async def send_menu(self, session: AsyncSession, interaction: Interaction):
-        """Sent a consent menu in response to the given interaction."""
-
-        _logger.info(f"User {interaction.user.id} requested a consent menu")
-
+    async def _send_menu(self, session: AsyncSession, interaction: Interaction):
         response = await interaction.response.send_message(
             "May I take quotes from you?",
             ephemeral=True,
@@ -111,6 +110,18 @@ class ConsentManager(Manager):
         await MessageRecord.insert(session, message)
         session.add(ConsentPromptRecord(message_id=message.id))
 
+    async def send_menu(self, session: AsyncSession, interaction: Interaction):
+        """Sent a consent menu in response to the given interaction."""
+
+        with _tracer.start_as_current_span(
+            "send consent menu",
+            attributes={
+                "interaction.id": interaction.id,
+                "user.id": interaction.user.id,
+            },
+        ):
+            await self._send_menu(session, interaction)
+
     async def set_response(
         self,
         session: AsyncSession,
@@ -119,29 +130,39 @@ class ConsentManager(Manager):
     ):
         """Store a new consent response resulting from the given interaction."""
 
-        _logger.info(
-            f"User {interaction.user_id} changed their consent setting "
-            f"to {response}"
-        )
+        with _tracer.start_as_current_span(
+            "set consent response",
+            attributes={
+                "interaction.id": interaction.interaction_id,
+                "user.id": interaction.user_id,
+            },
+        ):
+            await self._set_response(session, interaction, response)
 
+    async def _set_response(
+        self,
+        session: AsyncSession,
+        interaction: InteractionRecord,
+        response: ConsentResponse,
+    ):
         session.add(ConsentResponseRecord(
             interaction_id=interaction.interaction_id,
             response=response
         ))
 
         if response == ConsentResponse.NO:
-            _logger.info(
-                f"Redacting all messages from user {interaction.user_id}"
-            )
-
-            await session.execute(
-                delete(MessageRevisionRecord)
-                .where(MessageRevisionRecord.message_id.in_(
-                    select(MessageRecord.message_id)
-                    .where(MessageRecord.author_id == interaction.user_id)
-                    .scalar_subquery()
-                ))
-            )
+            with _tracer.start_as_current_span(
+                "redact all messages with author",
+                attributes={"user.id": interaction.user_id},
+            ):
+                await session.execute(
+                    delete(MessageRevisionRecord)
+                    .where(MessageRevisionRecord.message_id.in_(
+                        select(MessageRecord.message_id)
+                        .where(MessageRecord.author_id == interaction.user_id)
+                        .scalar_subquery()
+                    ))
+                )
 
     async def get_response(
         self,
@@ -156,6 +177,22 @@ class ConsentManager(Manager):
         should not leak it elsewhere.
         """
 
+        if isinstance(user, UserRecord):
+            user_id = user.user_id
+        else:
+            user_id = user.id
+
+        with _tracer.start_as_current_span(
+            "get consent response",
+            attributes={"user.id": user_id},
+        ):
+            return await self._get_response(session, user)
+
+    async def _get_response(
+        self,
+        session: AsyncSession,
+        user: Union[UserUnion, UserRecord]
+    ) -> ConsentResponse:
         if isinstance(user, UserRecord):
             user_id = user.user_id
             human = user.human

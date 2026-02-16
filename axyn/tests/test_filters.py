@@ -20,9 +20,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-LOG_NAME = "axyn.filters"
-
-
 @fixture
 async def session(monkeypatch: MonkeyPatch, tmp_path: str):
     monkeypatch.setattr("axyn.database.DATA_DIRECTORY", tmp_path)

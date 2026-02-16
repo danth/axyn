@@ -4,7 +4,7 @@ from axyn.handlers.store import StoreHandler
 from axyn.managers import Manager
 from axyn.types import is_supported_channel_type
 from discord.errors import Forbidden
-from logging import getLogger
+from opentelemetry.trace import get_tracer
 from typing import TYPE_CHECKING
 
 
@@ -12,19 +12,20 @@ if TYPE_CHECKING:
     from axyn.client import AxynClient
     from axyn.types import ChannelUnion
     from discord import Message
-    from logging import Logger
+
+
+_tracer = get_tracer(__name__)
 
 
 class ScanManager(Manager):
-    _logger: Logger
     _queue: Queue[Message]
 
     def __init__(self, client: AxynClient):
         super().__init__(client)
 
-        self._logger = getLogger(__name__)
         self._queue = Queue(1024)
 
+    @_tracer.start_as_current_span("set up scan manager")
     async def setup_hook(self):
         create_task(self._handle())
 
@@ -43,16 +44,17 @@ class ScanManager(Manager):
     async def scan_channel(self, channel: ChannelUnion):
         """Scan the history of the given channel for unseen messages."""
 
-        self._logger.info(f"Started scan of channel {channel.id}")
+        with _tracer.start_as_current_span(
+            "scan channel",
+            attributes={"channel.id": channel.id},
+        ) as span:
+            try:
+                async for message in channel.history(limit=None):
+                    await self._queue.put(message)
+            except Forbidden:
+                span.add_event(f"Cancelled due to insufficient permissions")
 
-        try:
-            async for message in channel.history(limit=None):
-                await self._queue.put(message)
-        except Forbidden:
-            self._logger.info(f"Cancelled scan of channel {channel.id} due to insufficient permissions")
-        else:
-            self._logger.info(f"Queued all messages from channel {channel.id}")
-
+    @_tracer.start_as_current_span("scan everything")
     async def scan_all(self):
         """Scan the history of all visible channels for unseen messages."""
 

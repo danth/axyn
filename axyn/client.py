@@ -1,5 +1,5 @@
 from __future__ import annotations
-from asyncio import create_task
+from asyncio import TaskGroup
 from axyn.database import (
     ConsentResponse,
     MessageRecord,
@@ -15,7 +15,7 @@ from axyn.handlers.store import StoreHandler
 from datetime import datetime
 from discord import Client, Intents
 from discord.app_commands import CommandTree
-import logging
+from opentelemetry.trace import get_current_span, get_tracer
 from sqlalchemy import update
 from typing import TYPE_CHECKING
 
@@ -32,6 +32,9 @@ if TYPE_CHECKING:
     )
 
 
+_tracer = get_tracer(__name__)
+
+
 class AxynClient(Client):
     def __init__(self):
         intents = Intents.default()
@@ -39,8 +42,6 @@ class AxynClient(Client):
         intents.message_content = True
 
         super().__init__(intents=intents)
-
-        self.logger = logging.getLogger(__name__)
 
         # (author id, user id) → scheduled reply
         self.reply_tasks: dict[tuple[int, int], Task[None]] = dict()
@@ -62,6 +63,7 @@ class AxynClient(Client):
 
         return self.user
 
+    @_tracer.start_as_current_span("set up client")
     async def setup_hook(self):
         self.database_manager = DatabaseManager(self)
         await self.database_manager.setup_hook()
@@ -75,15 +77,28 @@ class AxynClient(Client):
         self.scan_manager = ScanManager(self)
         await self.scan_manager.setup_hook()
 
-        self.logger.info("Syncing command definitions")
-        create_task(self.command_tree.sync())
+        await self.command_tree.sync()
 
+    @_tracer.start_as_current_span("handle client reaching ready state")
     async def on_ready(self):
-        create_task(self.scan_manager.scan_all())
+        await self.scan_manager.scan_all()
 
     async def on_message(self, message: Message):
-        """Reply to and store incoming messages."""
+        attributes = {
+            "channel.id": message.channel.id,
+            "message.id": message.id,
+        }
 
+        if message.guild is not None:
+            attributes["guild.id"] = message.guild.id
+
+        with _tracer.start_as_current_span(
+            "handle new message",
+            attributes=attributes,
+        ):
+            await self._on_message(message)
+
+    async def _on_message(self, message: Message):
         try:
             if self.last_typing[message.author.id] < message.created_at:
                 del self.last_typing[message.author.id]
@@ -94,27 +109,54 @@ class AxynClient(Client):
         # message is already in our database.
         await StoreHandler(self, message).handle()
 
-        create_task(ConsentHandler(self, message).handle())
-        create_task(ReplyHandler(self, message).handle())
+        async with TaskGroup() as group:
+            group.create_task(ConsentHandler(self, message).handle())
+            group.create_task(ReplyHandler(self, message).handle())
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
+        attributes = {
+            "channel.id": payload.channel_id,
+            "message.id": payload.message_id,
+        }
+
+        if payload.guild_id is not None:
+            attributes["guild.id"] = payload.guild_id
+
+        with _tracer.start_as_current_span(
+            "handle edited message",
+            attributes=attributes,
+        ):
+            await self._on_raw_message_edit(payload)
+
+    async def _on_raw_message_edit(self, payload: RawMessageUpdateEvent):
         message = payload.message
 
         async with self.database_manager.session() as session:
             response = await self.consent_manager.get_response(session, message.author)
 
             if response == ConsentResponse.NO:
-                self.logger.info(f"Not storing new revision of {message.id} because the author has not given consent")
+                get_current_span().add_event("Not storing because the author has not given consent")
                 return
-
-            self.logger.info(f"Storing new revision of {message.id}")
 
             await MessageRevisionRecord.insert(session, message)
             await session.commit()
 
     async def on_raw_message_delete(self, payload: RawMessageDeleteEvent):
-        self.logger.info(f"Marking {payload.message_id} as deleted")
+        attributes = {
+            "channel.id": payload.channel_id,
+            "message.id": payload.message_id,
+        }
 
+        if payload.guild_id is not None:
+            attributes["guild.id"] = payload.guild_id
+
+        with _tracer.start_as_current_span(
+            "handle deleted message",
+            attributes=attributes,
+        ):
+            await self._on_raw_message_delete(payload)
+
+    async def _on_raw_message_delete(self, payload: RawMessageDeleteEvent):
         async with self.database_manager.session() as session:
             await session.execute(
                 update(MessageRecord)
@@ -125,8 +167,18 @@ class AxynClient(Client):
             await session.commit()
 
     async def on_raw_bulk_message_delete(self, payload: RawBulkMessageDeleteEvent):
-        self.logger.info(f"Marking {payload.message_ids} as deleted")
+        attributes = {"channel.id": payload.channel_id}
 
+        if payload.guild_id is not None:
+            attributes["guild.id"] = payload.guild_id
+
+        with _tracer.start_as_current_span(
+            "handle bulk-deleted messages",
+            attributes=attributes,
+        ):
+            await self._on_raw_bulk_message_delete(payload)
+
+    async def _on_raw_bulk_message_delete(self, payload: RawBulkMessageDeleteEvent):
         async with self.database_manager.session() as session:
             await session.execute(
                 update(MessageRecord)
@@ -137,7 +189,20 @@ class AxynClient(Client):
             await session.commit()
 
     async def on_raw_typing(self, payload: RawTypingEvent):
-        self.logger.debug(f"User {payload.user_id} is typing")
+        attributes = {
+            "channel.id": payload.channel_id,
+            "user.id": payload.user_id,
+        }
 
-        self.last_typing[payload.user_id] = payload.timestamp
+        if payload.guild_id is not None:
+            attributes["guild.id"] = payload.guild_id
+
+        with _tracer.start_as_current_span(
+            "handle typing notification",
+            attributes=attributes,
+        ):
+            await self._on_raw_typing(payload)
+
+    async def _on_raw_typing(self, payload: RawTypingEvent):
+            self.last_typing[payload.user_id] = payload.timestamp
 

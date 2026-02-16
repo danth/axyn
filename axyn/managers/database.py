@@ -10,6 +10,8 @@ from axyn.database import (
 from axyn.managers import Manager
 from datetime import datetime
 from enum import Enum
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.trace import get_tracer
 from shutil import rmtree
 from sqlalchemy import (
     Boolean,
@@ -34,6 +36,10 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.pool import ConnectionPoolEntry
 
+
+_tracer = get_tracer(__name__)
+
+
 class DatabaseManager(Manager):
     """Holds a connection to the database and controls database migrations."""
 
@@ -43,6 +49,8 @@ class DatabaseManager(Manager):
         uri = "sqlite+aiosqlite:///" + get_path("database.sqlite3")
 
         engine = create_async_engine(uri)
+
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
 
         def on_connect(
             dbapi_connection: DBAPIConnection,
@@ -70,6 +78,7 @@ class DatabaseManager(Manager):
 
         self.session = async_sessionmaker(bind=engine)
 
+    @_tracer.start_as_current_span("set up database manager")
     async def setup_hook(self):
         """Ensure the database is following the current schema."""
 

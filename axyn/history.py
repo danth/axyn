@@ -1,6 +1,6 @@
 from __future__ import annotations
 from axyn.database import MessageRecord
-from logging import getLogger
+from opentelemetry.trace import get_tracer
 from statistics import quantiles
 from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-_logger = getLogger(__name__)
+_tracer = get_tracer(__name__)
 
 
 async def analyze_delays(
@@ -23,58 +23,65 @@ async def analyze_delays(
     on how long they take to reply.
     """
 
-    prompt = aliased(MessageRecord, name="prompt")
+    with _tracer.start_as_current_span(
+        "analyze delays for user",
+        attributes={"user.id": user_id},
+    ) as span:
+        prompt = aliased(MessageRecord, name="prompt")
 
-    response = (
-        select(
-            MessageRecord,
+        response = (
+            select(
+                MessageRecord,
 
-            # LAG gets a value from the previous record, according to the
-            # provided sort order.
-            func
-            .lag(MessageRecord.message_id)
-            .over(
-                order_by=MessageRecord.created_at,
-                partition_by=MessageRecord.channel_id,
+                # LAG gets a value from the previous record, according to the
+                # provided sort order.
+                func
+                .lag(MessageRecord.message_id)
+                .over(
+                    order_by=MessageRecord.created_at,
+                    partition_by=MessageRecord.channel_id,
+                )
+                .label("previous_message_id"),
             )
-            .label("previous_message_id"),
+            .where(MessageRecord.author_id == user_id)
+            .where(MessageRecord.ephemeral.is_not(True))
+            .subquery("response")
         )
-        .where(MessageRecord.author_id == user_id)
-        .where(MessageRecord.ephemeral.is_not(True))
-        .subquery("response")
-    )
 
-    query = (
-        select(
-            prompt.created_at.label("prompt_created_at"),
-            response.c.created_at.label("response_created_at"),
+        query = (
+            select(
+                prompt.created_at.label("prompt_created_at"),
+                response.c.created_at.label("response_created_at"),
+            )
+            .join(
+                prompt,
+                prompt.message_id == func.coalesce(
+                    response.c.reference_id,
+                    response.c.previous_message_id,
+                ),
+            )
+            .where(prompt.author_id != user_id)
+            .where(prompt.ephemeral.is_not(True))
         )
-        .join(
-            prompt,
-            prompt.message_id == func.coalesce(
-                response.c.reference_id,
-                response.c.previous_message_id,
-            ),
-        )
-        .where(prompt.author_id != user_id)
-        .where(prompt.ephemeral.is_not(True))
-    )
 
-    stream = await session.stream(query)
+        stream = await session.stream(query)
 
-    try:
-        delays = [
-            (response_created_at - prompt_created_at).total_seconds()
-            async for prompt_created_at, response_created_at in stream
-        ]
-    finally:
-        await stream.close()
+        try:
+            delays = [
+                (response_created_at - prompt_created_at).total_seconds()
+                async for prompt_created_at, response_created_at in stream
+            ]
+        finally:
+            await stream.close()
 
-    _logger.debug(f"User {user_id}: Got {len(delays)} useful pairs")
+        lower, median, upper = quantiles(delays)
 
-    lower, median, upper = quantiles(delays)
+        span.set_attributes({
+            "delays.count": len(delays),
+            "delays.lower": lower,
+            "delays.median": median,
+            "delays.upper": upper,
+        })
 
-    _logger.debug(f"User {user_id}: Quartiles are {lower}, {median}, {upper}")
-
-    return lower, median, upper
+        return lower, median, upper
 

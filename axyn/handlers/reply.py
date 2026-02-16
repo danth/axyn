@@ -6,58 +6,69 @@ from axyn.filters import reason_not_to_reply, is_direct
 from axyn.handlers import Handler
 from axyn.privacy import can_send_in_channel
 from datetime import datetime, timedelta, timezone
-from logging import getLogger
+from opentelemetry.trace import get_current_span, get_tracer
 from random import random, shuffle
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from axyn.client import AxynClient
-    from discord import Message
     from sqlalchemy.ext.asyncio import AsyncSession
     from typing import Optional, Literal
 
 
+_tracer = get_tracer(__name__)
+
+
 class ReplyHandler(Handler):
-    def __init__(self, client: AxynClient, message: Message):
-        super().__init__(client, message)
-
-        self._logger = getLogger(__name__)
-
     async def handle(self):
         """Respond to this message, if allowed."""
 
-        reason = reason_not_to_reply(self.message)
-        if reason:
-            self._logger.debug(f"Not replying because {reason}")
-            return
+        with _tracer.start_as_current_span(
+            "reply to message",
+            attributes=self._attributes(),
+        ) as span:
+            reason = reason_not_to_reply(self.message)
+            if reason:
+                span.add_event(f"Not replying because {reason}")
+                return
 
-        reply, distance = await self._get_reply()
+            reply, distance = await self._get_reply()
 
-        if reply is None:
-            return
+            if reply is None:
+                return
 
-        if random() > self._get_probability(distance):
-            self._logger.debug("Not replying because the probability check failed")
-            return
+            probability = self._get_probability(distance)
 
-        self._schedule_reply(reply)
+            if random() <= probability:
+                span.add_event(
+                    "Probability check succeeded",
+                    attributes={"probability": probability},
+                )
+
+                self._schedule_reply(reply)
+            else:
+                span.add_event(
+                    "Probability check failed",
+                    attributes={"probability": probability},
+                )
 
     def _get_probability(self, distance: float) -> float:
         """Return the probability of sending a reply."""
 
-        if is_direct(self.client, self.message):
-            self._logger.debug("Probability of replying to a direct message is constant")
-            return 1
+        with _tracer.start_as_current_span("get reply probability") as span:
+            if is_direct(self.client, self.message):
+                probability = 1
+            else:
+                members = len(channel_members(self._channel)) - 1
 
-        members = len(channel_members(self._channel)) - 1
+                # https://www.desmos.com/calculator/jqyrqevoad
+                probability = (2 - distance) / (2 * members * (distance + 1))
 
-        # https://www.desmos.com/calculator/jqyrqevoad
-        probability = (2 - distance) / (2 * members * (distance + 1))
+            span.set_attribute("probability", probability)
 
-        self._logger.debug(f"Probability of replying is {probability}")
-        return probability
+            return probability
 
+    @_tracer.start_as_current_span("choose reply")
     async def _get_reply(self) -> tuple[Optional[str], float]:
         """Return a chosen reply and its cosine distance."""
 
@@ -72,8 +83,6 @@ class ReplyHandler(Handler):
 
             async for prompt, response, distance in responses:
                 if group_distance > distance:
-                    self._logger.debug(f"Processing response group with cosine distance {group_distance}")
-
                     if text := await self._get_reply_from_group(session, group):
                         return text, group_distance
 
@@ -82,12 +91,10 @@ class ReplyHandler(Handler):
 
                 group.append((prompt, response))
 
-            self._logger.debug(f"Processing response group with cosine distance {group_distance}")
-
             if text := await self._get_reply_from_group(session, group):
                 return text, group_distance
 
-        self._logger.debug(f'Found no suitable responses')
+        get_current_span().add_event("Found no suitable responses")
         return None, float("inf")
 
     async def _get_reply_from_group(
@@ -116,10 +123,16 @@ class ReplyHandler(Handler):
             )
 
             if not can_send:
-                self._logger.debug(f'Cannot use reply "{response_revision.content}" due to privacy filter')
+                get_current_span().add_event(
+                    "Rejected response due to privacy filter",
+                    attributes={"revision.id": response_revision.revision_id},
+                )
                 continue
 
-            self._logger.debug(f'Selected reply "{response_revision.content}"')
+            get_current_span().add_event(
+                "Selected response",
+                attributes={"revision.id": response_revision.revision_id},
+            )
 
             replacements: dict[int, int | Literal["everyone", "here"]] = {}
             replacements.setdefault(prompt_message.author_id, self.message.author.id)
@@ -127,8 +140,6 @@ class ReplyHandler(Handler):
             replacements.setdefault(self.client.axyn().id, "everyone")
 
             text = response_revision.replace_pings(replacements)
-
-            self._logger.debug(f'Processed to "{text}"')
 
             return text
 
@@ -158,10 +169,9 @@ class ReplyHandler(Handler):
 
         if task := self.client.reply_tasks.get(key):
             if not task.done():
-                self._logger.info(f"Cancelling existing scheduled reply")
+                get_current_span().add_event("Cancelling existing scheduled reply")
                 task.cancel()
 
-        self._logger.info(f'Scheduling reply "{reply}"')
         task = create_task(self._do_reply(reply))
         self.client.reply_tasks[key] = task
 
@@ -179,11 +189,12 @@ class ReplyHandler(Handler):
                 async with timeout(30):
                     await self._delay_reply()
             except TimeoutError:
-                self._logger.info("Cancelling scheduled reply because the user is typing")
+                get_current_span().add_event("Cancelling scheduled reply because the user is typing")
                 return
 
         await self._send_reply(reply)
 
+    @_tracer.start_as_current_span("delay reply")
     async def _delay_reply(self):
         """
         Wait for a short length of time.
@@ -206,11 +217,8 @@ class ReplyHandler(Handler):
             delay = typing_until - datetime.now(timezone.utc)
             delay = delay.total_seconds()
 
+    @_tracer.start_as_current_span("send reply")
     async def _send_reply(self, reply: str):
-        """Send the given reply."""
-
-        self._logger.info(f'Sending reply "{reply}"')
-
         await self._channel.send(
             reply,
             reference=self.message,

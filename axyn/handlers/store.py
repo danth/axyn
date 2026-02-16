@@ -1,25 +1,16 @@
-from __future__ import annotations
 from axyn.database import (
     ConsentResponse,
     MessageRecord,
     MessageRevisionRecord,
 )
 from axyn.handlers import Handler
-from logging import getLogger
-from typing import TYPE_CHECKING
+from opentelemetry.trace import get_tracer
 
 
-if TYPE_CHECKING:
-    from axyn.client import AxynClient
-    from discord import Message
+_tracer = get_tracer(__name__)
 
 
 class StoreHandler(Handler):
-    def __init__(self, client: AxynClient, message: Message):
-        super().__init__(client, message)
-
-        self._logger = getLogger(__name__)
-
     async def handle(self):
         """
         Store this message.
@@ -31,15 +22,22 @@ class StoreHandler(Handler):
         It would also increase the average delay between messages.
         """
 
-        async with self.client.database_manager.session() as session:
-            consent = await self.client.consent_manager.get_response(session, self.message.author)
+        with _tracer.start_as_current_span(
+            "store message",
+            attributes=self._attributes(),
+        ) as span:
+            async with self.client.database_manager.session() as session:
+                consent = await self.client.consent_manager.get_response(
+                    session,
+                    self.message.author,
+                )
 
-            if consent == ConsentResponse.NO:
-                self._logger.info(f"Storing redacted version of {self.message.id}")
-                await MessageRecord.insert(session, self.message)
-            else:
-                self._logger.info(f"Storing full version of {self.message.id}")
-                await MessageRevisionRecord.insert(session, self.message)
+                if consent == ConsentResponse.NO:
+                    span.add_event("Storing redacted version")
+                    await MessageRecord.insert(session, self.message)
+                else:
+                    span.add_event(f"Storing full version")
+                    await MessageRevisionRecord.insert(session, self.message)
 
-            await session.commit()
+                await session.commit()
 

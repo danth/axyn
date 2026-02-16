@@ -22,7 +22,6 @@ from discord import (
     User,
 )
 from discord.errors import Forbidden
-from logging import DEBUG, INFO, WARNING
 from pytest import fixture, mark
 from sqlalchemy import select, func
 from typing import TYPE_CHECKING
@@ -30,10 +29,7 @@ from unittest.mock import Mock
 
 
 if TYPE_CHECKING:
-    from pytest import LogCaptureFixture, MonkeyPatch
-
-
-LOG_NAME = "axyn.managers.consent"
+    from pytest import MonkeyPatch
 
 
 @fixture
@@ -227,7 +223,6 @@ async def test_get_response_defaults_to_with_privacy_for_bots(
 async def test_send_introduction_from_dm(
     consent_manager: ConsentManager,
     database_manager: DatabaseManager,
-    caplog: LogCaptureFixture,
 ):
     channel = Mock(DMChannel)
     channel.id = 20
@@ -249,10 +244,9 @@ async def test_send_introduction_from_dm(
     user.create_dm.return_value = channel
     user.send.return_value = message
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.session() as session:
-            await consent_manager.send_introduction(session, user)
-            await session.commit()
+    async with database_manager.session() as session:
+        await consent_manager.send_introduction(session, user)
+        await session.commit()
 
     user.send.assert_called_once()
     assert user.send.call_args.args == (
@@ -270,17 +264,10 @@ async def test_send_introduction_from_dm(
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is not None
 
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        INFO,
-        "Sent an introduction message to user 31",
-    )]
-
 
 async def test_send_introduction_from_guild(
     consent_manager: ConsentManager,
     database_manager: DatabaseManager,
-    caplog: LogCaptureFixture,
 ):
     channel = Mock(DMChannel)
     channel.id = 20
@@ -303,10 +290,9 @@ async def test_send_introduction_from_guild(
     member.create_dm.return_value = channel
     member.send.return_value = message
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.session() as session:
-            await consent_manager.send_introduction(session, member)
-            await session.commit()
+    async with database_manager.session() as session:
+        await consent_manager.send_introduction(session, member)
+        await session.commit()
 
     member.send.assert_called_once()
     assert member.send.call_args.args == (
@@ -325,26 +311,18 @@ async def test_send_introduction_from_guild(
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is not None
 
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        INFO,
-        "Sent an introduction message to user 31",
-    )]
-
 
 async def test_send_introduction_to_bot(
     consent_manager: ConsentManager,
     database_manager: DatabaseManager,
-    caplog: LogCaptureFixture,
 ):
     user = Mock(User)
     user.bot = True
     user.system = False
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.session() as session:
-            await consent_manager.send_introduction(session, user)
-            await session.commit()
+    async with database_manager.session() as session:
+        await consent_manager.send_introduction(session, user)
+        await session.commit()
 
     assert not user.create_dm.called
     assert not user.send.called
@@ -352,23 +330,19 @@ async def test_send_introduction_to_bot(
     async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is None
-
-    assert caplog.record_tuples == []
 
 
 async def test_send_introduction_to_system(
     consent_manager: ConsentManager,
     database_manager: DatabaseManager,
-    caplog: LogCaptureFixture,
 ):
     user = Mock(User)
     user.bot = False
     user.system = True
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.session() as session:
-            await consent_manager.send_introduction(session, user)
-            await session.commit()
+    async with database_manager.session() as session:
+        await consent_manager.send_introduction(session, user)
+        await session.commit()
 
     assert not user.create_dm.called
     assert not user.send.called
@@ -377,13 +351,10 @@ async def test_send_introduction_to_system(
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is None
 
-    assert caplog.record_tuples == []
-
 
 async def test_send_introduction_forbidden(
     consent_manager: ConsentManager,
     database_manager: DatabaseManager,
-    caplog: LogCaptureFixture,
 ):
     channel = Mock(DMChannel)
     channel.id = 20
@@ -396,10 +367,9 @@ async def test_send_introduction_forbidden(
     user.create_dm.return_value = channel
     user.send.side_effect = Forbidden(Mock(), "Cannot DM user")
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.session() as session:
-            await consent_manager.send_introduction(session, user)
-            await session.commit()
+    async with database_manager.session() as session:
+        await consent_manager.send_introduction(session, user)
+        await session.commit()
 
     user.send.assert_called_once()
 
@@ -407,17 +377,10 @@ async def test_send_introduction_forbidden(
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is None
 
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        WARNING,
-        "Not allowed to send an introduction message to user 30",
-    )]
-
 
 async def test_send_menu(
     consent_manager: ConsentManager,
     database_manager: DatabaseManager,
-    caplog: LogCaptureFixture,
 ):
     channel = Mock(DMChannel)
     channel.id = 20
@@ -446,10 +409,9 @@ async def test_send_menu(
     interaction.response = response
     interaction.user = user
 
-    with caplog.at_level(DEBUG, logger=LOG_NAME):
-        async with database_manager.session() as session:
-            await consent_manager.send_menu(session, interaction)
-            await session.commit()
+    async with database_manager.session() as session:
+        await consent_manager.send_menu(session, interaction)
+        await session.commit()
 
     response.send_message.assert_called_once()
     assert response.send_message.call_args.args == (
@@ -464,10 +426,4 @@ async def test_send_menu(
     async with database_manager.session() as session:
         prompt = await session.get(ConsentPromptRecord, 10)
         assert prompt is not None
-
-    assert caplog.record_tuples == [(
-        LOG_NAME,
-        INFO,
-        "User 31 requested a consent menu",
-    )]
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 from axyn.database import UserRecord, MessageRecord, MessageRevisionRecord
 from discord import ChannelType, MessageType, Message
-from logging import getLogger
 from sqlalchemy import or_
 from sqlalchemy.orm import aliased
 from typing import TYPE_CHECKING
@@ -11,9 +10,6 @@ if TYPE_CHECKING:
     from axyn.client import AxynClient
     from sqlalchemy import Select
     from typing import Any, Optional
-
-
-_logger = getLogger(__name__)
 
 
 def is_direct(client: AxynClient, message: Message) -> bool:

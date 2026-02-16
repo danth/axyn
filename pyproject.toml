@@ -24,6 +24,10 @@ dependencies = [
   "discord.py >=2,<3",
   "fastembed >=0.7,<1",
   "ngt >=2,<3",
+  "opentelemetry-api ~= 1.34",
+  "opentelemetry-exporter-otlp-proto-http ~= 1.34",
+  "opentelemetry-instrumentation-sqlalchemy ~= 0.55b0",
+  "opentelemetry-sdk ~= 1.34",
   "sqlalchemy[aiosqlite] >=2,<3",
   "aiosqlite <0.22", # Causes tests to hang.
 ]
