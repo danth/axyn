@@ -58,7 +58,7 @@ async def _is_valid_pair(
     return valid
 
 
-async def test_human_replying_to_human_is_valid(session: AsyncSession):
+async def test_human_responding_to_human_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -96,7 +96,7 @@ async def test_human_replying_to_human_is_valid(session: AsyncSession):
     assert await _is_valid_pair(session, prompt, response)
 
 
-async def test_human_replying_to_self_is_invalid(session: AsyncSession):
+async def test_human_responding_to_self_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
     session.add(MessageRecord(
@@ -287,7 +287,7 @@ async def test_ephemeral_response_is_invalid(session: AsyncSession):
     assert not await _is_valid_pair(session, prompt, response)
 
 
-async def test_human_replying_to_bot_is_valid(session: AsyncSession):
+async def test_human_responding_to_bot_is_valid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=False))
     session.add(UserRecord(user_id=2, human=True))
     session.add(ChannelRecord(channel_id=1, guild_id=None))
@@ -325,7 +325,7 @@ async def test_human_replying_to_bot_is_valid(session: AsyncSession):
     assert await _is_valid_pair(session, prompt, response)
 
 
-async def test_bot_replying_to_human_is_invalid(session: AsyncSession):
+async def test_bot_responding_to_human_is_invalid(session: AsyncSession):
     session.add(UserRecord(user_id=1, human=True))
     session.add(UserRecord(user_id=2, human=False))
     session.add(ChannelRecord(channel_id=1, guild_id=None))

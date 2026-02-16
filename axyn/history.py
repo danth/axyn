@@ -20,7 +20,7 @@ async def analyze_delays(
 ) -> tuple[float, float, float]:
     """
     Query the database for messages from the given user, and run statistics
-    on how long they take to reply.
+    on how long they take to respond.
     """
 
     with _tracer.start_as_current_span(

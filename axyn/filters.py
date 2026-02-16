@@ -56,8 +56,8 @@ def select_valid_pairs[T: tuple[Any, ...]](
     )
 
 
-def reason_not_to_reply(message: Message) -> Optional[str]:
-    """If the given message shouldn't be replied to, return a reason why."""
+def reason_not_to_respond(message: Message) -> Optional[str]:
+    """If the given message shouldn't be responded to, return a reason why."""
 
     if (
         message.type != MessageType.default and

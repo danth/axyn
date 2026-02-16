@@ -10,7 +10,7 @@ from axyn.managers.database import DatabaseManager
 from axyn.managers.index import IndexManager
 from axyn.managers.scan import ScanManager
 from axyn.handlers.consent import ConsentHandler
-from axyn.handlers.reply import ReplyHandler
+from axyn.handlers.respond import RespondHandler
 from axyn.handlers.store import StoreHandler
 from datetime import datetime
 from discord import Client, Intents
@@ -43,8 +43,8 @@ class AxynClient(Client):
 
         super().__init__(intents=intents)
 
-        # (author id, user id) → scheduled reply
-        self.reply_tasks: dict[tuple[int, int], Task[None]] = dict()
+        # (author id, user id) → scheduled response
+        self.response_tasks: dict[tuple[int, int], Task[None]] = dict()
 
         # user id → time last seen typing
         self.last_typing: dict[int, datetime] = dict()
@@ -111,7 +111,7 @@ class AxynClient(Client):
 
         async with TaskGroup() as group:
             group.create_task(ConsentHandler(self, message).handle())
-            group.create_task(ReplyHandler(self, message).handle())
+            group.create_task(RespondHandler(self, message).handle())
 
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent):
         attributes = {
