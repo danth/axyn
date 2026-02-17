@@ -21,14 +21,12 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from asyncio import Task
     from discord import (
         ClientUser,
         Message,
         RawMessageUpdateEvent,
         RawMessageDeleteEvent,
         RawBulkMessageDeleteEvent,
-        RawTypingEvent,
     )
 
 
@@ -42,12 +40,6 @@ class AxynClient(Client):
         intents.message_content = True
 
         super().__init__(intents=intents)
-
-        # (author id, user id) → scheduled response
-        self.response_tasks: dict[tuple[int, int], Task[None]] = dict()
-
-        # user id → time last seen typing
-        self.last_typing: dict[int, datetime] = dict()
 
         self.command_tree = CommandTree(self)
 
@@ -99,12 +91,6 @@ class AxynClient(Client):
             await self._on_message(message)
 
     async def _on_message(self, message: Message):
-        try:
-            if self.last_typing[message.author.id] < message.created_at:
-                del self.last_typing[message.author.id]
-        except KeyError:
-            pass
-
         # This must finish before the other tasks start, because they assume the
         # message is already in our database.
         await StoreHandler(self, message).handle()
@@ -187,22 +173,4 @@ class AxynClient(Client):
             )
 
             await session.commit()
-
-    async def on_raw_typing(self, payload: RawTypingEvent):
-        attributes = {
-            "channel.id": payload.channel_id,
-            "user.id": payload.user_id,
-        }
-
-        if payload.guild_id is not None:
-            attributes["guild.id"] = payload.guild_id
-
-        with _tracer.start_as_current_span(
-            "handle typing notification",
-            attributes=attributes,
-        ):
-            await self._on_raw_typing(payload)
-
-    async def _on_raw_typing(self, payload: RawTypingEvent):
-            self.last_typing[payload.user_id] = payload.timestamp
 

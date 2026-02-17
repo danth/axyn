@@ -1,11 +1,9 @@
 from __future__ import annotations
-from asyncio import create_task, sleep, timeout
 from axyn.channel import channel_members
 from axyn.database import MessageRecord, MessageRevisionRecord
 from axyn.filters import reason_not_to_respond, is_direct
 from axyn.handlers import Handler
 from axyn.privacy import can_send_in_channel
-from datetime import datetime, timedelta, timezone
 from opentelemetry.trace import get_current_span, get_tracer
 from random import random, shuffle
 from typing import TYPE_CHECKING
@@ -33,14 +31,13 @@ class RespondHandler(Handler):
                 return
 
             if is_direct(self.client, self.message):
-                # If the prompt was direct, then a response should definitely
-                # be sent, and the user is probably expecting one. So it makes
-                # sense to start showing a typing indicator immediately.
+                # If the prompt was direct, then a response is guaranteed, and
+                # the user is probably waiting for one. So it makes sense to
+                # indicate that we are working on it.
                 async with self._channel.typing():
                     response, distance = await self._get_response()
             else:
-                # Otherwise, we may decide not to respond, so avoid showing a
-                # typing indicator until a response is chosen.
+                # Otherwise, we may decide not to respond, so work silently.
                 response, distance = await self._get_response()
 
             if response is None:
@@ -54,7 +51,7 @@ class RespondHandler(Handler):
                     attributes={"probability": probability},
                 )
 
-                self._schedule_response(response)
+                await self._send_response(response)
             else:
                 span.add_event(
                     "Probability check failed",
@@ -151,80 +148,6 @@ class RespondHandler(Handler):
             text = response_revision.replace_pings(replacements)
 
             return text
-
-    def _schedule_response(self, response: str):
-        """
-        Schedule the given response to be sent soon.
-
-        The response will normally be sent after a few seconds. If during that
-        time, the prompt author starts typing another message, the delay will
-        be extended until they stop.
-
-        If during the delay, another response is scheduled with the same
-        channel and prompt author, then this response will be discarded. This
-        particular key was chosen because:
-
-        - Keeping channels separate means that high traffic elsewhere does not
-          reduce the number of responses seen.
-        - Keeping users separate mimics a human responding to a few messages
-          they found interesting, rather than only the most recent message,
-          which makes the fact that responses can be cancelled less obvious.
-        - Cancelling responses to the same user avoids amplifying spam, because
-          if they message too fast, then we will discard most of our responses
-          before they are sent.
-        """
-
-        key = (self.message.author.id, self.message.channel.id)
-
-        if task := self.client.response_tasks.get(key):
-            if not task.done():
-                get_current_span().add_event("Cancelling existing scheduled response")
-                task.cancel()
-
-        task = create_task(self._do_response(response))
-        self.client.response_tasks[key] = task
-
-    async def _do_response(self, response: str):
-        """
-        Wait for a short length of time, then send the given response.
-
-        If during the delay, the prompt author starts typing another message,
-        the delay will be extended until they stop. If we are waiting for an
-        excessive length of time then the response will be discarded.
-        """
-
-        async with self._channel.typing():
-            try:
-                async with timeout(30):
-                    await self._delay_response()
-            except TimeoutError:
-                get_current_span().add_event("Cancelling scheduled response because the user is typing")
-                return
-
-        await self._send_response(response)
-
-    @_tracer.start_as_current_span("delay response")
-    async def _delay_response(self):
-        """
-        Wait for a short length of time.
-
-        If during the delay, the prompt author starts typing another message,
-        the delay will be extended until they stop.
-        """
-
-        delay = 2
-
-        while delay > 0:
-            await sleep(delay)
-
-            try:
-                last_typing = self.client.last_typing[self.message.author.id]
-            except KeyError:
-                break
-
-            typing_until = last_typing + timedelta(seconds=10)
-            delay = typing_until - datetime.now(timezone.utc)
-            delay = delay.total_seconds()
 
     @_tracer.start_as_current_span("send response")
     async def _send_response(self, response: str):
