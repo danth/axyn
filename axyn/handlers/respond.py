@@ -32,7 +32,16 @@ class RespondHandler(Handler):
                 span.add_event(f"Not responding because {reason}")
                 return
 
-            response, distance = await self._get_response()
+            if is_direct(self.client, self.message):
+                # If the prompt was direct, then a response should definitely
+                # be sent, and the user is probably expecting one. So it makes
+                # sense to start showing a typing indicator immediately.
+                async with self._channel.typing():
+                    response, distance = await self._get_response()
+            else:
+                # Otherwise, we may decide not to respond, so avoid showing a
+                # typing indicator until a response is chosen.
+                response, distance = await self._get_response()
 
             if response is None:
                 return
