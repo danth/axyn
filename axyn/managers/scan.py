@@ -3,6 +3,7 @@ from asyncio import Queue, TaskGroup, create_task
 from axyn.handlers.store import StoreHandler
 from axyn.managers import Manager
 from axyn.types import is_supported_channel_type
+from contextvars import Context
 from discord.errors import Forbidden
 from opentelemetry.trace import get_tracer
 from typing import TYPE_CHECKING
@@ -27,7 +28,9 @@ class ScanManager(Manager):
 
     @_tracer.start_as_current_span("set up scan manager")
     async def setup_hook(self):
-        create_task(self._handle())
+        # Run in an empty context to detach this background task from the
+        # parent span.
+        Context().run(create_task, self._handle())
 
     async def _handle(self):
         """

@@ -3,6 +3,7 @@ from axyn.database import MessageRecord, MessageRevisionRecord, get_path
 from axyn.filters import select_valid_pairs
 from axyn.history import analyze_delays
 from axyn.managers import Manager
+from contextvars import Context
 from discord.ext.tasks import loop
 from fastembed import TextEmbedding
 from ngtpy import create as create_ngt, Index
@@ -44,7 +45,9 @@ class IndexManager(Manager):
 
     @_tracer.start_as_current_span("set up index manager")
     async def setup_hook(self):
-        self._update_index.start()
+        # Run in an empty context to detach this background task from the
+        # parent span.
+        Context().run(self._update_index.start)
 
     @_tracer.start_as_current_span("embed text")
     def _vector(self, content: str) -> Vector:
