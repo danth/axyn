@@ -192,6 +192,12 @@ class IndexManager(Manager):
             if next_message is None:
                 return
 
+            if next_message.reference_id is not None:
+                # If it's referencing this prompt, then it will already have
+                # been returned from the references query above.
+                # If it's referencing something else, then we shouldn't use it.
+                return
+
             try:
                 _, _, upper_quartile = await analyze_delays(
                     session,
