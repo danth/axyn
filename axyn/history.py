@@ -43,8 +43,6 @@ async def analyze_delays(
                 )
                 .label("previous_message_id"),
             )
-            .where(MessageRecord.author_id == user_id)
-            .where(MessageRecord.ephemeral.is_not(True))
             .subquery("response")
         )
 
@@ -62,6 +60,8 @@ async def analyze_delays(
             )
             .where(prompt.author_id != user_id)
             .where(prompt.ephemeral.is_not(True))
+            .where(response.c.author_id == user_id)
+            .where(response.c.ephemeral.is_not(True))
         )
 
         stream = await session.stream(query)
