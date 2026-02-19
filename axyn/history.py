@@ -74,7 +74,7 @@ async def analyze_delays(
         finally:
             await stream.close()
 
-        lower, median, upper = quantiles(delays)
+        lower, median, upper = quantiles(delays, method="inclusive")
 
         span.set_attributes({
             "delays.count": len(delays),
